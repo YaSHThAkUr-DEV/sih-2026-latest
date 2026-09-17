@@ -509,11 +509,10 @@ export default function AdministrationView({
       {/* Toast Feedback */}
       {actionFeedback && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full text-xs font-medium shadow-2xl border animate-slide-up ${
-            actionFeedback.type === 'success'
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full text-xs font-medium shadow-2xl border animate-slide-up ${actionFeedback.type === 'success'
               ? 'bg-[#10141A] text-white border-[#D8DEEA]/40'
               : 'bg-rose-950 text-rose-100 border-rose-700'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[18px]">
             {actionFeedback.type === 'success' ? 'check_circle' : 'error'}
@@ -524,7 +523,7 @@ export default function AdministrationView({
 
       {/* Main Surface Card */}
       <div className="bg-white/85 backdrop-blur-xl rounded-[26px] p-6 lg:p-8 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 space-y-6">
-        
+
         {/* Header Ribbon */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -553,40 +552,51 @@ export default function AdministrationView({
           </div>
         </div>
 
-        {/* 7 Tab Navigation Pills */}
-        <div className="bg-white rounded-[20px] p-2 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex items-center gap-1.5 overflow-x-auto">
-          {[
-            { id: 'users', label: 'User Registry', icon: 'manage_accounts', count: users.length },
-            { id: 'hierarchy', label: 'Departments & Teams', icon: 'corporate_fare', count: departments.length },
-            { id: 'rbac', label: 'Roles & RBAC', icon: 'shield', count: roles.length },
-            { id: 'types_tiers', label: 'Taxonomy & Tiers', icon: 'category', count: documentTypes.length },
-            { id: 'policies', label: 'Governance Policies', icon: 'policy', count: policies.length },
-            { id: 'modules', label: 'Service Modules', icon: 'toggle_on' },
-            { id: 'system', label: 'System Telemetry', icon: 'tune' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-[#000000] text-white shadow-sm'
-                  : 'text-[#6B7280] hover:text-[#10141A] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-[#E9ECF4] text-[#6B7280]'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* Main 2-Column Layout: Left Vertical Settings Rail + Right Active Configuration Stage */}
+        <div className="flex flex-col lg:flex-row items-start gap-6 pt-1">
+          {/* Left Vertical Settings Rail */}
+          <div className="w-full lg:w-60 shrink-0 bg-[#f0f3ff]/70 rounded-[24px] p-3 border border-[#D8DEEA]/70 flex flex-col gap-1.5 self-start sticky top-24 select-none">
+            <span className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-1">
+              Settings Modules
+            </span>
+            {[
+              { id: 'users', label: 'User Registry', icon: 'manage_accounts', count: users.length },
+              { id: 'hierarchy', label: 'Departments & Teams', icon: 'corporate_fare', count: departments.length },
+              { id: 'rbac', label: 'Roles & RBAC', icon: 'shield', count: roles.length },
+              { id: 'types_tiers', label: 'Taxonomy & Tiers', icon: 'category', count: documentTypes.length },
+              { id: 'policies', label: 'Governance Policies', icon: 'policy', count: policies.length },
+              { id: 'modules', label: 'Service Modules', icon: 'toggle_on' },
+              { id: 'system', label: 'System Telemetry', icon: 'tune' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-[#000000] text-white shadow-sm font-semibold'
+                    : 'text-[#45474b] hover:text-[#10141A] hover:bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+                  <span className="truncate">{tab.label}</span>
+                </div>
+                {tab.count !== undefined && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full font-mono text-[10px] shrink-0 font-semibold ${
+                      activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-[#E9ECF4] text-[#6B7280]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-        {/* TAB 1: USERS */}
+          {/* Right Active Configuration Panel */}
+          <div className="flex-1 min-w-0 w-full space-y-6">
+            {/* TAB 1: USERS */}
         {activeTab === 'users' && (
           <div className="space-y-4">
             <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -658,9 +668,8 @@ export default function AdministrationView({
                             </div>
                           </td>
                           <td className="py-3 px-3">
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                              u.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${u.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                              }`}>
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                               {u.status}
                             </span>
@@ -761,11 +770,10 @@ export default function AdministrationView({
                     <div
                       key={r.id}
                       onClick={() => handleSelectRole(r)}
-                      className={`p-3 rounded-[16px] cursor-pointer transition flex items-center justify-between border ${
-                        isSelected
+                      className={`p-3 rounded-[16px] cursor-pointer transition flex items-center justify-between border ${isSelected
                           ? 'bg-[#f0f3ff] border-[#83A2DB] shadow-xs'
                           : 'bg-white border-[#D8DEEA]/60 hover:bg-[#f0f3ff]/40'
-                      }`}
+                        }`}
                     >
                       <div>
                         <div className="font-semibold text-xs text-[#10141A]">{r.name}</div>
@@ -802,9 +810,8 @@ export default function AdministrationView({
                   return (
                     <label
                       key={p.id}
-                      className={`p-3 rounded-[16px] border flex items-start gap-2.5 cursor-pointer transition ${
-                        isChecked ? 'bg-[#f0f3ff] border-[#83A2DB]/50' : 'bg-white border-[#D8DEEA]/60'
-                      }`}
+                      className={`p-3 rounded-[16px] border flex items-start gap-2.5 cursor-pointer transition ${isChecked ? 'bg-[#f0f3ff] border-[#83A2DB]/50' : 'bg-white border-[#D8DEEA]/60'
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -921,9 +928,8 @@ export default function AdministrationView({
                           <td className="py-3 px-3">{pol.security_level_name}</td>
                           <td className="py-3 px-3 text-[#6B7280]">{pol.retention_policy_name || 'Standard Retention'}</td>
                           <td className="py-3 px-3">
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                              pol.approval_required ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${pol.approval_required ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
                               {pol.approval_required ? 'Required' : 'Standard'}
                             </span>
                           </td>
@@ -966,17 +972,16 @@ export default function AdministrationView({
                   <div
                     key={key}
                     onClick={() => setOfficeFeatures({ ...officeFeatures, [key]: !isChecked })}
-                    className={`p-4 rounded-[20px] border transition cursor-pointer flex items-start justify-between gap-3 ${
-                      isChecked
+                    className={`p-4 rounded-[20px] border transition cursor-pointer flex items-start justify-between gap-3 ${isChecked
                         ? 'bg-[#f0f3ff] border-[#83A2DB]/60'
                         : 'bg-white border-[#D8DEEA]/60 opacity-80'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         className="mt-1 w-4 h-4 text-[#3f5e93] rounded"
                       />
                       <div className="space-y-0.5">
@@ -987,9 +992,8 @@ export default function AdministrationView({
                         <p className="text-xs text-[#6B7280]">{mod.description}</p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-medium px-2.5 py-0.5 rounded-full uppercase shrink-0 ${
-                      isChecked ? 'bg-[#000000] text-white' : 'bg-[#E9ECF4] text-[#6B7280]'
-                    }`}>
+                    <span className={`text-[10px] font-medium px-2.5 py-0.5 rounded-full uppercase shrink-0 ${isChecked ? 'bg-[#000000] text-white' : 'bg-[#E9ECF4] text-[#6B7280]'
+                      }`}>
                       {isChecked ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
@@ -1057,6 +1061,8 @@ export default function AdministrationView({
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Enroll User Modal */}
