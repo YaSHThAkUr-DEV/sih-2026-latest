@@ -48,6 +48,7 @@ export function VersionHistoryModal({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadReason, setUploadReason] = useState('');
+  const [requireDualCustody, setRequireDualCustody] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -92,6 +93,7 @@ export function VersionHistoryModal({
       const formData = new FormData();
       formData.append('file', uploadFile);
       formData.append('reason', uploadReason.trim());
+      formData.append('requireApproval', requireDualCustody ? 'true' : 'false');
 
       const res = await fetch(`/api/documents/${documentId}/versions`, {
         method: 'POST',
@@ -192,14 +194,21 @@ export function VersionHistoryModal({
                 </button>
               </div>
 
-              {isSensitive && (
-                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-amber-700 shrink-0">shield_lock</span>
+              {/* Dual Custody Option */}
+              <div className="p-2.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-[11px] text-blue-950 flex items-start gap-2">
+                <span className="material-symbols-outlined text-[16px] text-[#3f5e93] shrink-0 mt-0.5">rule</span>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={requireDualCustody}
+                    onChange={(e) => setRequireDualCustody(e.target.checked)}
+                    className="w-4 h-4 rounded-sm border-slate-300 text-[#3f5e93] focus:ring-0 cursor-pointer mt-0.5"
+                  />
                   <span>
-                    <strong>Classification Tier {securityTier} Enforced:</strong> This revision will be cryptographically quarantined and routed to the Department Approver Queue before replacement.
+                    <strong>Maker-Checker Dual-Custody Approval:</strong> Route this revision through the Approvals Queue for Section Head / Approver sign-off before promoting to active docket.
                   </span>
-                </div>
-              )}
+                </label>
+              </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-[#45474b] uppercase mb-1">
@@ -259,48 +268,54 @@ export function VersionHistoryModal({
             </div>
           ) : (
             <div className="relative pl-6 space-y-5 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#D8DEEA]">
-              {versions.map((ver) => (
-                <div key={ver.versionId} className="relative group">
-                  {/* Timeline Dot */}
-                  <div className={`absolute -left-6 top-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    ver.isCurrent
-                      ? 'bg-[#3f5e93] text-white shadow-xs ring-4 ring-blue-100'
-                      : ver.versionStatus === 'PENDING'
-                      ? 'bg-amber-500 text-white ring-4 ring-amber-100 animate-pulse'
-                      : 'bg-slate-300 text-slate-700'
-                  }`}>
-                    {ver.versionNumber}
-                  </div>
+              {versions.map((ver) => {
+                const isPending =
+                  ver.versionStatus === 'PENDING' ||
+                  ver.versionStatus === 'PENDING_APPROVAL' ||
+                  ver.approvalStatus === 'PENDING';
 
-                  {/* Version Card */}
-                  <div className="bg-[#f0f3ff]/40 border border-[#D8DEEA]/70 rounded-2xl p-4 space-y-2 hover:bg-white hover:border-[#D8DEEA] transition">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-[#151c27]">
-                          v{ver.versionNumber}.0
-                        </span>
-                        {ver.isCurrent && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
-                            CURRENT ACTIVE
-                          </span>
-                        )}
-                        {ver.versionStatus === 'PENDING' && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping"></span>
-                            PENDING APPROVAL
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => onDownloadVersion(documentId, documentNumber, ver.fileName)}
-                        className="h-7 px-3 bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-semibold rounded-full border border-[#D8DEEA] flex items-center gap-1 transition cursor-pointer"
-                        title="Stream and decrypt this revision"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">download</span>
-                        <span>Decrypt v{ver.versionNumber}.0</span>
-                      </button>
+                return (
+                  <div key={ver.versionId} className="relative group">
+                    {/* Timeline Dot */}
+                    <div className={`absolute -left-6 top-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      ver.isCurrent
+                        ? 'bg-[#3f5e93] text-white shadow-xs ring-4 ring-blue-100'
+                        : isPending
+                        ? 'bg-amber-500 text-white ring-4 ring-amber-100 animate-pulse'
+                        : 'bg-slate-300 text-slate-700'
+                    }`}>
+                      {ver.versionNumber}
                     </div>
+
+                    {/* Version Card */}
+                    <div className="bg-[#f0f3ff]/40 border border-[#D8DEEA]/70 rounded-2xl p-4 space-y-2 hover:bg-white hover:border-[#D8DEEA] transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-[#151c27]">
+                            v{ver.versionNumber}.0
+                          </span>
+                          {ver.isCurrent && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
+                              CURRENT ACTIVE
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping"></span>
+                              PENDING APPROVAL
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => onDownloadVersion(documentId, documentNumber, ver.fileName)}
+                          className="h-7 px-3 bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-semibold rounded-full border border-[#D8DEEA] flex items-center gap-1 transition cursor-pointer"
+                          title="Stream and decrypt this revision"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">download</span>
+                          <span>Decrypt v{ver.versionNumber}.0</span>
+                        </button>
+                      </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono text-[#45474b] pt-1">
                       <div>
@@ -335,8 +350,9 @@ export function VersionHistoryModal({
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
           )}
         </div>
 

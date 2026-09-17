@@ -100,11 +100,15 @@ export async function POST(
          d.document_number,
          d.title,
          d.organization_id,
+         d.department_id,
          d.current_version_id,
          sl.code as security_tier,
-         sl.name as security_tier_name
+         sl.name as security_tier_name,
+         sl.approval_required,
+         org.features
        FROM documents d
        JOIN security_levels sl ON d.security_level_id = sl.id
+       JOIN organizations org ON d.organization_id = org.id
        WHERE d.id::text = $1 OR d.document_number = $1;`,
       [id]
     );
@@ -119,6 +123,7 @@ export async function POST(
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const reason = (formData.get('reason') as string | null) || 'Evidentiary revision update';
+    const explicitApproval = formData.get('requireApproval') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'Replacement file is required' }, { status: 400 });
@@ -159,18 +164,27 @@ export async function POST(
       kmsProvider: envelope.kmsProvider,
     });
 
-    const isSensitive = doc.security_tier === 'T4' || doc.security_tier === 'T5';
+    // Check if Maker-Checker approval is required
+    const isApprovalsModuleEnabled = doc.features?.feature_approvals !== false;
+    const requiresApproval =
+      explicitApproval === 'true' ||
+      (explicitApproval !== 'false' && (
+        doc.approval_required === true ||
+        doc.security_tier === 'T4' ||
+        doc.security_tier === 'T5' ||
+        isApprovalsModuleEnabled
+      ));
 
-    if (isSensitive) {
-      // 6A. High Classification (T4/T5): Quarantine as PENDING & Route to Maker-Checker
+    if (requiresApproval) {
+      // 6A. Maker-Checker Quarantine: Quarantine as PENDING_APPROVAL & Route to Queue
       const verInsert = await query<{ id: string }>(
         `INSERT INTO document_versions (
-           document_id, version_number, status, is_current, created_by,
+           document_id, version_number, status, created_by,
            file_name, mime_type, file_size, sha256_hash,
            encryption_algorithm, key_wrap_algorithm, vault_key_reference,
            minio_bucket, minio_object_key, checksum_verified
          )
-         VALUES ($1, $2, 'PENDING', false, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
+         VALUES ($1, $2, 'PENDING_APPROVAL', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
          RETURNING id;`,
         [
           id,
@@ -189,13 +203,27 @@ export async function POST(
       );
       const newVersionId = verInsert[0].id;
 
+      // Find department approver
+      const approverRes = await query<{ id: string }>(
+        `SELECT u.id FROM users u
+         JOIN user_roles ur ON u.id = ur.user_id
+         JOIN roles r ON ur.role_id = r.id
+         WHERE u.organization_id = $1 
+           AND r.code IN ('DEPT_HEAD', 'ORG_ADMIN', 'SUPER_ADMIN')
+           AND u.id != $2
+         ORDER BY (u.department_id = $3) DESC, u.created_at ASC
+         LIMIT 1;`,
+        [doc.organization_id, session.userId, doc.department_id]
+      );
+      const assignedApproverId = approverRes[0]?.id || null;
+
       // Create Maker-Checker change request
       await query(
         `INSERT INTO change_requests (
-           document_id, original_version_id, proposed_version_id, requested_by, reason, status
+           document_id, original_version_id, proposed_version_id, requested_by, assigned_approver_id, reason, status
          )
-         VALUES ($1, $2, $3, $4, $5, 'PENDING');`,
-        [id, doc.current_version_id, newVersionId, session.userId, reason]
+         VALUES ($1, $2, $3, $4, $5, $6, 'PENDING');`,
+        [id, doc.current_version_id, newVersionId, session.userId, assignedApproverId, reason]
       );
 
       // Audit Log
@@ -214,6 +242,7 @@ export async function POST(
           proposedVersion: nextVersionNumber,
           reason,
           sha256: envelope.sha256Checksum,
+          assignedApproverId,
         },
       });
 
@@ -224,27 +253,29 @@ export async function POST(
         requiresApproval: true,
         versionNumber: nextVersionNumber,
         versionId: newVersionId,
-        message: `Version v${nextVersionNumber}.0 quarantined as PENDING. Requires Department Head Maker-Checker authorization under Section 65B rules.`,
+        message: `Version v${nextVersionNumber}.0 submitted to Approvals Queue (Quarantined as PENDING). Routed to Department Head for Maker-Checker sign-off.`,
       });
     } else {
       // 6B. Lower Classification (T1-T3): Direct Promotion
       // Archive previous version
-      await query(
-        `UPDATE document_versions 
-         SET is_current = false, status = 'ARCHIVED' 
-         WHERE document_id = $1 AND is_current = true;`,
-        [id]
-      );
+      if (doc.current_version_id) {
+        await query(
+          `UPDATE document_versions 
+           SET status = 'ARCHIVED' 
+           WHERE id = $1;`,
+          [doc.current_version_id]
+        );
+      }
 
       // Insert new version as ACTIVE
       const verInsert = await query<{ id: string }>(
         `INSERT INTO document_versions (
-           document_id, version_number, status, is_current, created_by,
+           document_id, version_number, status, created_by,
            file_name, mime_type, file_size, sha256_hash,
            encryption_algorithm, key_wrap_algorithm, vault_key_reference,
            minio_bucket, minio_object_key, checksum_verified
          )
-         VALUES ($1, $2, 'ACTIVE', true, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
+         VALUES ($1, $2, 'ACTIVE', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
          RETURNING id;`,
         [
           id,

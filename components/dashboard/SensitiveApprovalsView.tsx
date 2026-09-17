@@ -70,9 +70,7 @@ export default function SensitiveApprovalsView({
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   // Decision Form State
-  const [justification, setJustification] = useState(
-    'I have reviewed the supplementary record telemetry and confirmed cryptographic hash consistency with hardware key forensics. Approved for formal submission.'
-  );
+  const [justification, setJustification] = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
   const [signingProgress, setSigningProgress] = useState(0);
   const [signingStep, setSigningStep] = useState('');
@@ -527,7 +525,8 @@ export default function SensitiveApprovalsView({
                 disabled={isDeciding || !activeRequest.canApprove}
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
-                className="w-full p-3.5 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] leading-relaxed font-medium"
+                placeholder="Enter mandatory approver justification and statutory compliance sign-off note..."
+                className="w-full p-3.5 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] leading-relaxed font-medium placeholder:text-[#9CA3AF]"
               ></textarea>
             </div>
 

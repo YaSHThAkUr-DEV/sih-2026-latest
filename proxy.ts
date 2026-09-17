@@ -8,7 +8,7 @@ const COOKIE_NAME = 'dms_session';
 // Routes requiring authentication
 const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/documents', '/approvals', '/audit'];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
 
@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
     await jwtVerify(token, secretKey);
     const res = NextResponse.next();
     return applySecurityHeaders(res);
-  } catch (err) {
+  } catch {
     // Token expired or tampered
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('redirect', pathname);
@@ -55,4 +55,3 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
-

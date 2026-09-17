@@ -45,8 +45,10 @@ export class OcrExtractorService {
         engine = 'PDF-Engine / Tesseract';
         engineVersion = '1.1.1';
       } catch (err: any) {
-        console.warn(`[OCR] Direct PDF extraction failed: ${err.message}, attempting raw textual parsing`);
-        extractedText = buffer.toString('utf-8').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
+        console.warn(`[OCR] Direct PDF extraction failed: ${err.message}, extracting printable string chunks`);
+        const rawStr = buffer.toString('latin1');
+        const matches = rawStr.match(/[A-Za-z0-9\s.,;:!?@#%&*()_\-+=\[\]{}<>\/\\'"`~-]{4,}/g);
+        extractedText = matches ? matches.join(' ') : 'Scanned document payload (binary format)';
         confidence = 65.0;
       }
     } else if (isImage) {
@@ -75,8 +77,11 @@ export class OcrExtractorService {
       }
     }
 
-    // Clean and normalize extracted text
+    // Clean and normalize extracted text (remove null bytes, replacement chars, zero-width chars)
     const normalizedText = extractedText
+      .replace(/\0/g, '')
+      .replace(/[\uFFFD\uFEFF]/g, ' ')
+      .replace(/[\u200B-\u200D]/g, '')
       .replace(/\r\n/g, '\n')
       .replace(/[ \t]+/g, ' ')
       .trim();

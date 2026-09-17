@@ -7,13 +7,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Form states
-  const [tenantId, setTenantId] = useState('DEMO');
-  const [userCredential, setUserCredential] = useState('officer@dms.gov.in');
-  const [userSecret, setUserSecret] = useState('Officer@DMS2026!');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [tenantId, setTenantId] = useState('');
+  const [userCredential, setUserCredential] = useState('');
+  const [userSecret, setUserSecret] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeRoleName, setActiveRoleName] = useState('Dealing Officer');
+  const [activeRoleName, setActiveRoleName] = useState('');
 
   // Alert & Toast states
   const [alert, setAlert] = useState<{
@@ -278,7 +278,9 @@ export default function LoginPage() {
                     type="text"
                     required
                     value={tenantId}
-                    onChange={(e) => setTenantId(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      setTenantId(e.target.value.toUpperCase());
+                    }}
                     placeholder="DEMO"
                     className={`w-full h-11 pl-10 pr-3.5 text-[13px] font-mono rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
                       isDark
@@ -306,7 +308,10 @@ export default function LoginPage() {
                     type="text"
                     required
                     value={userCredential}
-                    onChange={(e) => setUserCredential(e.target.value)}
+                    onChange={(e) => {
+                      setUserCredential(e.target.value);
+                      if (activeRoleName) setActiveRoleName('');
+                    }}
                     placeholder="name@organization.gov.in"
                     className={`w-full h-11 pl-10 pr-3.5 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
                       isDark
@@ -336,7 +341,10 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={userSecret}
-                    onChange={(e) => setUserSecret(e.target.value)}
+                    onChange={(e) => {
+                      setUserSecret(e.target.value);
+                      if (activeRoleName) setActiveRoleName('');
+                    }}
                     placeholder="••••••••••••"
                     className={`w-full h-11 pl-10 pr-10 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
                       isDark
@@ -391,7 +399,7 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    <span>Sign in as {activeRoleName}</span>
+                    <span>{activeRoleName ? `Sign in as ${activeRoleName}` : 'Sign In'}</span>
                     <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </>
                 )}

@@ -20,9 +20,20 @@ if (process.env.NODE_ENV !== 'production') {
   global._dmsPool = pool;
 }
 
+function sanitizeParam(val: any): any {
+  if (typeof val === 'string') {
+    return val.replace(/\0/g, '').replace(/[\uFFFD\uFEFF]/g, ' ');
+  }
+  if (Array.isArray(val)) {
+    return val.map(sanitizeParam);
+  }
+  return val;
+}
+
 export async function query<T = any>(text: string, params?: any[]): Promise<T[]> {
+  const sanitizedParams = params ? params.map(sanitizeParam) : params;
   const start = Date.now();
-  const res = await pool.query(text, params);
+  const res = await pool.query(text, sanitizedParams);
   const duration = Date.now() - start;
   if (process.env.NODE_ENV === 'development' && duration > 500) {
     console.warn(`[SLOW_QUERY] (${duration}ms): ${text}`);

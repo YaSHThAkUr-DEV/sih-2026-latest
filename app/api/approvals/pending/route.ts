@@ -68,12 +68,12 @@ export async function GET(req: NextRequest) {
         act.created_at as decision_timestamp
       FROM change_requests cr
       JOIN documents d ON cr.document_id = d.id
-      JOIN departments dept ON d.department_id = dept.id
-      JOIN security_levels sec ON d.security_level_id = sec.id
-      JOIN document_types dt ON d.document_type_id = dt.id
+      LEFT JOIN departments dept ON d.department_id = dept.id
+      LEFT JOIN security_levels sec ON d.security_level_id = sec.id
+      LEFT JOIN document_types dt ON d.document_type_id = dt.id
       JOIN users req_u ON cr.requested_by = req_u.id
       LEFT JOIN users app_u ON cr.assigned_approver_id = app_u.id
-      JOIN document_versions orig_v ON cr.original_version_id = orig_v.id
+      LEFT JOIN document_versions orig_v ON cr.original_version_id = orig_v.id
       JOIN document_versions prop_v ON cr.proposed_version_id = prop_v.id
       LEFT JOIN approval_actions act ON act.change_request_id = cr.id
       WHERE d.organization_id = $1 AND ${statusFilter}
@@ -87,7 +87,10 @@ export async function GET(req: NextRequest) {
       const isRequester = r.requester_id === session.userId;
       // An officer can approve if they are NOT the requester, AND they are either the assigned approver, or a DEPT_HEAD / SUPER_ADMIN
       const isAssigned = r.assigned_approver_id === session.userId;
-      const hasPrivilege = session.roles.includes('SUPER_ADMIN') || session.roles.includes('DEPT_HEAD');
+      const hasPrivilege =
+        session.roles.includes('SUPER_ADMIN') ||
+        session.roles.includes('DEPT_HEAD') ||
+        session.roles.includes('ORG_ADMIN');
       const canApprove = !isRequester && (isAssigned || hasPrivilege) && r.request_status === 'PENDING';
 
       return {
