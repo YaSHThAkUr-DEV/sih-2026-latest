@@ -951,8 +951,8 @@ export default function DashboardPage() {
                           </td>
                         </tr>
                       ) : (
-                        documents.map((doc) => (
-                          <tr key={doc.id} className="hover:bg-[#f0f3ff]/40 transition font-medium">
+                        documents.map((doc, index) => (
+                          <tr key={`${doc.id}-${doc.version_number || index}`} className="hover:bg-[#f0f3ff]/40 transition font-medium">
                             <td className="py-3.5 px-4 font-mono font-semibold text-[#151c27] whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">description</span>

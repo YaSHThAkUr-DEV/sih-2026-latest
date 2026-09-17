@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     if (searchQuery) {
       params.push(`%${searchQuery}%`);
       whereConditions.push(
-        `(d.document_number ILIKE $${params.length} OR d.title ILIKE $${params.length} OR d.description ILIKE $${params.length} OR u.full_name ILIKE $${params.length} OR dep.name ILIKE $${params.length})`
+        `(d.document_number ILIKE $${params.length} OR d.title ILIKE $${params.length} OR d.description ILIKE $${params.length} OR u.full_name ILIKE $${params.length} OR dep.name ILIKE $${params.length} OR ocr.extracted_text ILIKE $${params.length})`
       );
     }
 
@@ -64,6 +64,8 @@ export async function GET(req: NextRequest) {
       JOIN security_levels sl ON d.security_level_id = sl.id
       JOIN departments dep ON d.department_id = dep.id
       JOIN users u ON d.owner_id = u.id
+      LEFT JOIN document_versions dv ON d.current_version_id = dv.id
+      LEFT JOIN ocr_results ocr ON dv.id = ocr.document_version_id
       WHERE ${whereSql}
     `;
 
@@ -77,7 +79,7 @@ export async function GET(req: NextRequest) {
     const offsetPlaceholder = `$${docParams.length}`;
 
     const dataSql = `
-      SELECT 
+      SELECT DISTINCT
         d.id,
         d.document_number,
         d.title,
@@ -105,6 +107,7 @@ export async function GET(req: NextRequest) {
       JOIN departments dep ON d.department_id = dep.id
       JOIN users u ON d.owner_id = u.id
       LEFT JOIN document_versions dv ON d.current_version_id = dv.id
+      LEFT JOIN ocr_results ocr ON dv.id = ocr.document_version_id
       WHERE ${whereSql}
       ORDER BY d.created_at DESC
       LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}

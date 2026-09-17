@@ -36,20 +36,26 @@ export class OcrExtractorService {
 
     if (isPdf) {
       try {
-        const pdfModule = await import('pdf-parse');
-        const pdfParser = (pdfModule as any).default || pdfModule;
-        const pdfData = await pdfParser(buffer);
-        extractedText = pdfData.text || '';
-        pageCount = pdfData.numpages || 1;
-        confidence = extractedText.trim().length > 0 ? 98.5 : 50.0;
-        engine = 'PDF-Engine / Tesseract';
-        engineVersion = '1.1.1';
+        const pdfModule: any = await import('pdf-parse');
+        if (pdfModule.PDFParse) {
+          const parser = new pdfModule.PDFParse({ data: new Uint8Array(buffer) });
+          const pdfData = await parser.getText();
+          extractedText = pdfData.text || '';
+          pageCount = pdfData.total || pdfData.pages?.length || 1;
+          confidence = extractedText.trim().length > 0 ? 98.5 : 50.0;
+        } else if (typeof pdfModule === 'function' || typeof pdfModule.default === 'function') {
+          const parseFn = typeof pdfModule === 'function' ? pdfModule : pdfModule.default;
+          const pdfData = await parseFn(buffer);
+          extractedText = pdfData.text || '';
+          pageCount = pdfData.numpages || 1;
+          confidence = extractedText.trim().length > 0 ? 98.5 : 50.0;
+        }
+        engine = 'PDF-Engine / Parser';
+        engineVersion = '2.4.5';
       } catch (err: any) {
-        console.warn(`[OCR] Direct PDF extraction failed: ${err.message}, extracting printable string chunks`);
-        const rawStr = buffer.toString('latin1');
-        const matches = rawStr.match(/[A-Za-z0-9\s.,;:!?@#%&*()_\-+=\[\]{}<>\/\\'"`~-]{4,}/g);
-        extractedText = matches ? matches.join(' ') : 'Scanned document payload (binary format)';
-        confidence = 65.0;
+        console.warn(`[OCR] Direct PDF extraction failed: ${err.message}`);
+        extractedText = '';
+        confidence = 0.0;
       }
     } else if (isImage) {
       try {
@@ -77,11 +83,12 @@ export class OcrExtractorService {
       }
     }
 
-    // Clean and normalize extracted text (remove null bytes, replacement chars, zero-width chars)
+    // Clean and normalize extracted text (remove null bytes, replacement chars, zero-width chars, Private Use Area symbols)
     const normalizedText = extractedText
       .replace(/\0/g, '')
       .replace(/[\uFFFD\uFEFF]/g, ' ')
       .replace(/[\u200B-\u200D]/g, '')
+      .replace(/[\uE000-\uF8FF]/g, ' ')
       .replace(/\r\n/g, '\n')
       .replace(/[ \t]+/g, ' ')
       .trim();

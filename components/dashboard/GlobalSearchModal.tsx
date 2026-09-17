@@ -299,7 +299,7 @@ export function GlobalSearchModal({
           ) : (
             results.map((item, idx) => (
               <div
-                key={item.id}
+                key={`${item.id}-${item.versionId}`}
                 ref={(el) => {
                   itemRefs.current[idx] = el;
                 }}

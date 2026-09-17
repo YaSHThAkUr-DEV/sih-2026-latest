@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
     const userMaxLevel = isSuperAdmin(session) ? 5 : (session.maxSecurityLevel ?? 3);
 
     const conditions: string[] = [
-      'd.current_version_id = dv.id',
       'd.organization_id = $1',
       "d.status != 'DELETED'",
       'sl.rank <= $2',
@@ -36,7 +35,9 @@ export async function GET(req: NextRequest) {
       const qIdx = `$${paramIndex++}`;
       conditions.push(`(
         (ocr.search_vector IS NOT NULL AND ocr.search_vector @@ plainto_tsquery('simple', ${qIdx}))
+        OR (ocr.extracted_text IS NOT NULL AND ocr.extracted_text ILIKE ('%' || ${qIdx} || '%'))
         OR d.title ILIKE ('%' || ${qIdx} || '%')
+        OR dv.file_name ILIKE ('%' || ${qIdx} || '%')
         OR d.document_number ILIKE ('%' || ${qIdx} || '%')
         OR (d.description IS NOT NULL AND d.description ILIKE ('%' || ${qIdx} || '%'))
         OR u.full_name ILIKE ('%' || ${qIdx} || '%')
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
     const headlineSelect = hasQuery
       ? `ts_headline('simple', coalesce(ocr.extracted_text, d.description, d.title), 
           plainto_tsquery('simple', $3), 
-          'StartSel=<mark class="bg-amber-200 text-slate-900 font-bold px-0.5 rounded">, StopSel=</mark>, MaxWords=35, MinWords=15'
+          'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15'
         ) as matched_snippet,
         ts_rank(coalesce(ocr.search_vector, to_tsvector('simple', '')), plainto_tsquery('simple', $3)) as rank_score,`
       : `coalesce(d.description, 'Case record registered in secure document vault.') as matched_snippet,

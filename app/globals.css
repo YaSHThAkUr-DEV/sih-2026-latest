@@ -86,3 +86,11 @@
   background: #CBD5E1;
   border-radius: 4px;
 }
+
+mark {
+  background-color: #fef08a;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+}

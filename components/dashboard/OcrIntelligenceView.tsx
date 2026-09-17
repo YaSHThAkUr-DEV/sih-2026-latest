@@ -202,7 +202,7 @@ export function OcrIntelligenceView({
         ) : (
           results.map((item) => (
             <div
-              key={item.id}
+              key={`${item.id}-${item.versionId}`}
               className="bg-white rounded-[20px] border border-[#D8DEEA]/80 shadow-xs p-5 hover:shadow-md hover:border-[#3f5e93]/50 transition flex flex-col gap-3"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D8DEEA]/40 pb-3">

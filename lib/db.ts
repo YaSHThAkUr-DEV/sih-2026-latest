@@ -22,7 +22,12 @@ if (process.env.NODE_ENV !== 'production') {
 
 function sanitizeParam(val: any): any {
   if (typeof val === 'string') {
-    return val.replace(/\0/g, '').replace(/[\uFFFD\uFEFF]/g, ' ');
+    return val
+      .replace(/\0/g, '')
+      .replace(/[\uFFFD\uFEFF]/g, ' ')
+      .replace(/[\uE000-\uF8FF]/g, ' ')
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, ' ');
   }
   if (Array.isArray(val)) {
     return val.map(sanitizeParam);
