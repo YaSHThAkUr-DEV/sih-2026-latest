@@ -162,12 +162,12 @@ export function GlobalSearchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#10141A]/70 backdrop-blur-xs flex items-start justify-center p-3 sm:p-6 md:p-10 overflow-y-auto font-sans text-[#151c27] animate-in fade-in duration-150"
-      // Backdrop click is strictly inert: only the Escape key (or explicit close button) closes this modal
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-50 bg-[#10141A]/70 backdrop-blur-xs flex items-start justify-center p-3 sm:p-6 md:p-10 overflow-y-auto font-sans text-[#151c27] animate-in fade-in duration-150 cursor-pointer"
+      // Clicking outside the search menu card closes the modal
+      onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-3xl rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-[#D8DEEA] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto sm:my-8"
+        className="bg-white w-full max-w-3xl rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-[#D8DEEA] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto sm:my-8 cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Search Input Bar */}
@@ -391,7 +391,7 @@ export function GlobalSearchModal({
               <kbd className="px-1.5 py-0.5 bg-white border border-[#D8DEEA] rounded font-mono text-[10px] shadow-2xs text-[#151c27] font-bold">
                 ESC
               </kbd>
-              <span>close (only key)</span>
+              <span>or click outside to close</span>
             </span>
           </div>
 
