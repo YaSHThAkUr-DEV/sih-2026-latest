@@ -51,10 +51,7 @@ export default function EvidenceIngestionView({
   const [docType, setDocType] = useState('OM');
   const [deptCode, setDeptCode] = useState('ADMIN');
   const [secTier, setSecTier] = useState('T2');
-  const [docketRef, setDocketRef] = useState('');
   const [synopsis, setSynopsis] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [newTagInput, setNewTagInput] = useState('');
 
   // Dynamic Taxonomies
   const [docTypes, setDocTypes] = useState<TaxonomyDocType[]>([]);
@@ -89,7 +86,6 @@ export default function EvidenceIngestionView({
           }
           if (data.securityLevels && data.securityLevels.length > 0) {
             setSecurityLevels(data.securityLevels);
-            // Default to highest accessible or T2
             const accessible = data.securityLevels.filter((s: any) => s.isAccessible);
             if (accessible.length > 0) {
               setSecTier(accessible[Math.min(1, accessible.length - 1)].code);
@@ -164,21 +160,6 @@ export default function EvidenceIngestionView({
     setDocNumber(`DOC-${prefix}-${year}-${seq}`);
   };
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const val = newTagInput.trim();
-      if (val && !tags.includes(val)) {
-        setTags([...tags, val]);
-        setNewTagInput('');
-      }
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
@@ -195,7 +176,7 @@ export default function EvidenceIngestionView({
 
     setProgressPercent(35);
     setProgressLabel('Verifying document integrity...');
-    setProgressSubtext('Computing SHA-256 checksum for upload verification...');
+    setProgressSubtext('Computing bit-exact SHA-256 digest...');
 
     try {
       const year = new Date().getFullYear();
@@ -225,8 +206,8 @@ export default function EvidenceIngestionView({
       }
 
       setProgressPercent(100);
-      setProgressLabel('Upload completed and recorded!');
-      setProgressSubtext('Document sealed and registered in database.');
+      setProgressLabel('Upload completed and sealed!');
+      setProgressSubtext('Document registered in database and GIN index updated.');
 
       setUploadReceipt(data.document);
     } catch (err: any) {
@@ -237,39 +218,35 @@ export default function EvidenceIngestionView({
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-12 font-sans text-slate-800">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-12 font-sans text-[#151c27]">
       {/* 1. Header Section */}
-      <div className="flex flex-col gap-2 border-b border-slate-200 pb-5">
-        <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-blue-50 border border-blue-200">
-            <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-wider">
-              Document Ingestion Studio
+      <section className="w-full bg-white/85 backdrop-blur-xl rounded-[26px] p-6 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30 rounded-full font-semibold">
+              Evidence Ingestion Studio
             </span>
-            <span className="font-mono text-[11px] text-blue-700 font-semibold">
+            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full">
               Clearance Level {userMaxLevel} Max
             </span>
           </div>
-
-          <button
-            onClick={onCancel}
-            className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors py-1.5 px-3 rounded hover:bg-slate-100 text-xs font-semibold"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            <span>Return to Dashboard</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1 mt-1">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Upload &amp; Classify Document</h1>
-          <p className="text-xs text-slate-500 max-w-4xl">
-            Upload institutional records. Documents are verified with bit-exact SHA-256 hashes, envelope encrypted, and cataloged.
+          <h1 className="text-xl font-bold text-[#151c27] tracking-tight">Upload &amp; Classify Document</h1>
+          <p className="text-xs text-[#45474b] max-w-2xl">
+            Upload institutional records. Documents are verified with bit-exact SHA-256 digests, envelope encrypted with AES-256-GCM, and indexed into search.
           </p>
         </div>
-      </div>
+
+        <button
+          onClick={onCancel}
+          className="h-10 px-4 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] transition-all border border-[#D8DEEA] shadow-xs flex items-center gap-2 text-xs font-semibold self-start xl:self-auto cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span>Return to Dashboard</span>
+        </button>
+      </section>
 
       {uploadError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2.5">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-[20px] text-xs text-red-800 flex items-start gap-2.5">
           <span className="material-symbols-outlined text-red-600 text-[18px] shrink-0">error</span>
           <div>
             <div className="font-bold">Upload Error</div>
@@ -280,23 +257,22 @@ export default function EvidenceIngestionView({
 
       {/* 2. Success Receipt View */}
       {uploadReceipt ? (
-        <div className="bg-white rounded-xl p-6 shadow-xs border border-emerald-200 flex flex-col gap-6">
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-3.5">
-            <div className="w-9 h-9 rounded bg-emerald-600 text-white flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-[26px] p-6 shadow-xs border border-[#D8DEEA]/80 flex flex-col gap-6">
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
               <span className="material-symbols-outlined text-xl">verified</span>
             </div>
             <div>
               <h3 className="text-sm font-bold text-emerald-950">Document Uploaded Successfully!</h3>
               <p className="text-xs text-emerald-800 mt-0.5">
-                Your document has been encrypted, stored in bucket{' '}
-                <code className="font-mono font-semibold">{uploadReceipt.minioBucket}</code>, and recorded in the system.
+                Your document has been encrypted, stored securely, and recorded in the cryptographic audit ledger.
               </p>
             </div>
           </div>
 
-          <div className="p-5 bg-slate-900 text-white rounded-xl font-mono text-xs space-y-2.5">
-            <div className="text-blue-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-800 pb-2">
-              Upload Receipt
+          <div className="p-5 bg-[#10141A] text-white rounded-2xl font-mono text-xs space-y-2.5">
+            <div className="text-[#83A2DB] font-bold uppercase text-[10px] tracking-wider border-b border-white/10 pb-2">
+              Ingestion Receipt
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               <div>
@@ -309,19 +285,15 @@ export default function EvidenceIngestionView({
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase">Encryption</span>
-                <span className="text-white">AES-256-GCM</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Storage Key</span>
-                <span className="text-emerald-400 truncate block">{uploadReceipt.minioObjectKey}</span>
+                <span className="text-white">AES-256-GCM / DEK Sealed</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase">File Size</span>
                 <span className="text-white">{(uploadReceipt.fileSize / (1024 * 1024)).toFixed(2)} MB</span>
               </div>
             </div>
-            <div className="pt-2 border-t border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">SHA-256 Checksum</span>
+            <div className="pt-2 border-t border-white/10">
+              <span className="text-slate-400 block text-[10px] uppercase">SHA-256 Digest</span>
               <span className="text-amber-300 break-all text-[11px] select-all font-semibold">{uploadReceipt.sha256Hash}</span>
             </div>
           </div>
@@ -335,14 +307,14 @@ export default function EvidenceIngestionView({
                 setTitle('');
                 setSha256Hash('');
               }}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded transition"
+              className="h-10 px-5 bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-semibold rounded-full border border-[#D8DEEA] transition cursor-pointer"
             >
-              + Upload Another Document
+              + Ingest Another Record
             </button>
             <button
               type="button"
               onClick={onSuccess}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded shadow-xs transition"
+              className="h-10 px-6 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-semibold rounded-full shadow-[0_6px_18px_rgba(16,20,26,0.22)] transition cursor-pointer"
             >
               Return to Documents
             </button>
@@ -351,15 +323,15 @@ export default function EvidenceIngestionView({
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 3. File Upload Card */}
-          <div className="bg-white rounded-xl p-6 shadow-xs border border-slate-200 flex flex-col gap-4">
+          <div className="bg-white rounded-[26px] p-6 shadow-xs border border-[#D8DEEA]/80 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">Document File</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded">
-                  INTEGRITY VERIFIED
+                <span className="text-sm font-bold text-[#151c27]">Document File</span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] rounded-full border border-[#83A2DB]/30">
+                  INTEGRITY SEALED
                 </span>
               </div>
-              <span className="font-mono text-[11px] text-slate-400">MAX SIZE: 25 MB</span>
+              <span className="font-mono text-[11px] text-[#9CA3AF]">MAX SIZE: 25 MB</span>
             </div>
 
             {/* Drag & Drop Zone */}
@@ -367,7 +339,7 @@ export default function EvidenceIngestionView({
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className="group relative rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-600 bg-slate-50/70 hover:bg-blue-50/30 p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3"
+              className="group relative rounded-[20px] border-2 border-dashed border-[#D8DEEA] hover:border-[#3f5e93] bg-[#f0f3ff]/30 hover:bg-[#f0f3ff]/60 p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3"
             >
               <input
                 ref={fileInputRef}
@@ -376,48 +348,48 @@ export default function EvidenceIngestionView({
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <div className="w-14 h-14 rounded-full bg-white border border-slate-200 shadow-xs flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
-                <span className="material-symbols-outlined text-[32px]">cloud_upload</span>
+              <div className="w-14 h-14 rounded-full bg-white border border-[#D8DEEA] shadow-xs flex items-center justify-center text-[#3f5e93] group-hover:scale-105 transition-transform">
+                <span className="material-symbols-outlined text-[30px]">cloud_upload</span>
               </div>
               <div className="flex flex-col gap-1 items-center">
-                <p className="text-sm font-bold text-slate-900">
+                <p className="text-sm font-semibold text-[#151c27]">
                   Drag and drop your document here
                 </p>
-                <p className="text-xs text-slate-500">
-                  or <span className="text-blue-600 font-semibold underline underline-offset-2">browse files</span>
+                <p className="text-xs text-[#9CA3AF]">
+                  or <span className="text-[#3f5e93] font-semibold underline underline-offset-2">browse files from disk</span>
                 </p>
               </div>
-              <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1 rounded-full text-xs text-slate-500">
-                <span className="material-symbols-outlined text-[15px] text-slate-400">description</span>
+              <div className="inline-flex items-center gap-1.5 bg-white border border-[#D8DEEA] px-3.5 py-1 rounded-full text-[11px] text-[#45474b]">
+                <span className="material-symbols-outlined text-[15px] text-[#9CA3AF]">description</span>
                 <span>Supported: PDF, DOCX, TIFF, PNG, JPG (Max 25 MB)</span>
               </div>
             </div>
 
             {/* Staged File Preview Card */}
             {file && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="bg-[#f0f3ff]/60 border border-[#D8DEEA] rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-start md:items-center gap-3.5 min-w-0 flex-1">
-                  <div className="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <span className="material-symbols-outlined text-[22px]">picture_as_pdf</span>
+                  <div className="w-11 h-11 rounded-full bg-[#000000] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-900 truncate">{file.name}</span>
-                      <span className="font-mono text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                      <span className="text-xs font-bold text-[#151c27] truncate">{file.name}</span>
+                      <span className="font-mono text-[10px] text-[#45474b] bg-white border border-[#D8DEEA] px-2 py-0.5 rounded-full">
                         {(file.size / (1024 * 1024)).toFixed(2)} MB
                       </span>
                     </div>
 
                     {/* SHA-256 Digest String */}
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="text-[11px] font-semibold text-slate-500">SHA-256:</span>
-                      <code className="font-mono text-[11px] text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded select-all truncate max-w-xl">
-                        {isHashing ? 'Computing checksum...' : sha256Hash}
+                      <span className="text-[11px] font-semibold text-[#45474b]">SHA-256:</span>
+                      <code className="font-mono text-[11px] text-[#151c27] bg-white border border-[#D8DEEA] px-2 py-0.5 rounded-full select-all truncate max-w-xl">
+                        {isHashing ? 'Computing digest...' : sha256Hash}
                       </code>
                       <button
                         type="button"
                         onClick={handleCopyHash}
-                        className="text-slate-400 hover:text-slate-700 p-1 rounded transition-colors"
+                        className="text-[#9CA3AF] hover:text-[#151c27] p-1 rounded-full transition-colors cursor-pointer"
                         title="Copy Checksum"
                       >
                         <span className="material-symbols-outlined text-[15px]">
@@ -428,33 +400,31 @@ export default function EvidenceIngestionView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFile(null);
-                      setSha256Hash('');
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition border border-red-200"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">delete_outline</span>
-                    <span>Replace File</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFile(null);
+                    setSha256Hash('');
+                  }}
+                  className="h-8 px-3 rounded-full bg-[rgba(206,105,105,0.14)] hover:bg-[rgba(206,105,105,0.25)] text-[#ca6666] text-xs font-semibold transition border border-[#CE6969]/30 flex items-center gap-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[15px]">delete_outline</span>
+                  <span>Replace File</span>
+                </button>
               </div>
             )}
           </div>
 
           {/* 4. Document Details Form */}
-          <div className="bg-white rounded-xl p-6 shadow-xs border border-slate-200 flex flex-col gap-6">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+          <div className="bg-white rounded-[26px] p-6 shadow-xs border border-[#D8DEEA]/80 flex flex-col gap-5">
+            <div className="flex items-center justify-between pb-1 border-b border-[#D8DEEA]/60">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Document Classification &amp; Metadata</h2>
-                <span className="text-xs text-slate-500">
-                  Select official type, department, clearance tier, and record identifiers.
+                <h2 className="text-sm font-bold text-[#151c27]">Document Classification &amp; Metadata</h2>
+                <span className="text-xs text-[#9CA3AF]">
+                  Select official classification, department, clearance tier, and record identifiers.
                 </span>
               </div>
-              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded">
+              <span className="text-[10px] font-mono font-semibold px-2.5 py-1 bg-[#f0f3ff] text-[#151c27] rounded-full border border-[#D8DEEA]">
                 METADATA
               </span>
             </div>
@@ -462,27 +432,27 @@ export default function EvidenceIngestionView({
             {/* Row 1: Document Title & Auto-Generating ID */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-8 flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#45474b] flex items-center justify-between">
                   <span>Document Title *</span>
-                  <span className="text-slate-400 font-normal text-[11px]">Required</span>
+                  <span className="text-[#9CA3AF] font-normal text-[11px]">Required</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Annual Budget Allocation Directive 2026-27"
-                  className="h-9 px-3 bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
+                  placeholder="e.g., Annual Governance & Security Directives FY26"
+                  className="h-10 px-4 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium"
                 />
               </div>
 
               <div className="md:col-span-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">Record Number</label>
+                  <label className="text-xs font-semibold text-[#45474b]">Record Number</label>
                   <button
                     type="button"
                     onClick={handleAutoGenerateNumber}
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-semibold text-[#3f5e93] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[13px]">auto_fix_high</span> Auto-Generate
                   </button>
@@ -493,9 +463,9 @@ export default function EvidenceIngestionView({
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
                     placeholder="e.g., DOC-OM-2026-0921"
-                    className="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-300 font-mono text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 font-medium"
+                    className="w-full h-10 pl-4 pr-9 bg-[#f0f3ff] border border-[#D8DEEA] font-mono text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium"
                   />
-                  <span className="material-symbols-outlined absolute right-2.5 text-blue-600 text-[18px]">verified</span>
+                  <span className="material-symbols-outlined absolute right-3 text-[#3f5e93] text-[18px]">verified</span>
                 </div>
               </div>
             </div>
@@ -504,11 +474,11 @@ export default function EvidenceIngestionView({
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               {/* Dynamic Document Type */}
               <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Document Type *</label>
+                <label className="text-xs font-semibold text-[#45474b]">Document Type *</label>
                 <select
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 font-medium cursor-pointer"
+                  className="w-full h-10 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
                 >
                   {docTypes.length > 0 ? (
                     docTypes.map((dt) => (
@@ -519,10 +489,9 @@ export default function EvidenceIngestionView({
                   ) : (
                     <>
                       <option value="OM">Office Memorandum (OM)</option>
-                      <option value="LETTER">Official Correspondence / Letter</option>
-                      <option value="REPORT">Official Inspection / Audit Report</option>
-                      <option value="NOTICE">Public Notice & Circular</option>
-                      <option value="ORDER">Executive Order & Sanction</option>
+                      <option value="LETTER">Official Correspondence</option>
+                      <option value="REPORT">Inspection &amp; Audit Report</option>
+                      <option value="ORDER">Executive Sanction &amp; Order</option>
                     </>
                   )}
                 </select>
@@ -530,11 +499,11 @@ export default function EvidenceIngestionView({
 
               {/* Dynamic Department */}
               <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Department / Wing *</label>
+                <label className="text-xs font-semibold text-[#45474b]">Department / Division *</label>
                 <select
                   value={deptCode}
                   onChange={(e) => setDeptCode(e.target.value)}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 font-medium cursor-pointer"
+                  className="w-full h-10 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
                 >
                   {departments.length > 0 ? (
                     departments.map((d) => (
@@ -543,18 +512,18 @@ export default function EvidenceIngestionView({
                       </option>
                     ))
                   ) : (
-                    <option value="ADMIN">General Administration & Governance (ADMIN)</option>
+                    <option value="ADMIN">General Administration (ADMIN)</option>
                   )}
                 </select>
               </div>
 
-              {/* Dynamic Security Tier with Clearance Enforced */}
+              {/* Dynamic Security Tier */}
               <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Security Clearance Tier *</label>
+                <label className="text-xs font-semibold text-[#45474b]">Security Clearance Tier *</label>
                 <select
                   value={secTier}
                   onChange={(e) => setSecTier(e.target.value)}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 font-medium cursor-pointer"
+                  className="w-full h-10 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
                 >
                   {securityLevels.length > 0 ? (
                     securityLevels.map((sl) => (
@@ -563,16 +532,16 @@ export default function EvidenceIngestionView({
                         value={sl.code}
                         disabled={!sl.isAccessible}
                       >
-                        {sl.code} — {sl.name} (Rank {sl.rank}) {!sl.isAccessible ? '🔒 Requires Clearance' : ''}
+                        {sl.code} — {sl.name} (Rank {sl.rank}) {!sl.isAccessible ? '🔒 Restricted' : ''}
                       </option>
                     ))
                   ) : (
                     <>
-                      <option value="T1">T1 — Public / Low (Rank 1)</option>
+                      <option value="T1">T1 — Public (Rank 1)</option>
                       <option value="T2">T2 — Internal (Rank 2)</option>
                       <option value="T3">T3 — Confidential (Rank 3)</option>
-                      <option value="T4">T4 — Sensitive (Rank 4)</option>
-                      <option value="T5">T5 — Highly Sensitive (Rank 5)</option>
+                      <option value="T4">T4 — Secret (Rank 4)</option>
+                      <option value="T5">T5 — Top Secret (Rank 5)</option>
                     </>
                   )}
                 </select>
@@ -581,56 +550,53 @@ export default function EvidenceIngestionView({
 
             {/* Row 3: Description */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700">Description &amp; Summary</label>
-                <span className="font-mono text-[10px] text-slate-400">OPTIONAL</span>
-              </div>
+              <label className="text-xs font-semibold text-[#45474b]">Summary &amp; Case Notes</label>
               <textarea
                 rows={3}
                 value={synopsis}
                 onChange={(e) => setSynopsis(e.target.value)}
-                placeholder="Add a brief description or summary for search indexing..."
-                className="p-3 bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:border-blue-600 leading-relaxed font-medium"
+                placeholder="Add a brief description or summary for lexical search indexing..."
+                className="p-3.5 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] leading-relaxed font-medium"
               ></textarea>
             </div>
           </div>
 
           {/* 5. Live Ingestion Progress Bar */}
           {isSubmitting && (
-            <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex flex-col gap-2.5">
+            <div className="bg-white border border-[#D8DEEA] rounded-[22px] p-5 shadow-sm flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <span className="material-symbols-outlined text-blue-600 animate-spin text-[20px]">sync</span>
-                  <span className="text-xs font-bold text-slate-900">{progressLabel}</span>
+                  <span className="material-symbols-outlined text-[#3f5e93] animate-spin text-[20px]">sync</span>
+                  <span className="text-xs font-bold text-[#151c27]">{progressLabel}</span>
                 </div>
-                <span className="font-mono text-xs text-blue-600 font-bold">{progressPercent}%</span>
+                <span className="font-mono text-xs text-[#3f5e93] font-bold">{progressPercent}%</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-[#E9ECF4] h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-blue-600 h-full transition-all duration-300"
+                  className="bg-[#000000] h-full transition-all duration-300 rounded-full"
                   style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
-              <div className="flex items-center justify-between text-slate-500 font-mono text-[11px]">
+              <div className="flex items-center justify-between text-[#9CA3AF] font-mono text-[11px]">
                 <span>{progressSubtext}</span>
-                <span>STATUS: PROCESSING</span>
+                <span>STATUS: SEALING</span>
               </div>
             </div>
           )}
 
           {/* 6. Sticky Action Footer */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 sticky bottom-4 z-30">
+          <div className="bg-white/90 backdrop-blur-xl border border-[#D8DEEA]/80 rounded-[26px] p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 sticky bottom-4 z-30">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
+              <div className="w-9 h-9 rounded-full bg-[#f0f3ff] flex items-center justify-center text-[#151c27]">
                 <span className="material-symbols-outlined text-[18px]">person</span>
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                  <span className="text-xs font-bold text-slate-900">Clearance Active</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-xs font-bold text-[#151c27]">Clearance Active</span>
                 </div>
-                <span className="font-mono text-[11px] text-slate-500">
-                  Level {userMaxLevel} • {userDepartment || 'Institutional'}
+                <span className="font-mono text-[11px] text-[#9CA3AF]">
+                  Level {userMaxLevel} • {userDepartment || 'Institutional Vault'}
                 </span>
               </div>
             </div>
@@ -640,17 +606,17 @@ export default function EvidenceIngestionView({
                 type="button"
                 disabled={isSubmitting}
                 onClick={onCancel}
-                className="px-4 py-2 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition"
+                className="h-10 px-5 rounded-full text-xs font-semibold text-[#45474b] hover:text-[#151c27] bg-[#f0f3ff] hover:bg-[#e2e8f8] transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                className="h-10 px-6 rounded-full bg-[#000000] hover:bg-[#181c22] text-white text-xs font-semibold shadow-[0_6px_18px_rgba(16,20,26,0.22)] transition flex items-center gap-2 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">upload</span>
-                <span>Upload Document</span>
+                <span>Ingest &amp; Seal Record</span>
               </button>
             </div>
           </div>

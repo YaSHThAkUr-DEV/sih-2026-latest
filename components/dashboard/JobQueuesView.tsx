@@ -79,14 +79,13 @@ export default function JobQueuesView() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 4000); // Poll every 4 seconds
+    const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
   }, []);
 
-  // Trigger single worker tick
   const handleTriggerTick = async () => {
     setExecutingTick(true);
-    setActionFeedback('Executing worker tick across all 4 queues...');
+    setActionFeedback('Executing worker tick across all queues...');
     try {
       const res = await fetch('/api/jobs/run', { method: 'POST' });
       const json = await res.json();
@@ -100,7 +99,6 @@ export default function JobQueuesView() {
     }
   };
 
-  // Drain queues
   const handleDrainQueues = async () => {
     setDraining(true);
     setActionFeedback('Draining all pending queues...');
@@ -117,21 +115,16 @@ export default function JobQueuesView() {
     }
   };
 
-  // Enqueue BNSS retention audit
   const handleTriggerRetentionAudit = async () => {
-    setActionFeedback('Enqueuing BNSS statutory retention audit job...');
+    setActionFeedback('Enqueuing statutory retention schedule audit...');
     try {
       const res = await fetch('/api/jobs/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          queue: 'retention-queue',
-          type: 'RETENTION_AUDIT',
-          payload: { auditScope: 'SCHEDULE_ALL' },
-        }),
+        body: JSON.stringify({ type: 'RETENTION_AUDIT', payload: { dryRun: false } }),
       });
       const json = await res.json();
-      setActionFeedback(json.message || 'Retention audit queued');
+      setActionFeedback(json.message || 'Retention audit enqueued');
       await fetchData();
     } catch (err: any) {
       setActionFeedback(`Error: ${err.message}`);
@@ -140,21 +133,16 @@ export default function JobQueuesView() {
     }
   };
 
-  // Enqueue Test Job
   const handleEnqueueTestJob = async () => {
-    setActionFeedback('Enqueuing verification test job...');
+    setActionFeedback('Enqueuing test worker job...');
     try {
       const res = await fetch('/api/jobs/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          queue: 'ocr-queue',
-          type: 'TEST_JOB',
-          payload: { note: 'Manual test telemetry pulse', timestamp: new Date().toISOString() },
-        }),
+        body: JSON.stringify({ type: 'TEST_JOB', payload: { message: 'Manual test dispatch' } }),
       });
       const json = await res.json();
-      setActionFeedback(json.message || 'Test job queued');
+      setActionFeedback(json.message || 'Test job enqueued');
       await fetchData();
     } catch (err: any) {
       setActionFeedback(`Error: ${err.message}`);
@@ -163,17 +151,11 @@ export default function JobQueuesView() {
     }
   };
 
-  // Retry a failed job
   const handleRetryJob = async (jobId: string) => {
-    setActionFeedback(`Re-enqueuing job ${jobId.substring(0, 8)}...`);
     try {
-      const res = await fetch('/api/jobs/retry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId }),
-      });
+      const res = await fetch(`/api/jobs/${jobId}/retry`, { method: 'POST' });
       const json = await res.json();
-      setActionFeedback(json.message || 'Job re-enqueued');
+      setActionFeedback(json.message || 'Job re-queued');
       await fetchData();
     } catch (err: any) {
       setActionFeedback(`Error: ${err.message}`);
@@ -182,28 +164,27 @@ export default function JobQueuesView() {
     }
   };
 
-  // Filtered jobs list
   const filteredJobs = useMemo(() => {
     if (!data?.jobs) return [];
     return data.jobs.filter((j) => {
       const matchesStatus = statusFilter === 'ALL' || j.status === statusFilter;
       const matchesType = typeFilter === 'ALL' || j.type === typeFilter;
       const q = searchQuery.toLowerCase().trim();
-      const matchesQuery =
+      const matchesSearch =
         !q ||
         j.id.toLowerCase().includes(q) ||
-        j.type.toLowerCase().includes(q) ||
         (j.documentNumber && j.documentNumber.toLowerCase().includes(q)) ||
-        (j.errorMessage && j.errorMessage.toLowerCase().includes(q));
-      return matchesStatus && matchesType && matchesQuery;
+        (j.documentTitle && j.documentTitle.toLowerCase().includes(q)) ||
+        j.type.toLowerCase().includes(q);
+      return matchesStatus && matchesType && matchesSearch;
     });
   }, [data?.jobs, statusFilter, typeFilter, searchQuery]);
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-        <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <span className="text-xs font-mono font-semibold uppercase tracking-wider">Connecting to Redis &amp; PostgreSQL Job Ledgers...</span>
+      <div className="flex flex-col items-center justify-center p-12 text-[#9CA3AF]">
+        <div className="w-8 h-8 border-2 border-[#3f5e93] border-t-transparent rounded-full animate-spin mb-3"></div>
+        <span className="text-xs font-mono font-semibold uppercase tracking-wider">Connecting to Redis &amp; Job Ledgers...</span>
       </div>
     );
   }
@@ -217,23 +198,22 @@ export default function JobQueuesView() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      
+    <div className="flex flex-col gap-6 font-sans text-[#151c27]">
       {/* 1. Header Banner & Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-lg border border-slate-200 shadow-xs">
+      <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/85 backdrop-blur-xl p-6 rounded-[26px] border border-[#D8DEEA]/80 shadow-[0_8px_32px_rgba(16,20,26,0.06)]">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">
-            <span className="material-symbols-outlined text-2xl">sync_saved_locally</span>
+          <div className="w-12 h-12 rounded-full bg-[#000000] text-white flex items-center justify-center shadow-xs">
+            <span className="material-symbols-outlined text-[24px]">sync_saved_locally</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Background Job System &amp; Redis Queues</h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800">
+              <h2 className="text-lg font-bold text-[#151c27] tracking-tight">Background Job Queues &amp; Asynchronous Workers</h2>
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30">
                 DISPATCH ENGINE ACTIVE
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Redis 7 in-memory task queues, asynchronous OCR workers, BNSS statutory retention scheduler, and cryptographic zeroization.
+            <p className="text-xs text-[#45474b] mt-0.5">
+              Task queues, asynchronous OCR workers, statutory retention scheduler, and cryptographic zeroization.
             </p>
           </div>
         </div>
@@ -243,19 +223,19 @@ export default function JobQueuesView() {
           <button
             onClick={handleTriggerTick}
             disabled={executingTick || draining}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
-            title="Execute one worker pass across all 4 queues"
+            className="h-10 px-4 flex items-center gap-1.5 bg-[#000000] hover:bg-[#181c22] text-white rounded-full text-xs font-semibold shadow-xs transition disabled:opacity-50 cursor-pointer"
+            title="Execute one worker pass across all queues"
           >
             <span className={`material-symbols-outlined text-[16px] ${executingTick ? 'animate-spin' : ''}`}>
               play_circle
             </span>
-            <span>{executingTick ? 'Executing Tick...' : 'Run Worker Tick'}</span>
+            <span>{executingTick ? 'Running...' : 'Run Worker Tick'}</span>
           </button>
 
           <button
             onClick={handleDrainQueues}
             disabled={executingTick || draining}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
+            className="h-10 px-4 flex items-center gap-1.5 bg-[#3f5e93] hover:bg-[#305184] text-white rounded-full text-xs font-semibold shadow-xs transition disabled:opacity-50 cursor-pointer"
             title="Drain all waiting queue items sequentially"
           >
             <span className={`material-symbols-outlined text-[16px] ${draining ? 'animate-spin' : ''}`}>
@@ -266,286 +246,282 @@ export default function JobQueuesView() {
 
           <button
             onClick={handleTriggerRetentionAudit}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-semibold shadow-xs transition-colors"
+            className="h-10 px-4 flex items-center gap-1.5 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[16px] text-purple-600">policy</span>
-            <span>Audit BNSS Schedules</span>
+            <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">policy</span>
+            <span>Audit Schedules</span>
           </button>
 
           <button
             onClick={handleEnqueueTestJob}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded text-xs font-semibold shadow-xs transition-colors"
+            className="h-10 px-4 flex items-center gap-1.5 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[16px] text-slate-600">add_task</span>
+            <span className="material-symbols-outlined text-[16px] text-[#9CA3AF]">add_task</span>
             <span>Enqueue Test</span>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* Action Feedback Banner */}
       {actionFeedback && (
-        <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+        <div className="p-3.5 rounded-2xl bg-[rgba(131,162,219,0.14)] border border-[#83A2DB]/30 text-[#3f5e93] text-xs font-semibold flex items-center gap-2 animate-fadeIn">
           <span className="material-symbols-outlined text-[18px]">info</span>
           <span>{actionFeedback}</span>
         </div>
       )}
 
       {/* 2. Top Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Workers Online */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-500 mb-1.5">
+        <div className="bg-white p-5 rounded-[20px] border border-[#D8DEEA]/80 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[#9CA3AF] mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider">Active Workers</span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">4</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">4</span>
             <span className="text-[11px] font-mono text-emerald-600 font-semibold">ALL ONLINE</span>
           </div>
-          <span className="text-[11px] text-slate-400 mt-1">OCR, Notif, Retention, Cleanup</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1">OCR, Notif, Retention, Cleanup</span>
         </div>
 
         {/* Queued Waiting */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-500 mb-1.5">
+        <div className="bg-white p-5 rounded-[20px] border border-[#D8DEEA]/80 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[#9CA3AF] mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider">Queued Jobs</span>
             <span className="material-symbols-outlined text-[18px] text-amber-500">pending</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">{totals.waiting}</span>
-            <span className="text-[11px] text-slate-500">pending pull</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">{totals.waiting}</span>
+            <span className="text-[11px] text-[#9CA3AF]">pending</span>
           </div>
-          <span className="text-[11px] text-slate-400 mt-1">Across 4 Redis queues</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1">Across active queues</span>
         </div>
 
         {/* Active Processing */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-500 mb-1.5">
+        <div className="bg-white p-5 rounded-[20px] border border-[#D8DEEA]/80 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[#9CA3AF] mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider">Processing</span>
-            <span className="material-symbols-outlined text-[18px] text-blue-500 animate-spin">autorenew</span>
+            <span className="material-symbols-outlined text-[18px] text-[#3f5e93] animate-spin">autorenew</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">{totals.active}</span>
-            <span className="text-[11px] text-blue-600 font-semibold font-mono">LOCKED</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">{totals.active}</span>
+            <span className="text-[11px] text-[#3f5e93] font-semibold font-mono">LOCKED</span>
           </div>
-          <span className="text-[11px] text-slate-400 mt-1">In worker execution memory</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1">In worker execution memory</span>
         </div>
 
         {/* Completed 24h */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-500 mb-1.5">
+        <div className="bg-white p-5 rounded-[20px] border border-[#D8DEEA]/80 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[#9CA3AF] mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider">Completed (24h)</span>
             <span className="material-symbols-outlined text-[18px] text-emerald-500">check_circle</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">{data?.metrics24h?.completed24h ?? totals.completed}</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">{data?.metrics24h?.completed24h ?? totals.completed}</span>
             <span className="text-[11px] text-emerald-600 font-semibold font-mono">100% OK</span>
           </div>
-          <span className="text-[11px] text-slate-400 mt-1">Avg latency ~{data?.metrics24h?.avgDurationSec ?? 0.8}s</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1">Avg latency ~{data?.metrics24h?.avgDurationSec ?? 0.8}s</span>
         </div>
 
         {/* Redis Health */}
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-500 mb-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Redis 7 Queue</span>
+        <div className="bg-white p-5 rounded-[20px] border border-[#D8DEEA]/80 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[#9CA3AF] mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Task Queue</span>
             <span className={`material-symbols-outlined text-[18px] ${data?.health?.redis?.ok ? 'text-emerald-500' : 'text-red-500'}`}>
               memory
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">{data?.health?.redis?.latencyMs ?? 12}ms</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">{data?.health?.redis?.latencyMs ?? 12}ms</span>
             <span className="text-[11px] font-mono text-emerald-600 font-semibold">PONG</span>
           </div>
-          <span className="text-[11px] text-slate-400 mt-1 font-mono truncate">redis://127.0.0.1:6379</span>
+          <span className="text-[11px] text-[#9CA3AF] font-mono truncate">Connected</span>
         </div>
       </div>
 
       {/* 3. Four Dedicated Queue Breakdown Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
         {/* Card 1: OCR Extraction Queue */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold">
                   <span className="material-symbols-outlined text-[18px]">document_scanner</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-slate-900">OCR Extraction</h3>
-                  <span className="text-[10px] font-mono text-slate-400">ocr-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27]">OCR Extraction</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF]">ocr-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93]">
                 Tesseract/PDF
               </span>
             </div>
             
-            <p className="text-[11px] text-slate-500 my-3">
-              Asynchronous text extraction pipeline for scanned PDF dockets and image evidence. Populates PostgreSQL GIN index.
+            <p className="text-[11px] text-[#45474b] my-3">
+              Asynchronous text extraction pipeline for scanned PDF dockets and image evidence. Populates GIN index.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">WAITING</div>
-                <div className="font-bold text-slate-800">{queues['ocr-queue'].waiting}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
+                <div className="font-bold text-[#151c27]">{queues['ocr-queue'].waiting}</div>
               </div>
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">ACTIVE</div>
-                <div className="font-bold text-blue-600">{queues['ocr-queue'].active}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
+                <div className="font-bold text-[#3f5e93]">{queues['ocr-queue'].active}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500 font-mono">Done: {queues['ocr-queue'].completed}</span>
-            <span className="text-slate-400 font-mono">Fails: {queues['ocr-queue'].failed}</span>
+          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono">Done: {queues['ocr-queue'].completed}</span>
+            <span className="text-[#9CA3AF] font-mono">Fails: {queues['ocr-queue'].failed}</span>
           </div>
         </div>
 
         {/* Card 2: Notification Queue */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
                   <span className="material-symbols-outlined text-[18px]">notifications_active</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-slate-900">Notifications</h3>
-                  <span className="text-[10px] font-mono text-slate-400">notification-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27]">Notifications</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF]">notification-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                 Fanout Dispatch
               </span>
             </div>
             
-            <p className="text-[11px] text-slate-500 my-3">
+            <p className="text-[11px] text-[#45474b] my-3">
               Evidentiary alert push dispatcher for Maker-Checker quarantine notices, legal holds, and high-priority alarms.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">WAITING</div>
-                <div className="font-bold text-slate-800">{queues['notification-queue'].waiting}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
+                <div className="font-bold text-[#151c27]">{queues['notification-queue'].waiting}</div>
               </div>
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">ACTIVE</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
                 <div className="font-bold text-amber-600">{queues['notification-queue'].active}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500 font-mono">Done: {queues['notification-queue'].completed}</span>
-            <span className="text-slate-400 font-mono">Fails: {queues['notification-queue'].failed}</span>
+          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono">Done: {queues['notification-queue'].completed}</span>
+            <span className="text-[#9CA3AF] font-mono">Fails: {queues['notification-queue'].failed}</span>
           </div>
         </div>
 
         {/* Card 3: BNSS Retention Scheduler */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold">
                   <span className="material-symbols-outlined text-[18px]">policy</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-slate-900">BNSS Retention</h3>
-                  <span className="text-[10px] font-mono text-slate-400">retention-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27]">Retention Engine</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF]">retention-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">
-                Statutory 5-Tier
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93]">
+                Policy Enforced
               </span>
             </div>
             
-            <p className="text-[11px] text-slate-500 my-3">
-              Evaluates statutory expiry dates against Schedule I to V. Respects non-repudiable judicial legal hold immunity locks.
+            <p className="text-[11px] text-[#45474b] my-3">
+              Evaluates statutory expiry dates against department schedules. Respects judicial legal hold immunity locks.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">WAITING</div>
-                <div className="font-bold text-slate-800">{queues['retention-queue'].waiting}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
+                <div className="font-bold text-[#151c27]">{queues['retention-queue'].waiting}</div>
               </div>
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">ACTIVE</div>
-                <div className="font-bold text-purple-600">{queues['retention-queue'].active}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
+                <div className="font-bold text-[#3f5e93]">{queues['retention-queue'].active}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500 font-mono">Done: {queues['retention-queue'].completed}</span>
-            <span className="text-slate-400 font-mono">Fails: {queues['retention-queue'].failed}</span>
+          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono">Done: {queues['retention-queue'].completed}</span>
+            <span className="text-[#9CA3AF] font-mono">Fails: {queues['retention-queue'].failed}</span>
           </div>
         </div>
 
         {/* Card 4: Crypto-Shred Cleanup */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-red-50 text-red-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666] flex items-center justify-center font-bold">
                   <span className="material-symbols-outlined text-[18px]">delete_forever</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-slate-900">Crypto-Shredding</h3>
-                  <span className="text-[10px] font-mono text-slate-400">cleanup-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27]">Crypto-Shredding</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF]">cleanup-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-800">
-                NIST SP 800-88
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666]">
+                Zeroization
               </span>
             </div>
             
-            <p className="text-[11px] text-slate-500 my-3">
-              Dual-custody cryptographic key zeroization engine. Purges Vault Transit DEKs and zeroizes MinIO S3 object streams.
+            <p className="text-[11px] text-[#45474b] my-3">
+              Dual-custody cryptographic key zeroization engine. Purges Transit DEKs and zeroizes encrypted storage streams.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">WAITING</div>
-                <div className="font-bold text-slate-800">{queues['cleanup-queue'].waiting}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
+                <div className="font-bold text-[#151c27]">{queues['cleanup-queue'].waiting}</div>
               </div>
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <div className="text-[10px] text-slate-400">ACTIVE</div>
-                <div className="font-bold text-red-600">{queues['cleanup-queue'].active}</div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
+                <div className="font-bold text-[#ca6666]">{queues['cleanup-queue'].active}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500 font-mono">Done: {queues['cleanup-queue'].completed}</span>
-            <span className="text-slate-400 font-mono">Fails: {queues['cleanup-queue'].failed}</span>
+          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono">Done: {queues['cleanup-queue'].completed}</span>
+            <span className="text-[#9CA3AF] font-mono">Fails: {queues['cleanup-queue'].failed}</span>
           </div>
         </div>
-
       </div>
 
       {/* 4. Processing Jobs Ledger Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-        
+      <div className="bg-white rounded-[26px] border border-[#D8DEEA]/80 shadow-xs overflow-hidden">
         {/* Table Toolbar */}
-        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
+        <div className="p-5 border-b border-[#D8DEEA]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#f0f3ff]/30">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-slate-600">table_rows</span>
-            <h3 className="font-bold text-sm text-slate-900">PostgreSQL `processing_jobs` Ledger</h3>
-            <span className="text-xs font-mono text-slate-500">({filteredJobs.length} records)</span>
+            <span className="material-symbols-outlined text-[20px] text-[#3f5e93]">table_rows</span>
+            <h3 className="font-bold text-sm text-[#151c27]">Processing Jobs Ledger</h3>
+            <span className="text-xs font-mono text-[#9CA3AF]">({filteredJobs.length} records)</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Status Tabs */}
-            <div className="flex items-center rounded-md bg-slate-200/70 p-0.5 text-xs font-semibold text-slate-600">
+            <div className="flex items-center rounded-full bg-[#f0f3ff] p-1 text-xs font-semibold text-[#45474b] border border-[#D8DEEA]">
               {(['ALL', 'QUEUED', 'RUNNING', 'COMPLETED', 'FAILED'] as const).map((st) => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded transition-colors ${
-                    statusFilter === st ? 'bg-white text-slate-900 shadow-2xs' : 'hover:text-slate-900'
+                  className={`px-3 py-1 rounded-full transition cursor-pointer ${
+                    statusFilter === st ? 'bg-[#000000] text-white shadow-xs' : 'hover:text-[#151c27]'
                   }`}
                 >
                   {st}
@@ -557,7 +533,7 @@ export default function JobQueuesView() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-xs font-semibold bg-white border border-slate-200 rounded px-2.5 py-1 text-slate-700 focus:outline-none"
+              className="text-xs font-semibold bg-white border border-[#D8DEEA] rounded-full px-3 py-1.5 text-[#151c27] focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Job Types</option>
               <option value="OCR_EXTRACTION">OCR Extraction</option>
@@ -574,9 +550,9 @@ export default function JobQueuesView() {
                 placeholder="Search job ID / docket..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="text-xs pl-7 pr-3 py-1 bg-white border border-slate-200 rounded text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 w-44"
+                className="text-xs pl-8 pr-3 py-1.5 bg-white border border-[#D8DEEA] rounded-full text-[#151c27] placeholder:text-[#9CA3AF] focus:outline-none w-48"
               />
-              <span className="material-symbols-outlined text-[14px] text-slate-400 absolute left-2 top-1.5">
+              <span className="material-symbols-outlined text-[15px] text-[#9CA3AF] absolute left-2.5 top-2">
                 search
               </span>
             </div>
@@ -587,53 +563,48 @@ export default function JobQueuesView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-semibold text-[11px] uppercase tracking-wider">
-                <th className="py-2.5 px-4">Job ID</th>
-                <th className="py-2.5 px-4">Job Type</th>
-                <th className="py-2.5 px-4">Linked Docket</th>
-                <th className="py-2.5 px-4">Status</th>
-                <th className="py-2.5 px-4">Duration</th>
-                <th className="py-2.5 px-4">Attempts</th>
-                <th className="py-2.5 px-4">Created (UTC)</th>
-                <th className="py-2.5 px-4 text-right">Actions</th>
+              <tr className="bg-[#f0f3ff]/60 border-b border-[#D8DEEA]/60 text-[#45474b] font-semibold text-[11px] uppercase tracking-wider">
+                <th className="py-3 px-4">Job ID</th>
+                <th className="py-3 px-4">Job Type</th>
+                <th className="py-3 px-4">Linked Record</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Duration</th>
+                <th className="py-3 px-4">Attempts</th>
+                <th className="py-3 px-4">Created (UTC)</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
+            <tbody className="divide-y divide-[#D8DEEA]/30 font-sans">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
+                  <td colSpan={8} className="py-8 text-center text-[#9CA3AF] text-xs">
                     No background processing jobs match the selected filters.
                   </td>
                 </tr>
               ) : (
                 filteredJobs.map((j) => (
-                  <tr key={j.id} className="hover:bg-slate-50/80 transition-colors">
-                    
-                    {/* Job ID */}
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-700 font-medium">
+                  <tr key={j.id} className="hover:bg-[#f0f3ff]/40 transition-colors">
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#151c27] font-medium">
                       {j.id.substring(0, 8)}...
                     </td>
 
-                    {/* Job Type */}
                     <td className="py-3 px-4">
-                      <span className="font-semibold text-slate-800 text-[11px]">
+                      <span className="font-semibold text-[#151c27] text-[11px]">
                         {j.type.replace(/_/g, ' ')}
                       </span>
                     </td>
 
-                    {/* Linked Docket */}
                     <td className="py-3 px-4">
                       {j.documentNumber ? (
                         <div className="flex flex-col">
-                          <span className="font-mono text-[11px] font-bold text-blue-700">{j.documentNumber}</span>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[140px]">{j.documentTitle || 'Case Record'}</span>
+                          <span className="font-mono text-[11px] font-bold text-[#3f5e93]">{j.documentNumber}</span>
+                          <span className="text-[10px] text-[#9CA3AF] truncate max-w-[140px]">{j.documentTitle || 'Case Record'}</span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">—</span>
+                        <span className="text-[#9CA3AF] text-[11px]">—</span>
                       )}
                     </td>
 
-                    {/* Status Badge */}
                     <td className="py-3 px-4">
                       {j.status === 'COMPLETED' && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
@@ -642,8 +613,8 @@ export default function JobQueuesView() {
                         </span>
                       )}
                       {j.status === 'RUNNING' && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#3f5e93] animate-pulse"></span>
                           RUNNING
                         </span>
                       )}
@@ -654,130 +625,124 @@ export default function JobQueuesView() {
                         </span>
                       )}
                       {j.status === 'FAILED' && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ca6666]"></span>
                           FAILED
                         </span>
                       )}
                     </td>
 
-                    {/* Duration */}
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-600">
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#45474b]">
                       {j.durationMs !== null ? `${j.durationMs}ms` : j.status === 'RUNNING' ? 'In progress...' : '—'}
                     </td>
 
-                    {/* Attempts */}
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-600">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        j.attempts > 1 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#45474b]">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        j.attempts > 1 ? 'bg-amber-100 text-amber-800' : 'bg-[#f0f3ff] text-[#45474b]'
                       }`}>
                         {j.attempts} / 3
                       </span>
                     </td>
 
-                    {/* Created Time */}
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#9CA3AF]">
                       {new Date(j.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </td>
 
-                    {/* Actions */}
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setSelectedJob(j)}
-                          className="px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 rounded border border-slate-200 transition-colors"
+                          className="px-2.5 py-1 text-[11px] font-semibold text-[#151c27] hover:bg-[#f0f3ff] rounded-full border border-[#D8DEEA] transition cursor-pointer"
                         >
                           Inspect
                         </button>
                         {j.status === 'FAILED' && (
                           <button
                             onClick={() => handleRetryJob(j.id)}
-                            className="px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50 rounded border border-blue-200 transition-colors"
+                            className="px-2.5 py-1 text-[11px] font-semibold text-[#3f5e93] hover:bg-[rgba(131,162,219,0.14)] rounded-full border border-[#83A2DB]/30 transition cursor-pointer"
                           >
                             Retry
                           </button>
                         )}
                       </div>
                     </td>
-
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-
       </div>
 
       {/* 5. Job Inspector Modal */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-lg border border-slate-300 shadow-xl max-w-lg w-full p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10141A]/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-[26px] border border-[#D8DEEA] shadow-2xl max-w-lg w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/60">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600 text-xl">terminal</span>
-                <h3 className="font-bold text-sm text-slate-900">Background Job Execution Dossier</h3>
+                <span className="material-symbols-outlined text-[#3f5e93] text-xl">terminal</span>
+                <h3 className="font-bold text-sm text-[#151c27]">Background Job Execution Dossier</h3>
               </div>
               <button
                 onClick={() => setSelectedJob(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded"
+                className="text-[#9CA3AF] hover:text-[#151c27] p-1 rounded-full cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div className="flex flex-col gap-2.5 text-xs font-mono">
-              <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                <span className="text-slate-400">JOB ID:</span>
-                <span className="text-slate-900 font-bold">{selectedJob.id}</span>
+              <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                <span className="text-[#9CA3AF]">JOB ID:</span>
+                <span className="text-[#151c27] font-bold">{selectedJob.id}</span>
               </div>
-              <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                <span className="text-slate-400">TYPE:</span>
-                <span className="text-slate-900 font-bold">{selectedJob.type}</span>
+              <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                <span className="text-[#9CA3AF]">TYPE:</span>
+                <span className="text-[#151c27] font-bold">{selectedJob.type}</span>
               </div>
-              <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                <span className="text-slate-400">STATUS:</span>
-                <span className="font-bold text-slate-900">{selectedJob.status}</span>
+              <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                <span className="text-[#9CA3AF]">STATUS:</span>
+                <span className="font-bold text-[#151c27]">{selectedJob.status}</span>
               </div>
               {selectedJob.documentNumber && (
-                <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                  <span className="text-slate-400">DOCKET:</span>
-                  <span className="font-bold text-blue-700">{selectedJob.documentNumber}</span>
+                <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                  <span className="text-[#9CA3AF]">DOCKET:</span>
+                  <span className="font-bold text-[#3f5e93]">{selectedJob.documentNumber}</span>
                 </div>
               )}
-              <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                <span className="text-slate-400">ATTEMPTS:</span>
-                <span className="font-bold text-slate-900">{selectedJob.attempts} of 3</span>
+              <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                <span className="text-[#9CA3AF]">ATTEMPTS:</span>
+                <span className="font-bold text-[#151c27]">{selectedJob.attempts} of 3</span>
               </div>
               {selectedJob.durationMs !== null && (
-                <div className="flex justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                  <span className="text-slate-400">EXECUTION TIME:</span>
-                  <span className="font-bold text-slate-900">{selectedJob.durationMs} ms</span>
+                <div className="flex justify-between p-2.5 rounded-xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60">
+                  <span className="text-[#9CA3AF]">EXECUTION TIME:</span>
+                  <span className="font-bold text-[#151c27]">{selectedJob.durationMs} ms</span>
                 </div>
               )}
               {selectedJob.errorMessage && (
-                <div className="flex flex-col gap-1 p-2 rounded bg-red-50 border border-red-200 text-red-800">
+                <div className="flex flex-col gap-1 p-2.5 rounded-xl bg-[rgba(206,105,105,0.14)] border border-[#CE6969]/30 text-[#ca6666]">
                   <span className="font-bold text-[11px]">ERROR LOG:</span>
                   <span className="text-[11px] whitespace-pre-wrap">{selectedJob.errorMessage}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8DEEA]/60">
               {selectedJob.status === 'FAILED' && (
                 <button
                   onClick={() => {
                     handleRetryJob(selectedJob.id);
                     setSelectedJob(null);
                   }}
-                  className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs font-semibold shadow-xs"
+                  className="h-8 px-4 bg-[#3f5e93] hover:bg-[#305184] text-white rounded-full text-xs font-semibold shadow-xs cursor-pointer"
                 >
                   Retry Job
                 </button>
               )}
               <button
                 onClick={() => setSelectedJob(null)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold"
+                className="h-8 px-4 bg-[#f0f3ff] hover:bg-[#e2e8f8] text-[#151c27] rounded-full text-xs font-semibold cursor-pointer"
               >
                 Close
               </button>
@@ -785,7 +750,6 @@ export default function JobQueuesView() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

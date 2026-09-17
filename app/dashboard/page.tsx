@@ -173,6 +173,7 @@ export default function DashboardPage() {
   >('overview');
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [ocrInitialQuery, setOcrInitialQuery] = useState('');
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   // Filter & Search states
   const [activeTypeFilter, setActiveTypeFilter] = useState<string>('ALL');
@@ -189,29 +190,8 @@ export default function DashboardPage() {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [verifying, setVerifying] = useState(false);
 
-  // Quick Upload Modal
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadDocNumber, setUploadDocNumber] = useState('');
-  const [uploadDocType, setUploadDocType] = useState('OM');
-  const [uploadDept, setUploadDept] = useState('ADMIN');
-  const [uploadSecTier, setUploadSecTier] = useState('T2');
-  const [uploadDesc, setUploadDesc] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadStep, setUploadStep] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState<any>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // Administrative Clearance Gate
-  const canAccessAdmin = useMemo(() => {
-    if (!user) return true;
-    return (
-      (user.roles || []).some((r) => ['SUPER_ADMIN', 'ORG_ADMIN'].includes(r)) ||
-      (user.permissions || []).includes('PERMISSION_MANAGE') ||
-      (user.permissions || []).includes('USER_MANAGE')
-    );
-  }, [user]);
+  // Toast
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
 
   // Modular DMS Feature Flags
   const features = useMemo(() => {
@@ -239,20 +219,6 @@ export default function DashboardPage() {
     cacheQueue?: { ok: boolean; latencyMs: number };
     kms?: { ok: boolean; latencyMs: number };
   } | null>(null);
-
-  // Toast & UTC Clock
-  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
-  const [utcTime, setUtcTime] = useState('');
-
-  useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setUtcTime(now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
-    };
-    update();
-    const timer = setInterval(update, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Keyboard shortcut ⌘K / Ctrl+K for Global Search
   useEffect(() => {
@@ -412,61 +378,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleFileUploadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadFile) {
-      setUploadError('Please select a document file.');
-      return;
-    }
-    if (!uploadTitle.trim()) {
-      setUploadError('Document title is required.');
-      return;
-    }
-
-    setUploading(true);
-    setUploadError(null);
-    setUploadSuccess(null);
-    setUploadStep('Calculating SHA-256 integrity hash...');
-
-    try {
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      formData.append('title', uploadTitle);
-      if (uploadDocNumber) formData.append('documentNumber', uploadDocNumber);
-      formData.append('docTypeCode', uploadDocType);
-      formData.append('deptCode', uploadDept);
-      formData.append('secCode', uploadSecTier);
-      formData.append('description', uploadDesc);
-
-      setUploadStep('Performing AES-256-GCM envelope encryption...');
-
-      const res = await fetch('/api/documents/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
-
-      setUploadStep('Writing to storage and recording document...');
-      setUploadSuccess(data.document);
-      showToast(`Document ${data.document.documentNumber} uploaded and encrypted!`);
-
-      setUploadFile(null);
-      setUploadTitle('');
-      setUploadDocNumber('');
-      setUploadDesc('');
-
-      await loadDashboardData();
-    } catch (err: any) {
-      setUploadError(err.message || 'Error occurred during document upload.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleVerifyHash = async () => {
     setVerifying(true);
     setVerificationResult(null);
@@ -485,19 +396,29 @@ export default function DashboardPage() {
     }
   };
 
+  const getInitials = (name: string) => {
+    if (!name) return 'AT';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('');
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded bg-slate-900 text-white flex items-center justify-center animate-pulse">
-            <span className="material-symbols-outlined text-2xl">shield</span>
+      <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-4 bg-white/80 backdrop-blur-xl p-8 rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]">
+          <div className="w-12 h-12 rounded-full bg-[#10141A] text-white flex items-center justify-center shadow-lg">
+            <span className="material-symbols-outlined text-[24px]">cloud_done</span>
           </div>
-          <div className="flex items-center gap-2 text-slate-700 text-xs font-medium">
-            <svg className="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2.5 text-[#151c27] text-xs font-semibold">
+            <svg className="animate-spin h-4 w-4 text-[#3f5e93]" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Verifying Session &amp; Loading Workspace...</span>
+            <span>Verifying Session &amp; Loading Vault Records...</span>
           </div>
         </div>
       </div>
@@ -505,379 +426,361 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="bg-slate-50 font-sans text-slate-900 min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-slate-900">
-      {/* 1. Left Fixed Sidebar Navigation */}
-      <aside className="fixed left-0 top-0 h-screen w-[260px] bg-[#0c101c] border-r border-slate-800/90 z-50 flex flex-col justify-between shadow-xl select-none text-slate-300">
-        <div className="flex flex-col flex-1 overflow-y-auto">
-          {/* Logo Identity */}
-          <div className="p-4 flex flex-col gap-2.5 border-b border-slate-800/80 bg-gradient-to-b from-blue-950/20 to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]">
-                <span className="material-symbols-outlined text-[20px]">cloud_done</span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-bold text-sm text-white tracking-tight truncate">CloudDMS</span>
-                <span className="text-[10px] text-blue-400 font-mono tracking-wider uppercase font-semibold">
-                  Institutional Custody
-                </span>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] font-sans text-[#151c27] antialiased selection:bg-[#83A2DB]/30 selection:text-[#151c27]">
+      {/* 1. Full Expanded Google Stitch Sidebar */}
+      <aside className="fixed left-4 top-4 bottom-4 w-60 bg-white/95 backdrop-blur-xl rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 z-40 hidden md:flex flex-col justify-between p-3.5 overflow-y-auto [&::-webkit-scrollbar]:hidden select-none">
+        <div className="flex flex-col gap-3.5">
+          {/* Brand Logo & Name */}
+          <div
+            onClick={() => setActiveView('overview')}
+            className="flex items-center gap-2.5 px-2 py-0.5 cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#000000] text-white flex items-center justify-center shadow-sm shrink-0">
+              <span className="material-symbols-outlined text-[18px]">cloud_done</span>
             </div>
-
-            {/* Org Switcher / Indicator */}
-            <div className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-[16px] text-blue-400">domain</span>
-                <span className="text-xs text-slate-200 font-medium truncate">
-                  {user?.organization?.name || 'General Administration'}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-tight text-[#151c27]">CloudDMS</span>
+                <span className="text-[10px] font-semibold bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-1.5 py-0.2 rounded-full border border-[#83A2DB]/30">
+                  v2.4
                 </span>
               </div>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-600/30 text-blue-300">
-                Level {user?.maxSecurityLevel ?? 3}
-              </span>
+              <span className="text-[10px] text-[#9CA3AF] truncate">Institutional Vault</span>
             </div>
           </div>
 
-          {/* Navigation Groups */}
-          <nav className="flex-1 px-3 space-y-4 py-3 text-xs">
-            {/* 1. WORKSPACE */}
-            <div className="space-y-1">
-              <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          {/* Navigation Sections */}
+          <nav className="flex flex-col gap-3 text-xs">
+            {/* SECTION 1: WORKSPACE */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
                 Workspace
               </span>
-              <div className="space-y-0.5">
-                <button
-                  onClick={() => setActiveView('overview')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'overview'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">grid_view</span>
-                    <span>Overview</span>
-                  </div>
-                </button>
 
-                <button
-                  onClick={() => setActiveView('documents')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
+              <button
+                onClick={() => setActiveView('overview')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'overview'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">grid_view</span>
+                  <span>Overview</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveView('documents')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'documents'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">description</span>
+                  <span>Documents</span>
+                </div>
+                <span
+                  className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-semibold ${
                     activeView === 'documents'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#f0f3ff] text-[#45474b] border border-[#D8DEEA]'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">description</span>
-                    <span>Documents</span>
-                  </div>
-                  <span
-                    className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ${
-                      activeView === 'documents' ? 'bg-blue-800 text-white' : 'bg-white/10 text-slate-300'
-                    }`}
-                  >
-                    {pagination.total || stats.totalDocuments}
-                  </span>
-                </button>
+                  {stats.totalDocuments || documents.length}
+                </span>
+              </button>
 
-                <button
-                  onClick={() => setActiveView('upload')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
+              <button
+                onClick={() => setActiveView('upload')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'upload'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">upload_file</span>
+                  <span>Upload File</span>
+                </div>
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[11px] font-bold ${
                     activeView === 'upload'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#3f5e93] text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                    <span>Upload File</span>
-                  </div>
-                  <span className="material-symbols-outlined text-[16px] text-blue-400">add_circle</span>
-                </button>
+                  +
+                </span>
+              </button>
 
-                {features.feature_deep_ocr && (
-                  <button
-                    onClick={() => setActiveView('ocr')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                      activeView === 'ocr'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="material-symbols-outlined text-[18px]">document_scanner</span>
-                      <span>Search &amp; OCR</span>
-                    </div>
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={() => setActiveView('ocr')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'ocr'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">document_scanner</span>
+                  <span>Search &amp; OCR</span>
+                </div>
+              </button>
             </div>
 
-            {/* 2. PERSONNEL & ACCESS */}
-            <div className="space-y-1">
-              <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {/* SECTION 2: PERSONNEL & ACCESS */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
                 Personnel &amp; Access
               </span>
-              <div className="space-y-0.5">
-                <button
-                  onClick={() => setActiveView('users')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'users'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
-                    <span>Users &amp; Clearance</span>
-                  </div>
-                </button>
 
-                <button
-                  onClick={() => setActiveView('departments')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'departments'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">corporate_fare</span>
-                    <span>Departments</span>
-                  </div>
-                </button>
-              </div>
+              <button
+                onClick={() => setActiveView('users')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'users'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">manage_accounts</span>
+                  <span>Users &amp; Clearance</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveView('departments')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'departments'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
+                  <span>Departments</span>
+                </div>
+              </button>
             </div>
 
-            {/* 3. GOVERNANCE & OPERATIONS */}
-            <div className="space-y-1">
-              <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {/* SECTION 3: GOVERNANCE & OPERATIONS */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
                 Governance &amp; Operations
               </span>
-              <div className="space-y-0.5">
-                {features.feature_approvals && (
-                  <button
-                    onClick={() => setActiveView('approvals')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                      activeView === 'approvals'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="material-symbols-outlined text-[18px]">fact_check</span>
-                      <span>Approvals</span>
-                    </div>
-                    {stats.pendingApprovals > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        {stats.pendingApprovals}
-                      </span>
-                    )}
-                  </button>
-                )}
 
-                {features.feature_retention_holds && (
-                  <button
-                    onClick={() => setActiveView('retention')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                      activeView === 'retention'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <span className="material-symbols-outlined text-[18px]">lock_clock</span>
-                      <span className="truncate">Retention Holds</span>
-                    </div>
-                  </button>
-                )}
-
+              {features.feature_approvals && (
                 <button
-                  onClick={() => setActiveView('audit')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'audit'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  onClick={() => setActiveView('approvals')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'approvals'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                    <span className="truncate">Audit Trail</span>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">rule</span>
+                    <span>Approvals</span>
                   </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveView('jobs')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'jobs'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="material-symbols-outlined text-[18px]">sync_saved_locally</span>
-                    <span className="truncate">Job Queues</span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveView('notifications')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                    activeView === 'notifications'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="material-symbols-outlined text-[18px]">notifications_active</span>
-                    <span className="truncate">Alerts</span>
-                  </div>
-                  {unreadNotices > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-mono">
-                      {unreadNotices}
+                  {stats.pendingApprovals > 0 && (
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-bold ${
+                        activeView === 'approvals'
+                          ? 'bg-amber-400 text-black'
+                          : 'bg-amber-100 text-amber-900 border border-amber-300'
+                      }`}
+                    >
+                      {stats.pendingApprovals}
                     </span>
                   )}
                 </button>
-              </div>
+              )}
+
+              {features.feature_retention_holds && (
+                <button
+                  onClick={() => setActiveView('retention')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'retention'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">lock_clock</span>
+                    <span>Retention Holds</span>
+                  </div>
+                </button>
+              )}
+
+              <button
+                onClick={() => setActiveView('audit')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'audit'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">receipt_long</span>
+                  <span>Audit Trail</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveView('jobs')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'jobs'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">hourglass_top</span>
+                  <span>Job Queues</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActiveView('notifications')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'notifications'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">notifications</span>
+                  <span>Alerts &amp; Notices</span>
+                </div>
+                {unreadNotices > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-[#ba1a1a]"></span>
+                )}
+              </button>
             </div>
 
-            {/* 4. ADMINISTRATION */}
-            {canAccessAdmin && (
-              <div className="space-y-1">
-                <span className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Administration
-                </span>
-                <div className="space-y-0.5">
-                  <button
-                    onClick={() => setActiveView('admin')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold transition-all ${
-                      activeView === 'admin'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <span className="material-symbols-outlined text-[18px]">settings</span>
-                      <span className="truncate">System Settings</span>
-                    </div>
-                  </button>
+            {/* SECTION 4: ADMINISTRATION */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
+                Administration
+              </span>
+
+              <button
+                onClick={() => setActiveView('admin')}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                  activeView === 'admin'
+                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">settings</span>
+                  <span>System Settings</span>
                 </div>
-              </div>
-            )}
+              </button>
+            </div>
           </nav>
         </div>
 
-        {/* User Card & Sign Out */}
-        <div className="p-3 m-3 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative shrink-0">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                {user?.fullName ? user.fullName[0] : 'U'}
-              </div>
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0c101c]" />
+        {/* User Card at Bottom of Sidebar */}
+        <div className="pt-2.5 border-t border-[#D8DEEA]/60 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-[#000000] text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
+              {getInitials(user?.fullName || user?.username || 'Officer')}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-white truncate">{user?.fullName || 'User'}</span>
-              <span className="text-[10px] text-slate-400 truncate">{user?.email || 'Active'}</span>
+              <span className="text-xs font-semibold text-[#151c27] truncate">
+                {user?.fullName || 'Active Officer'}
+              </span>
+              <span className="text-[10px] text-[#3f5e93] font-mono truncate">
+                Level {user?.maxSecurityLevel ?? 3} Clearance
+              </span>
             </div>
           </div>
+
           <button
             onClick={handleLogout}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-white/[0.08] hover:text-white transition-colors"
-            title="Sign out"
-            type="button"
+            title="Sign Out"
+            className="w-7 h-7 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px]">logout</span>
+            <span className="material-symbols-outlined text-[15px]">logout</span>
           </button>
         </div>
       </aside>
 
-      {/* 2. Top Header Bar */}
-      <header className="fixed top-0 left-[260px] right-0 h-16 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 z-40 flex items-center justify-between px-6 shadow-xs">
-        {/* Instant Search Bar */}
-        <div className="flex items-center flex-1 max-w-lg">
-          <div
-            onClick={() => setGlobalSearchOpen(true)}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100/80 hover:bg-white text-slate-500 border border-slate-200 hover:border-blue-400 transition-all cursor-pointer group shadow-2xs"
-          >
-            <span className="material-symbols-outlined text-[18px] text-slate-400 group-hover:text-blue-600 transition">search</span>
-            <input
-              type="text"
-              readOnly
-              value={searchQuery}
-              placeholder="Search documents, taxonomies, or full text... (⌘K)"
-              className="w-full bg-transparent border-none outline-none text-xs text-slate-900 placeholder:text-slate-400 cursor-pointer"
-            />
-            <span className="text-[10px] font-mono text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded font-medium">⌘K</span>
-          </div>
-        </div>
-
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-4">
-          {/* Storage Quota Bar */}
-          <div className="hidden xl:flex flex-col items-end">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-600 font-medium">
-                {(stats.totalStorageBytes || 0) >= 1024 * 1024 * 1024
-                  ? `${((stats.totalStorageBytes || 0) / (1024 * 1024 * 1024)).toFixed(2)} GB`
-                  : `${((stats.totalStorageBytes || 0) / (1024 * 1024)).toFixed(1)} MB`} stored
-              </span>
-            </div>
-            <div className="w-28 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1 border border-slate-200">
-              <div
-                className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                style={{ width: `${Math.max(3, Math.min(100, stats.storageUsedPercentage || 1))}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Clean Status Pill */}
-          <div className="hidden 2xl:flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              Database Connected
+      {/* 2. Top Floating Navigation Header */}
+      <header className="fixed top-4 left-4 md:left-68 right-4 z-30">
+        <div className="h-16 max-w-[1440px] mx-auto bg-white/90 backdrop-blur-xl rounded-full px-5 shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 flex items-center justify-between gap-4">
+          {/* Active View Title & Breadcrumb */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
+              {activeView === 'overview' && 'Dashboard'}
+              {activeView === 'documents' && 'Workspace / Documents'}
+              {activeView === 'upload' && 'Workspace / Ingestion'}
+              {activeView === 'ocr' && 'Workspace / Search & OCR'}
+              {activeView === 'users' && 'Personnel / Users & Clearance'}
+              {activeView === 'departments' && 'Personnel / Departments'}
+              {activeView === 'approvals' && 'Governance / Sensitive Approvals'}
+              {activeView === 'retention' && 'Governance / Retention Holds'}
+              {activeView === 'audit' && 'Governance / Audit Trail'}
+              {activeView === 'jobs' && 'Operations / Job Queues'}
+              {activeView === 'notifications' && 'Operations / Alerts'}
+              {activeView === 'admin' && 'Administration / Governance'}
             </span>
           </div>
 
-          {/* Notifications Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setActiveView('notifications')}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              title="Notifications"
-            >
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
-            {unreadNotices > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center font-bold">
-                {unreadNotices}
-              </span>
-            )}
-          </div>
+          {/* Right Action Controls */}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-[#f0f3ff] rounded-full border border-[#D8DEEA]/50">
+              <span className="w-2 h-2 rounded-full bg-[#3f5e93] animate-pulse"></span>
+              <span className="text-[11px] text-[#45474b] font-mono">Vault Operational</span>
+            </div>
 
-          {/* + Upload Button */}
-          <button
-            type="button"
-            onClick={() => setActiveView('upload')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-sm transition-all"
-          >
-            <span className="material-symbols-outlined text-[16px]">upload_file</span>
-            <span>Upload</span>
-          </button>
+            <button
+              aria-label="Global Search"
+              onClick={() => setGlobalSearchOpen(true)}
+              className="h-9 px-3.5 rounded-full bg-[#f0f3ff] text-[#45474b] hover:bg-[#e2e8f8] hover:text-[#151c27] flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">search</span>
+              <span className="hidden sm:inline text-xs text-[#45474b]">Quick search</span>
+              <span className="hidden xl:inline text-[11px] text-[#9CA3AF] font-mono">⌘K</span>
+            </button>
+
+            <button
+              aria-label="System Notifications"
+              onClick={() => setActiveView('notifications')}
+              className="w-9 h-9 rounded-full bg-[#f0f3ff] text-[#45474b] hover:bg-[#e2e8f8] hover:text-[#151c27] flex items-center justify-center transition-all relative cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">notifications</span>
+              {unreadNotices > 0 && (
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#ba1a1a]"></span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveView('upload')}
+              className="h-9 px-4 bg-[#000000] text-white hover:bg-[#181c22] text-xs font-semibold rounded-full shadow-[0_6px_18px_rgba(16,20,26,0.22)] flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">upload_file</span>
+              <span className="hidden sm:inline">Upload</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* 3. Main Stage Content */}
-      <main className="pl-[260px] pt-16 flex-1 w-full bg-[#f8fafc] min-h-screen">
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-
-          {/* 1. OVERVIEW DASHBOARD */}
+      {/* 3. Main Stage Content Container */}
+      <div className="md:pl-68 transition-all">
+        <main className="w-full max-w-[1440px] mx-auto pt-24 px-6 pb-12">
+          {/* 1. OVERVIEW VIEW */}
           {activeView === 'overview' && (
             <OverviewDashboardView
               user={user}
               stats={stats}
               documents={documents}
+              activity={activity}
               systemHealth={systemHealth}
               onNavigate={(v) => setActiveView(v)}
               onOpenUpload={() => setActiveView('upload')}
@@ -886,48 +789,52 @@ export default function DashboardPage() {
                 setHashInput(doc.document_number || doc.sha256_hash);
                 setHashModalOpen(true);
               }}
+              onViewDocHistory={(doc) => setVersionHistoryDoc(doc)}
+              onGenerate65B={(doc) => setCertificateDocId(doc.id)}
+              onDownloadDoc={handleDownloadDocument}
+              onOpenSearch={() => setGlobalSearchOpen(true)}
             />
           )}
 
-          {/* 2. DOCUMENTS VIEW (With Dynamic Taxonomy Filters & Pagination) */}
+          {/* 2. DOCUMENTS VIEW */}
           {activeView === 'documents' && (
-            <div className="space-y-6">
-              {/* Clean Document Registry Header */}
-              <section className="bg-white rounded-xl border border-slate-200/80 shadow-xs p-6 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+            <div className="flex flex-col gap-6">
+              {/* Header */}
+              <section className="bg-white/90 backdrop-blur-xl rounded-[26px] p-6 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded tracking-wider">
+                    <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-full font-semibold">
                       Document Registry
                     </span>
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded">
-                      Clearance Gated (Level {user?.maxSecurityLevel ?? 3})
+                    <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full">
+                      Clearance Level {user?.maxSecurityLevel ?? 3}
                     </span>
                   </div>
-                  <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-[#151c27] tracking-tight mt-1 flex items-center gap-2">
                     <span>Documents &amp; Records Archive</span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-white font-mono font-bold">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#000000] text-white font-mono font-semibold">
                       {pagination.total} Records
                     </span>
                   </h1>
-                  <p className="text-xs text-slate-500 max-w-3xl">
-                    Search and access institutional documents. Filter by dynamic classification types, clearance tiers, or full-text keywords.
+                  <p className="text-xs text-[#45474b]">
+                    Search and access institutional documents. Filter by dynamic classification types, clearance tiers, or keywords.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 flex-wrap w-full xl:w-auto">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <button
                     onClick={() => {
                       setHashModalOpen(true);
                       setVerificationResult(null);
                     }}
-                    className="h-9 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1.5"
+                    className="h-10 px-4 bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-semibold rounded-full border border-[#D8DEEA] shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[16px] text-blue-600">tag</span>
+                    <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">tag</span>
                     <span>Verify Hash</span>
                   </button>
                   <button
                     onClick={() => setActiveView('upload')}
-                    className="h-9 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5"
+                    className="h-10 px-5 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-semibold rounded-full shadow-[0_6px_18px_rgba(16,20,26,0.22)] transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[16px]">upload_file</span>
                     <span>+ Upload Document</span>
@@ -935,20 +842,19 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              {/* Full-Width Evidence Registry */}
-              <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
-                {/* Advanced Search & Dynamic Taxonomy Filter Bar */}
-                <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col gap-3">
+              {/* Table Card */}
+              <div className="bg-white rounded-[26px] border border-[#D8DEEA]/80 shadow-xs flex flex-col overflow-hidden">
+                {/* Search & Filter Bar */}
+                <div className="p-5 border-b border-[#D8DEEA]/60 bg-[#f0f3ff]/30 flex flex-col gap-3">
                   <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                    {/* Live Search Input */}
                     <form onSubmit={handleSearchSubmit} className="relative flex-1">
-                      <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+                      <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[18px]">search</span>
                       <input
                         type="text"
                         placeholder="Search document #, title, description, or officer..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-9 pl-9 pr-9 bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                        className="w-full h-10 pl-9 pr-9 bg-white border border-[#D8DEEA] text-xs text-[#151c27] placeholder:text-[#9CA3AF] rounded-full focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium"
                       />
                       {searchQuery && (
                         <button
@@ -957,20 +863,19 @@ export default function DashboardPage() {
                             setSearchQuery('');
                             fetchDocuments(1, activeTypeFilter, selectedTierFilter, '');
                           }}
-                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                          className="absolute right-3 top-3 text-[#9CA3AF] hover:text-[#151c27]"
                         >
                           <span className="material-symbols-outlined text-[16px]">close</span>
                         </button>
                       )}
                     </form>
 
-                    {/* Dynamic Security Tier Dropdown */}
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-semibold text-slate-600">Clearance:</span>
+                      <span className="text-xs font-semibold text-[#45474b]">Clearance:</span>
                       <select
                         value={selectedTierFilter}
                         onChange={(e) => handleTierFilterChange(e.target.value)}
-                        className="h-9 px-3 bg-white border border-slate-200 text-xs font-medium text-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        className="h-10 px-3 bg-white border border-[#D8DEEA] text-xs font-medium text-[#151c27] rounded-full focus:outline-none focus:ring-2 focus:ring-[#3f5e93] cursor-pointer"
                       >
                         <option value="ALL">All Clearance Levels</option>
                         {securityLevels.map((sl) => (
@@ -982,14 +887,14 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Dynamic Document Type Filter Pills (No Hardcodes!) */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-200/60">
+                  {/* Dynamic Document Type Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
                     <button
                       onClick={() => handleTypeFilterChange('ALL')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                      className={`px-3.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                         activeTypeFilter === 'ALL'
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          ? 'bg-[#000000] text-white shadow-xs'
+                          : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
                       }`}
                     >
                       All Types
@@ -998,10 +903,10 @@ export default function DashboardPage() {
                       <button
                         key={dt.id}
                         onClick={() => handleTypeFilterChange(dt.code)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                        className={`px-3.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                           activeTypeFilter === dt.code
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            ? 'bg-[#3f5e93] text-white shadow-xs'
+                            : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
                         }`}
                       >
                         {dt.name} ({dt.code})
@@ -1014,24 +919,24 @@ export default function DashboardPage() {
                 <div className="overflow-x-auto w-full">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
+                      <tr className="bg-[#f0f3ff]/60 text-[#45474b] text-[11px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
                         <th className="py-3 px-4">Document Number</th>
                         <th className="py-3 px-4">Title &amp; Summary</th>
                         <th className="py-3 px-4">Type</th>
                         <th className="py-3 px-4">Clearance</th>
                         <th className="py-3 px-4">Version &amp; Size</th>
-                        <th className="py-3 px-4">Officer &amp; Department</th>
+                        <th className="py-3 px-4">Officer &amp; Dept</th>
                         <th className="py-3 px-4">SHA-256 Digest</th>
                         <th className="py-3 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs text-slate-800">
+                    <tbody className="divide-y divide-[#D8DEEA]/30 text-xs text-[#151c27]">
                       {docsLoading ? (
                         <tr>
                           <td colSpan={8} className="py-12 text-center text-slate-400">
                             <div className="flex items-center justify-center gap-2">
-                              <span className="material-symbols-outlined animate-spin text-blue-600">sync</span>
-                              <span>Loading records...</span>
+                              <span className="material-symbols-outlined animate-spin text-[#3f5e93]">sync</span>
+                              <span>Loading vault records...</span>
                             </div>
                           </td>
                         </tr>
@@ -1039,50 +944,47 @@ export default function DashboardPage() {
                         <tr>
                           <td colSpan={8} className="py-12 text-center text-slate-400">
                             <span className="material-symbols-outlined text-[36px] text-slate-300 block mb-1">search_off</span>
-                            <p className="text-sm font-semibold text-slate-600">No documents match the active filter criteria</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Try resetting search or adjusting clearance filter.</p>
+                            <p className="text-sm font-semibold text-slate-600">No documents match the active filter</p>
                           </td>
                         </tr>
                       ) : (
                         documents.map((doc) => (
-                          <tr key={doc.id} className="hover:bg-slate-50/70 transition font-medium">
-                            <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
+                          <tr key={doc.id} className="hover:bg-[#f0f3ff]/40 transition font-medium">
+                            <td className="py-3.5 px-4 font-mono font-semibold text-[#151c27] whitespace-nowrap">
                               <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[16px] text-blue-600">description</span>
+                                <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">description</span>
                                 <span>{doc.document_number}</span>
                               </div>
                             </td>
                             <td className="py-3.5 px-4 max-w-sm">
-                              <div className="font-semibold text-slate-900 truncate">{doc.title}</div>
-                              <div className="text-[11px] text-slate-500 truncate">{doc.description || 'No notes'}</div>
+                              <div className="font-semibold text-[#151c27] truncate">{doc.title}</div>
+                              <div className="text-[11px] text-[#9CA3AF] truncate">{doc.description || 'No notes'}</div>
                             </td>
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 bg-[#f0f3ff] text-[#151c27] rounded-full border border-[#D8DEEA]">
                                 {doc.document_type_code}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                doc.security_tier === 'T5'
-                                  ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                  : doc.security_tier === 'T4'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : doc.security_tier === 'T3'
-                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                                doc.security_rank >= 4
+                                  ? 'bg-[rgba(206,105,105,0.14)] text-[#ca6666]'
+                                  : doc.security_rank === 3
+                                  ? 'bg-[rgba(131,162,219,0.14)] text-[#3f5e93]'
+                                  : 'bg-[#E4E4E4] text-[#45474b]'
                               }`}>
-                                {doc.security_tier} {doc.security_tier_name}
+                                {doc.security_tier_name || doc.security_tier}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 whitespace-nowrap font-mono text-[11px]">
-                              <span className="text-slate-800 font-semibold">v{doc.version_number}.0</span>
-                              <span className="text-slate-400 block text-[10px]">
+                              <span className="text-[#151c27] font-semibold">v{doc.version_number}.0</span>
+                              <span className="text-[#9CA3AF] block text-[10px]">
                                 {(doc.file_size / 1024).toFixed(1)} KB
                               </span>
                             </td>
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              <div className="text-slate-900">{doc.owner_name}</div>
-                              <div className="text-[10px] text-slate-500">{doc.department_name}</div>
+                              <div className="text-[#151c27]">{doc.owner_name}</div>
+                              <div className="text-[10px] text-[#9CA3AF]">{doc.department_name}</div>
                             </td>
                             <td className="py-3.5 px-4 whitespace-nowrap font-mono text-[10px]">
                               <button
@@ -1090,10 +992,10 @@ export default function DashboardPage() {
                                   navigator.clipboard.writeText(doc.sha256_hash);
                                   showToast(`Copied SHA-256 for ${doc.document_number}`);
                                 }}
-                                className="text-slate-500 hover:text-blue-600 flex items-center gap-1 group"
+                                className="text-[#9CA3AF] hover:text-[#3f5e93] flex items-center gap-1 group cursor-pointer"
                                 title="Click to copy hash"
                               >
-                                <span>sha256:{doc.sha256_hash.substring(0, 10)}...</span>
+                                <span>sha256:{doc.sha256_hash.substring(0, 8)}...</span>
                                 <span className="material-symbols-outlined text-[12px] opacity-0 group-hover:opacity-100">content_copy</span>
                               </button>
                             </td>
@@ -1101,32 +1003,24 @@ export default function DashboardPage() {
                               <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => handleDownloadDocument(doc.id, doc.document_number, doc.file_name)}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 text-slate-700 border border-slate-200 text-xs font-semibold rounded-md flex items-center gap-1 transition"
-                                  title="Decrypt & Download"
+                                  className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition cursor-pointer"
+                                  title="Download Decrypted File"
                                 >
-                                  <span className="material-symbols-outlined text-[14px]">download</span>
-                                  <span>Decrypt</span>
+                                  <span className="material-symbols-outlined text-[17px]">download</span>
                                 </button>
                                 <button
                                   onClick={() => setVersionHistoryDoc(doc)}
-                                  className="p-1 text-slate-500 hover:text-amber-600 hover:bg-slate-100 rounded transition"
+                                  className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition cursor-pointer"
                                   title="Version Timeline"
                                 >
-                                  <span className="material-symbols-outlined text-[18px]">history_edu</span>
+                                  <span className="material-symbols-outlined text-[17px]">history</span>
                                 </button>
                                 <button
                                   onClick={() => setSelectedDoc(doc)}
-                                  className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition"
+                                  className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition cursor-pointer"
                                   title="View Details"
                                 >
-                                  <span className="material-symbols-outlined text-[18px]">visibility</span>
-                                </button>
-                                <button
-                                  onClick={() => setCustodyDoc(doc)}
-                                  className="p-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded transition"
-                                  title="Chain of Custody"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">history</span>
+                                  <span className="material-symbols-outlined text-[17px]">visibility</span>
                                 </button>
                               </div>
                             </td>
@@ -1137,8 +1031,8 @@ export default function DashboardPage() {
                   </table>
                 </div>
 
-                {/* Pagination Controls Footer */}
-                <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
+                {/* Pagination Controls */}
+                <div className="p-4 bg-[#f0f3ff]/40 border-t border-[#D8DEEA]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#45474b]">
                   <div className="flex items-center gap-2">
                     <span>
                       Showing <b>{documents.length}</b> of <b>{pagination.total}</b> documents
@@ -1151,17 +1045,17 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handlePageChange(pagination.page - 1)}
                       disabled={pagination.page <= 1 || docsLoading}
-                      className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition"
+                      className="px-3 py-1.5 rounded-full border border-[#D8DEEA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition cursor-pointer"
                     >
                       Previous
                     </button>
-                    <span className="px-2 font-mono font-bold text-slate-800">
+                    <span className="px-2 font-mono font-bold text-[#151c27]">
                       {pagination.page}
                     </span>
                     <button
                       onClick={() => handlePageChange(pagination.page + 1)}
                       disabled={pagination.page >= pagination.totalPages || docsLoading}
-                      className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition"
+                      className="px-3 py-1.5 rounded-full border border-[#D8DEEA] bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition cursor-pointer"
                     >
                       Next
                     </button>
@@ -1245,9 +1139,7 @@ export default function DashboardPage() {
           )}
 
           {/* 9. JOB QUEUES */}
-          {activeView === 'jobs' && (
-            <JobQueuesView />
-          )}
+          {activeView === 'jobs' && <JobQueuesView />}
 
           {/* 10. SYSTEM ADMIN */}
           {activeView === 'admin' && (
@@ -1260,9 +1152,7 @@ export default function DashboardPage() {
           )}
 
           {/* 11. USERS & ACCESS */}
-          {activeView === 'users' && (
-            <UsersManagementView onNotify={showToast} />
-          )}
+          {activeView === 'users' && <UsersManagementView onNotify={showToast} />}
 
           {/* 12. DEPARTMENTS */}
           {activeView === 'departments' && (
@@ -1271,53 +1161,52 @@ export default function DashboardPage() {
               onNavigateToUsers={() => setActiveView('users')}
             />
           )}
-
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* SHA-256 Verification Modal */}
       {hashModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl p-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-[#10141A]/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-[26px] shadow-2xl p-6 flex flex-col gap-4 border border-[#D8DEEA]">
+            <div className="flex items-center justify-between pb-2 border-b border-[#D8DEEA]/60">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-blue-700">
+                <div className="w-9 h-9 rounded-full bg-[rgba(131,162,219,0.14)] flex items-center justify-center text-[#3f5e93]">
                   <span className="material-symbols-outlined text-[20px]">fingerprint</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Verify Cryptographic SHA-256 Digest</h3>
-                  <p className="text-xs text-slate-500">Live Database Attestation Check</p>
+                  <h3 className="text-sm font-bold text-[#151c27]">Verify SHA-256 Integrity</h3>
+                  <p className="text-xs text-[#9CA3AF]">Live Cryptographic Hash Verification</p>
                 </div>
               </div>
               <button
                 onClick={() => setHashModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded"
+                className="text-[#9CA3AF] hover:text-[#151c27] p-1 rounded-full"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-slate-700">Enter Document # or SHA-256 Hex Hash</label>
+              <label className="text-xs font-semibold text-[#45474b]">Document # or SHA-256 Digest</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={hashInput}
                   onChange={(e) => setHashInput(e.target.value)}
-                  placeholder="e.g. DOC-OM-2026-0001 or full sha256..."
-                  className="flex-1 h-9 px-3 bg-slate-50 border border-slate-200 font-mono text-xs text-slate-900 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  placeholder="e.g. DOC-9824 or 64-char sha256..."
+                  className="flex-1 h-10 px-3.5 bg-[#f0f3ff] border border-[#D8DEEA] font-mono text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
                 />
                 <button
                   onClick={handleVerifyHash}
                   disabled={verifying}
-                  className="px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 flex items-center gap-1"
+                  className="px-4 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-semibold rounded-full disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                 >
                   {verifying ? 'Checking...' : 'Verify'}
                 </button>
               </div>
 
               {verificationResult && (
-                <div className={`p-3 rounded-lg border text-xs mt-2 ${
+                <div className={`p-3.5 rounded-2xl border text-xs mt-2 ${
                   verificationResult.verified
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                     : 'bg-red-50 border-red-200 text-red-900'
@@ -1338,7 +1227,7 @@ export default function DashboardPage() {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setHashModalOpen(false)}
-                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+                className="px-4 py-2 bg-[#f0f3ff] hover:bg-[#e2e8f8] text-[#151c27] text-xs font-semibold rounded-full transition cursor-pointer"
               >
                 Close
               </button>
@@ -1349,48 +1238,48 @@ export default function DashboardPage() {
 
       {/* Full Document Dossier Modal */}
       {selectedDoc && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-xl shadow-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-[#10141A]/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-[26px] shadow-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto border border-[#D8DEEA]">
+            <div className="flex items-center justify-between pb-2 border-b border-[#D8DEEA]/60">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600">description</span>
-                <h3 className="text-sm font-bold text-slate-900">{selectedDoc.document_number} — Document Details</h3>
+                <span className="material-symbols-outlined text-[#3f5e93]">description</span>
+                <h3 className="text-sm font-bold text-[#151c27]">{selectedDoc.document_number} — Record Details</h3>
               </div>
-              <button onClick={() => setSelectedDoc(null)} className="text-slate-400 hover:text-slate-700 p-1">
+              <button onClick={() => setSelectedDoc(null)} className="text-[#9CA3AF] hover:text-[#151c27] p-1 rounded-full">
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Title</span>
-                <span className="text-sm font-bold text-slate-900">{selectedDoc.title}</span>
+                <span className="text-[#9CA3AF] block text-[10px] uppercase font-bold">Title</span>
+                <span className="text-sm font-bold text-[#151c27]">{selectedDoc.title}</span>
               </div>
               <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Summary / Description</span>
-                <span className="text-slate-700">{selectedDoc.description || 'No description provided.'}</span>
+                <span className="text-[#9CA3AF] block text-[10px] uppercase font-bold">Summary</span>
+                <span className="text-[#45474b]">{selectedDoc.description || 'No description provided.'}</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-[#f0f3ff]/60 rounded-2xl border border-[#D8DEEA]">
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Document Type</span>
-                  <span className="font-semibold text-slate-900">{selectedDoc.document_type_name}</span>
+                  <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Document Type</span>
+                  <span className="font-semibold text-[#151c27]">{selectedDoc.document_type_name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Classification Tier</span>
-                  <span className="font-semibold text-slate-900">{selectedDoc.security_tier} ({selectedDoc.security_tier_name})</span>
+                  <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Classification Tier</span>
+                  <span className="font-semibold text-[#151c27]">{selectedDoc.security_tier} ({selectedDoc.security_tier_name})</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Owner / Officer</span>
-                  <span className="font-semibold text-slate-900">{selectedDoc.owner_name}</span>
+                  <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Officer</span>
+                  <span className="font-semibold text-[#151c27]">{selectedDoc.owner_name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Department</span>
-                  <span className="font-semibold text-slate-900">{selectedDoc.department_name}</span>
+                  <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Department</span>
+                  <span className="font-semibold text-[#151c27]">{selectedDoc.department_name}</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900 text-white rounded-lg space-y-1.5 font-mono text-[11px]">
-                <div className="text-blue-400 font-bold uppercase text-[10px]">Encryption &amp; Storage Integrity</div>
+              <div className="p-3.5 bg-[#10141A] text-white rounded-2xl space-y-1.5 font-mono text-[11px]">
+                <div className="text-[#83A2DB] font-bold uppercase text-[10px]">Encryption &amp; Storage Integrity</div>
                 <div>Algorithm: {selectedDoc.encryption_algorithm}</div>
                 <div>SHA-256 Digest: {selectedDoc.sha256_hash}</div>
                 <div>File Size: {(selectedDoc.file_size / (1024 * 1024)).toFixed(2)} MB</div>
@@ -1398,7 +1287,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
+            <div className="flex items-center justify-between pt-2 border-t border-[#D8DEEA]/60 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -1406,9 +1295,9 @@ export default function DashboardPage() {
                     setSelectedDoc(null);
                     setVersionHistoryDoc(doc);
                   }}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition"
+                  className="px-3.5 py-1.5 bg-[#f0f3ff] hover:bg-[#e2e8f8] text-[#151c27] text-xs font-semibold rounded-full flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[15px] text-amber-600">history_edu</span>
+                  <span className="material-symbols-outlined text-[15px] text-[#3f5e93]">history</span>
                   <span>Version History</span>
                 </button>
                 {features.feature_section_65b && (
@@ -1418,64 +1307,17 @@ export default function DashboardPage() {
                       setSelectedDoc(null);
                       setCertificateDocId(id);
                     }}
-                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition"
+                    className="px-3.5 py-1.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30 text-xs font-semibold rounded-full flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+                    <span className="material-symbols-outlined text-[15px] text-[#3f5e93]">verified</span>
                     <span>Section 65B Certificate</span>
                   </button>
                 )}
               </div>
               <button
                 onClick={() => setSelectedDoc(null)}
-                className="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg"
+                className="px-4 py-1.5 bg-[#000000] text-white text-xs font-semibold rounded-full cursor-pointer"
               >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chain of Custody History Modal */}
-      {custodyDoc && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl p-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600">history</span>
-                <h3 className="text-sm font-bold text-slate-900">Chain of Custody: {custodyDoc.document_number}</h3>
-              </div>
-              <button onClick={() => setCustodyDoc(null)} className="text-slate-400 hover:text-slate-700 p-1">
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
-                <div className="font-bold text-slate-900">{custodyDoc.title}</div>
-                <div className="font-mono text-[11px] text-slate-500">SHA-256: {custodyDoc.sha256_hash}</div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-emerald-900 block">Initial Upload &amp; Checksum Verification</span>
-                    <span className="text-[11px] text-emerald-700">By {custodyDoc.owner_name} ({custodyDoc.department_name})</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-emerald-800 font-bold">VERIFIED</span>
-                </div>
-                <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-blue-900 block">AES-256 Encryption Envelope</span>
-                    <span className="text-[11px] text-blue-700">Algorithm: {custodyDoc.encryption_algorithm}</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-blue-800 font-bold">SECURE</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100">
-              <button onClick={() => setCustodyDoc(null)} className="px-3.5 py-1.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">
                 Close
               </button>
             </div>
@@ -1523,14 +1365,13 @@ export default function DashboardPage() {
 
       {/* Toast Notification Popup */}
       <div
-        className={`fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl text-xs flex items-center gap-2.5 transition-all duration-300 ${
+        className={`fixed bottom-6 right-6 z-50 bg-[#10141A] text-white px-4 py-3 rounded-full shadow-2xl text-xs flex items-center gap-2.5 transition-all duration-300 border border-white/10 ${
           toast.show ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
         }`}
       >
-        <span className="material-symbols-outlined text-blue-400 text-[18px]">verified</span>
+        <span className="material-symbols-outlined text-[#83A2DB] text-[18px]">verified</span>
         <span>{toast.message}</span>
       </div>
-
     </div>
   );
 }

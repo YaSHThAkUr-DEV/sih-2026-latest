@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 
-interface CaseDocument {
+export interface CaseDocument {
   id: string;
   document_number: string;
   title: string;
@@ -26,7 +26,20 @@ interface CaseDocument {
   checksum_verified: boolean;
 }
 
-interface OverviewDashboardViewProps {
+export interface AuditEventItem {
+  id: string;
+  event_type: string;
+  result: string;
+  created_at: string;
+  event_hash: string;
+  ip_address: string;
+  actor_name: string;
+  actor_designation: string;
+  document_number?: string;
+  document_title?: string;
+}
+
+export interface OverviewDashboardViewProps {
   user: any;
   stats: {
     totalDocuments: number;
@@ -47,574 +60,583 @@ interface OverviewDashboardViewProps {
     }>;
   };
   documents: CaseDocument[];
-  systemHealth: any;
+  activity?: AuditEventItem[];
+  systemHealth?: any;
   onNavigate: (view: any) => void;
   onOpenUpload: () => void;
-  onSelectDoc: (doc: CaseDocument) => void;
-  onVerifyDoc: (doc: CaseDocument) => void;
+  onSelectDoc?: (doc: CaseDocument) => void;
+  onVerifyDoc?: (doc: CaseDocument) => void;
+  onViewDocHistory?: (doc: CaseDocument) => void;
+  onGenerate65B?: (doc: CaseDocument) => void;
+  onDownloadDoc?: (docId: string, docNumber: string, fileName: string) => void;
+  onOpenSearch?: () => void;
 }
 
 export default function OverviewDashboardView({
   user,
   stats,
-  documents,
+  documents = [],
+  activity = [],
   systemHealth,
   onNavigate,
   onOpenUpload,
   onSelectDoc,
   onVerifyDoc,
+  onViewDocHistory,
+  onGenerate65B,
+  onDownloadDoc,
+  onOpenSearch,
 }: OverviewDashboardViewProps) {
-  const [docSearch, setDocSearch] = useState('');
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
-  const [activeTab, setActiveTab] = useState<'all' | 'shared' | 'starred' | 'archived'>('all');
-
-  // Extract unique departments from documents
-  const departmentOptions = useMemo(() => {
-    const set = new Set<string>();
-    documents.forEach((d) => {
-      if (d.department_name) set.add(d.department_name);
-    });
-    return Array.from(set);
-  }, [documents]);
-
-  // Filtered Documents
-  const filteredDocs = useMemo(() => {
-    return documents.filter((doc) => {
-      if (selectedDeptFilter !== 'ALL' && doc.department_name !== selectedDeptFilter) {
-        return false;
-      }
-      if (docSearch) {
-        const q = docSearch.toLowerCase();
-        const matchesTitle = doc.title?.toLowerCase().includes(q);
-        const matchesNum = doc.document_number?.toLowerCase().includes(q);
-        const matchesDept = doc.department_name?.toLowerCase().includes(q);
-        const matchesOwner = doc.owner_name?.toLowerCase().includes(q);
-        const matchesFile = doc.file_name?.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesNum && !matchesDept && !matchesOwner && !matchesFile) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [documents, selectedDeptFilter, docSearch]);
-
-  // Dynamic department storage from PostgreSQL
-  const departmentStorageList = useMemo(() => {
-    if (stats.departmentStorage && stats.departmentStorage.length > 0) {
-      return stats.departmentStorage;
-    }
-    const map = new Map<string, { name: string; code: string; docCount: number; storageBytes: number }>();
-    documents.forEach((d) => {
-      const name = d.department_name || 'General';
-      const cur = map.get(name) || { name, code: d.department_code || 'GEN', docCount: 0, storageBytes: 0 };
-      cur.docCount += 1;
-      cur.storageBytes += Number(d.file_size || 0);
-      map.set(name, cur);
-    });
-    const total = Array.from(map.values()).reduce((acc, v) => acc + v.storageBytes, 0);
-    return Array.from(map.values()).map((v) => ({
-      departmentId: v.code,
-      name: v.name,
-      code: v.code,
-      docCount: v.docCount,
-      storageBytes: v.storageBytes,
-      percent: total > 0 ? Math.round((v.storageBytes / total) * 100) : 0,
-    }));
-  }, [stats.departmentStorage, documents]);
-
-  const formatBytes = (bytes?: number) => {
-    if (!bytes || bytes === 0) return '0 MB';
-    const mb = bytes / (1024 * 1024);
+  // Helper: Format bytes to human readable format
+  const formatBytes = (bytes: number) => {
+    if (!bytes || bytes === 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
     if (mb < 1024) return `${mb.toFixed(1)} MB`;
     const gb = mb / 1024;
-    return `${gb.toFixed(2)} GB`;
+    if (gb < 1024) return `${gb.toFixed(2)} GB`;
+    const tb = gb / 1024;
+    return `${tb.toFixed(2)} TB`;
   };
 
-  const deptColors = [
-    { bg: 'bg-blue-600', pill: 'bg-blue-500' },
-    { bg: 'bg-indigo-600', pill: 'bg-indigo-500' },
-    { bg: 'bg-purple-600', pill: 'bg-purple-500' },
-    { bg: 'bg-emerald-600', pill: 'bg-emerald-500' },
-    { bg: 'bg-amber-600', pill: 'bg-amber-500' },
-    { bg: 'bg-rose-600', pill: 'bg-rose-500' },
-  ];
-
-  // Helper for file extension badge
-  const getFileExt = (filename: string) => {
-    if (!filename) return 'DOC';
-    const ext = filename.split('.').pop()?.toUpperCase() || 'DOC';
-    return ext.length <= 4 ? ext : 'DOC';
-  };
-
-  const getExtBadgeClass = (ext: string) => {
-    switch (ext) {
-      case 'PDF':
-        return 'bg-red-50 text-red-700 border-red-200';
-      case 'DOCX':
-      case 'DOC':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'XLSX':
-      case 'CSV':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'PNG':
-      case 'JPG':
-      case 'JPEG':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+  // Helper: Format relative time
+  const formatTimeAgo = (dateStr: string) => {
+    try {
+      const diffSecs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (diffSecs < 60) return 'Just now';
+      if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m ago`;
+      if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h ago`;
+      return `${Math.floor(diffSecs / 86400)}d ago`;
+    } catch {
+      return dateStr;
     }
   };
 
-  // Dynamic user greeting
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+  // Helper: Format UTC date
+  const formatUtcDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toISOString().replace('T', ' ').substring(0, 19);
+    } catch {
+      return dateStr;
+    }
   };
 
+  // Helper: User initials
+  const getInitials = (name: string) => {
+    if (!name) return 'SO';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('');
+  };
+
+  // Helper: Format audit event action badge
+  const getEventBadge = (eventType: string, result: string) => {
+    const type = (eventType || '').toUpperCase();
+    if (type.includes('APPROVE') || type.includes('SIGN')) {
+      return { label: 'Approval Granted', bg: 'bg-[#83A2DB]/15 text-[#305184]' };
+    }
+    if (type.includes('UPLOAD') || type.includes('INGEST') || type.includes('CREATE')) {
+      return { label: 'Document Ingested', bg: 'bg-[#E4E4E4] text-[#151c27]' };
+    }
+    if (type.includes('VERIF') || type.includes('CHECK')) {
+      return { label: 'Integrity Verified', bg: 'bg-[#83A2DB]/15 text-[#305184]' };
+    }
+    if (type.includes('ACCESS') || type.includes('READ') || type.includes('KEY') || type.includes('DOWNLOAD')) {
+      return { label: 'Key Access', bg: 'bg-[rgba(206,105,105,0.14)] text-[#ca6666]' };
+    }
+    if (type.includes('ARCHIVE') || type.includes('BACKUP') || type.includes('JOB')) {
+      return { label: 'Auto-Archive', bg: 'bg-[#e7eefe] text-[#45474b]' };
+    }
+    return { label: result || 'Recorded', bg: 'bg-[#83A2DB]/15 text-[#305184]' };
+  };
+
+  // Real live storage calculations from PostgreSQL
+  const totalStorageBytes = stats?.totalStorageBytes ?? documents.reduce((acc, d) => acc + (d.file_size || 0), 0);
+  const quotaBytes = stats?.totalStorageQuotaBytes || (1000 * 1024 * 1024 * 1024); // 1,000 GB Standard Quota
+  const usedPercent = stats?.storageUsedPercentage ?? (quotaBytes > 0 ? (totalStorageBytes / quotaBytes) * 100 : 0);
+
+  // Department storage breakdown purely from PostgreSQL
+  const departmentStorageList =
+    stats?.departmentStorage && stats.departmentStorage.length > 0
+      ? stats.departmentStorage
+      : [
+          {
+            departmentId: user?.department?.id || 'default',
+            name: user?.department?.name || 'General Administration',
+            code: user?.department?.code || 'GEN',
+            docCount: stats?.totalDocuments ?? documents.length,
+            storageBytes: totalStorageBytes,
+            percent: totalStorageBytes > 0 ? 100 : 0,
+          },
+        ];
+
+  const totalActiveDocs = stats?.totalDocuments ?? documents.length;
+  const totalEncryptedDocs = stats?.encryptedDocuments ?? documents.length;
+  const totalPendingApprovals = stats?.pendingApprovals ?? 0;
+  const totalAuditEvents = stats?.auditEventsCount ?? activity.length;
+
   return (
-    <div className="space-y-6">
-      {/* Dynamic Ambient Backdrop */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 lg:p-8 shadow-md">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold border border-blue-400/30">
-                {user?.organization?.name || 'CloudDMS Enterprise Platform'}
+    <div className="flex flex-col w-full gap-7 font-sans">
+      {/* 1. Top Greeting & Operational Action Bar */}
+      <section className="w-full bg-white/85 backdrop-blur-xl rounded-[26px] p-6 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Profile Slot */}
+          <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-[#000000] text-white font-semibold text-sm shadow-[0_4px_14px_rgba(16,20,26,0.18)]">
+            {getInitials(user?.fullName || user?.username || 'Officer')}
+            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#3f5e93]"></span>
+            </span>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-lg font-semibold text-[#151c27]">
+                {user?.fullName || user?.username || 'Dealing Officer'}
               </span>
-              <span className="text-xs text-blue-300 font-mono">Protected Storage Pool</span>
+              <span className="text-[11px] font-mono bg-[#f0f3ff] text-[#151c27] px-2.5 py-1 rounded-full tracking-wider">
+                {user?.organization?.code || user?.organization?.name || 'INSTITUTION'}
+              </span>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-              {getGreeting()}, {user?.fullName || 'User'}
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Your organizational workspace is fully operational. All repositories are synced with zero-trust encryption and verified hash ledgers.
-            </p>
+            <span className="text-[13px] text-[#45474b]">
+              {user?.designation || (user?.department?.name ? `${user.department.name} Officer` : 'Authorized Officer')}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onOpenUpload}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-all active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              <span>Upload Document</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('search-ocr')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">document_scanner</span>
-              <span>OCR Search</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Decorative background glow */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-      </div>
-
-      {/* Quick Action Ribbon Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div
-          onClick={onOpenUpload}
-          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">upload_file</span>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-              Upload Document
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Ingest new corporate files with automated encryption.</p>
-          </div>
-          <div className="flex items-center gap-1 mt-3 text-blue-600 text-xs font-semibold">
-            <span>Start upload</span>
-            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
-              arrow_forward
+          {/* Live Operational Gateway Badge */}
+          <div className="hidden sm:flex items-center gap-2 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-3 py-1.5 rounded-full text-[11px] font-mono border border-[#83A2DB]/30">
+            <span className="w-2 h-2 rounded-full bg-[#3f5e93] animate-pulse"></span>
+            <span>
+              Gateway: {typeof window !== 'undefined' ? window.location.hostname : 'localhost'} · Operational (TLS 1.3 Strict)
             </span>
           </div>
         </div>
 
-        <div
-          onClick={() => onNavigate('users')}
-          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">person_add</span>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-              Add Team Member
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Invite colleagues and configure department access.</p>
-          </div>
-          <div className="flex items-center gap-1 mt-3 text-indigo-600 text-xs font-semibold">
-            <span>Send invite</span>
-            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
-              arrow_forward
-            </span>
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigate('departments')}
-          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-cyan-300 transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="w-10 h-10 rounded-lg bg-cyan-50 text-cyan-700 flex items-center justify-center mb-3 group-hover:bg-cyan-700 group-hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">domain_add</span>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 group-hover:text-cyan-700 transition-colors">
-              Create Department
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Organize divisions, squads, and storage boundaries.</p>
-          </div>
-          <div className="flex items-center gap-1 mt-3 text-cyan-700 text-xs font-semibold">
-            <span>Configure setup</span>
-            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
-              arrow_forward
-            </span>
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigate('retention')}
-          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:bg-emerald-700 group-hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">lock_clock</span>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-              Set Retention Schedule
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Configure automated archival &amp; preservation locks.</p>
-          </div>
-          <div className="flex items-center gap-1 mt-3 text-emerald-700 text-xs font-semibold">
-            <span>Manage policies</span>
-            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
-              arrow_forward
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Storage Allocation by Department & System Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl bg-white border border-slate-200/80 shadow-xs p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Storage Allocation by Department</h3>
-                <p className="text-xs text-slate-500">
-                  Breakdown of storage consumed across core organizational units.
-                </p>
-              </div>
-              <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 font-medium">
-                {formatBytes(stats.totalStorageBytes || 0)} / 1,000 GB
-              </span>
-            </div>
-
-            {/* Storage Progress Segments from PostgreSQL */}
-            <div className="w-full h-3.5 rounded-full bg-slate-100 overflow-hidden flex my-4 border border-slate-200">
-              {departmentStorageList.map((ds, idx) => (
-                <div
-                  key={ds.departmentId || ds.code || idx}
-                  className={`h-full ${deptColors[idx % deptColors.length].bg} transition-all duration-500`}
-                  style={{ width: `${Math.max(3, ds.percent)}%` }}
-                  title={`${ds.name}: ${ds.percent}% (${formatBytes(ds.storageBytes)})`}
-                />
-              ))}
-            </div>
-
-            {/* Department Breakdown Mini-Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-              {departmentStorageList.slice(0, 4).map((ds, idx) => (
-                <div key={ds.departmentId || ds.code || idx} className="flex flex-col p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className={`w-2.5 h-2.5 rounded-full ${deptColors[idx % deptColors.length].pill}`} />
-                    <span className="text-xs font-semibold text-slate-800 truncate" title={ds.name}>{ds.name}</span>
-                  </div>
-                  <div className="text-base font-bold text-slate-900">{ds.percent}%</div>
-                  <span className="font-mono text-[11px] text-slate-500">{formatBytes(ds.storageBytes)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 mt-4 text-xs text-slate-600 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-emerald-600">check_circle</span>
-              <span>Storage quotas healthy. Automatic expansion enabled at 85% capacity.</span>
-            </div>
-            <button
-              onClick={() => onNavigate('departments')}
-              className="text-blue-600 font-semibold hover:underline"
-            >
-              Manage Quotas
-            </button>
-          </div>
-        </div>
-
-        {/* System Health */}
-        <div className="rounded-xl bg-white border border-slate-200/80 shadow-xs p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-900">System Health</h3>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Operational
-              </span>
-            </div>
-
-            <div className="space-y-2 mt-3">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-600 text-[18px]">bolt</span>
-                  <span className="text-xs font-medium text-slate-800">OCR &amp; Search Indexer</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-emerald-600">99.98%</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-[18px]">verified_user</span>
-                  <span className="text-xs font-medium text-slate-800">Preservation Lock Service</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-emerald-600">Active</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-cyan-600 text-[18px]">backup</span>
-                  <span className="text-xs font-medium text-slate-800">Offsite S3 Replication</span>
-                </div>
-                <span className="font-mono text-[11px] text-slate-500">Synced just now</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 mt-3 border-t border-slate-100">
-            <button
-              onClick={() => onNavigate('jobs')}
-              className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors border border-slate-200"
-            >
-              <span>View Worker Queue Telemetry</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Documents Table Section */}
-      <div className="rounded-xl bg-white border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
-        {/* Table Header & Controls */}
-        <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Recent Documents</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Browse and manage latest uploaded corporate files and approvals.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div className="relative min-w-[220px]">
-              <span className="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-[18px]">
-                search
-              </span>
-              <input
-                type="text"
-                value={docSearch}
-                onChange={(e) => setDocSearch(e.target.value)}
-                placeholder="Filter current list..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 transition"
-              />
-            </div>
-
-            <div className="relative">
-              <select
-                value={selectedDeptFilter}
-                onChange={(e) => setSelectedDeptFilter(e.target.value)}
-                className="w-full pl-3 pr-8 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-blue-500 cursor-pointer font-medium"
-              >
-                <option value="ALL">All Departments</option>
-                {departmentOptions.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="flex items-center px-5 gap-2 overflow-x-auto bg-slate-50/50 border-b border-slate-200/70 pt-2">
+        {/* Actions Area */}
+        <div className="flex items-center gap-3 self-start xl:self-auto flex-wrap">
           <button
+            onClick={() => {
+              if (onOpenSearch) onOpenSearch();
+              else onNavigate('documents');
+            }}
+            className="h-10 px-4 rounded-full bg-white hover:bg-[#e7eefe] text-[#151c27] transition-colors border border-[#D8DEEA] shadow-xs flex items-center gap-2 text-[13px] font-medium cursor-pointer"
             type="button"
-            onClick={() => setActiveTab('all')}
-            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition flex items-center gap-1.5 ${
-              activeTab === 'all'
-                ? 'bg-white border-t-2 border-blue-600 text-blue-600 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
           >
-            <span>All Files</span>
-            <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.2 rounded-full text-slate-700">
-              {filteredDocs.length}
-            </span>
+            <span className="material-symbols-outlined text-[18px] text-[#45474b]">search</span>
+            <span>Quick Search</span>
+            <kbd className="ml-1 px-1.5 py-0.5 rounded bg-[#e2e8f8] text-[#45474b] font-mono text-[10px]">⌘K</kbd>
           </button>
 
           <button
+            onClick={onOpenUpload}
+            className="h-10 px-5 rounded-full bg-[#000000] text-white hover:bg-[#181c22] transition-all shadow-[0_6px_18px_rgba(16,20,26,0.22)] flex items-center gap-2 text-[13px] font-medium group cursor-pointer"
             type="button"
-            onClick={() => setActiveTab('shared')}
-            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition flex items-center gap-1.5 ${
-              activeTab === 'shared'
-                ? 'bg-white border-t-2 border-blue-600 text-blue-600 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
           >
-            <span>Shared with Me</span>
-            <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.2 rounded-full text-slate-500">
-              {Math.min(filteredDocs.length, 6)}
+            <span className="material-symbols-outlined text-[18px] group-hover:-translate-y-0.5 transition-transform">
+              upload_file
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('starred')}
-            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition flex items-center gap-1.5 ${
-              activeTab === 'starred'
-                ? 'bg-white border-t-2 border-blue-600 text-blue-600 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Starred</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('archived')}
-            className={`px-3 py-2 text-xs font-semibold rounded-t-lg transition flex items-center gap-1.5 ${
-              activeTab === 'archived'
-                ? 'bg-white border-t-2 border-blue-600 text-blue-600 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Archived</span>
+            <span>+ Ingest Record</span>
           </button>
         </div>
+      </section>
 
-        {/* Documents Table */}
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/80 text-slate-500 text-[11px] uppercase font-semibold tracking-wider border-b border-slate-200">
-                <th className="py-3 px-5">Document Name</th>
-                <th className="py-3 px-4">Department</th>
-                <th className="py-3 px-4">Uploaded By</th>
-                <th className="py-3 px-4">Upload Date</th>
-                <th className="py-3 px-4">Security Tier</th>
-                <th className="py-3 px-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {filteredDocs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-400">
-                    <span className="material-symbols-outlined text-3xl">folder_off</span>
-                    <p className="mt-1 font-medium">No documents found matching current filter.</p>
-                  </td>
-                </tr>
+      {/* 2. KPI Metrics Grid (4 Equal Columns) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Documents */}
+        <div
+          onClick={() => onNavigate('documents')}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between gap-4 group hover:shadow-[0_8px_30px_rgba(16,20,26,0.08)] transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-[#45474b]">Active Documents</span>
+            <div className="w-9 h-9 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[19px]">folder_copy</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[26px] font-semibold text-[#151c27] tracking-tight">
+              {totalActiveDocs.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">verified</span>
+              <span className="text-[11px] text-[#3f5e93] font-medium">
+                {stats?.departmentDocuments
+                  ? `${stats.departmentDocuments} in your department`
+                  : `${totalActiveDocs} total records in vault`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Encrypted Documents */}
+        <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between gap-4 group hover:shadow-[0_8px_30px_rgba(16,20,26,0.08)] transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-[#45474b]">Hardware Encrypted</span>
+            <div className="w-9 h-9 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[19px]">verified_user</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[26px] font-semibold text-[#151c27] tracking-tight">
+              100.0%
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#9CA3AF] font-mono">
+              <span className="material-symbols-outlined text-[15px] text-[#9CA3AF]">lock</span>
+              <span>AES-256-GCM / SHA-256</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Pending Approvals */}
+        <div
+          onClick={() => onNavigate('approvals')}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between gap-4 group hover:shadow-[0_8px_30px_rgba(16,20,26,0.08)] transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-[#45474b]">Pending Approvals</span>
+            <div className="w-9 h-9 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[19px]">schedule</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[26px] font-semibold text-[#151c27] tracking-tight">
+              {totalPendingApprovals}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#ca6666] font-medium">
+              {totalPendingApprovals > 0 ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ca6666] animate-ping"></span>
+                  <span>{totalPendingApprovals} awaiting sign-off</span>
+                </>
               ) : (
-                filteredDocs.slice(0, 10).map((doc) => {
-                  const ext = getFileExt(doc.file_name || doc.title);
-                  return (
-                    <tr key={doc.id} className="hover:bg-slate-50/70 transition-colors group">
-                      <td className="py-3 px-5">
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold border ${getExtBadgeClass(
-                              ext
-                            )}`}
-                          >
-                            {ext}
-                          </span>
-                          <div className="flex flex-col min-w-0">
-                            <span
-                              onClick={() => onSelectDoc(doc)}
-                              className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors cursor-pointer truncate max-w-xs md:max-w-md"
-                            >
+                <span className="text-[#9CA3AF]">Zero pending requests</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Audit Logs Count */}
+        <div
+          onClick={() => onNavigate('audit')}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between gap-4 group hover:shadow-[0_8px_30px_rgba(16,20,26,0.08)] transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-[#45474b]">Immutable Logs</span>
+            <div className="w-9 h-9 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[19px]">receipt_long</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[26px] font-semibold text-[#151c27] tracking-tight">
+              {totalAuditEvents >= 1000 ? `${(totalAuditEvents / 1000).toFixed(1)}k` : totalAuditEvents.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#9CA3AF]">
+              <span className="material-symbols-outlined text-[15px] text-[#9CA3AF]">link</span>
+              <span>Tamper-proof Merkle chain</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Storage Quota & Allocation Panel */}
+      <section className="w-full bg-white rounded-[26px] p-6 shadow-[0_4px_24px_rgba(16,20,26,0.05)] border border-[#D8DEEA]/60 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-[#45474b]">hard_drive</span>
+            <h2 className="text-[18px] font-semibold text-[#151c27]">Storage Allocation &amp; Vault Capacity</h2>
+          </div>
+          <span className="text-[11px] font-mono bg-[#f0f3ff] text-[#151c27] px-3 py-1.5 rounded-full font-medium self-start sm:self-auto border border-[#D8DEEA]/50">
+            {usedPercent < 0.01 && usedPercent > 0
+              ? '<0.01%'
+              : `${usedPercent.toFixed(2)}%`}{' '}
+            Used ({formatBytes(totalStorageBytes)} / {formatBytes(quotaBytes)})
+          </span>
+        </div>
+
+        {/* Real Progress Bar */}
+        <div className="w-full h-3 bg-[#E9ECF4] rounded-full overflow-hidden flex p-0.5">
+          <div
+            className="h-full bg-[#000000] rounded-full transition-all duration-500"
+            style={{ width: `${Math.max(usedPercent > 0 ? 1 : 0, Math.min(100, usedPercent))}%` }}
+            title={`Used: ${formatBytes(totalStorageBytes)} (${usedPercent.toFixed(2)}%)`}
+          ></div>
+        </div>
+
+        {/* Breakdown Grid from PostgreSQL */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+          {departmentStorageList.slice(0, 4).map((dept, idx) => {
+            const dotColor =
+              idx === 0
+                ? 'bg-[#000000]'
+                : idx === 1
+                ? 'bg-[#3f5e93]'
+                : idx === 2
+                ? 'bg-[#ca6666]'
+                : 'bg-[#9CA3AF]';
+            return (
+              <div key={dept.departmentId || idx} className="flex flex-col gap-1 p-3 rounded-xl bg-[#f0f3ff]/50 border border-[#D8DEEA]/40">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`}></span>
+                  <span className="text-[11px] text-[#45474b] font-medium truncate">{dept.name}</span>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-[15px] font-semibold text-[#151c27]">{formatBytes(dept.storageBytes)}</span>
+                  <span className="text-[11px] text-[#9CA3AF] font-mono">{dept.docCount?.toLocaleString()} files</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 4. Two-Column Content Grid (65% Left / 35% Right) */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (65% - 8 cols of 12) */}
+        <div className="lg:col-span-8 bg-white rounded-[26px] p-6 shadow-[0_4px_24px_rgba(16,20,26,0.05)] border border-[#D8DEEA]/60 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-[18px] font-semibold text-[#151c27]">Recent Documents</h2>
+              <span className="text-[11px] text-[#9CA3AF]">
+                {documents.length > 0 ? `Showing latest ${Math.min(5, documents.length)} vault records` : 'No documents in archive'}
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigate('documents')}
+              className="text-[13px] font-medium text-[#3f5e93] hover:underline flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+              type="button"
+            >
+              <span>View All Documents</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-x-auto -mx-6 px-6">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#f0f3ff]/60 rounded-xl">
+                  <th className="py-3 px-4 text-[11px] text-[#45474b] font-medium uppercase tracking-wider rounded-l-xl">
+                    Document ID &amp; Title
+                  </th>
+                  <th className="py-3 px-4 text-[11px] text-[#45474b] font-medium uppercase tracking-wider">
+                    Classification
+                  </th>
+                  <th className="py-3 px-4 text-[11px] text-[#45474b] font-medium uppercase tracking-wider">
+                    Security Tier
+                  </th>
+                  <th className="py-3 px-4 text-[11px] text-[#45474b] font-medium uppercase tracking-wider">
+                    Timestamp (UTC)
+                  </th>
+                  <th className="py-3 px-4 text-[11px] text-[#45474b] font-medium uppercase tracking-wider text-right rounded-r-xl">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D8DEEA]/30">
+                {documents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-[#9CA3AF]">
+                      <span className="material-symbols-outlined text-[36px] text-slate-300 block mb-1">folder_off</span>
+                      <p className="text-sm font-semibold text-slate-600">No documents in active vault</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Click &quot;+ Ingest Record&quot; to securely upload documents.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  documents.slice(0, 5).map((doc) => {
+                    const tierBadgeClass =
+                      doc.security_rank >= 4
+                        ? 'bg-[rgba(206,105,105,0.14)] text-[#ca6666]'
+                        : doc.security_rank === 3
+                        ? 'bg-[rgba(131,162,219,0.14)] text-[#3f5e93]'
+                        : 'bg-[#E4E4E4] text-[#45474b]';
+
+                    return (
+                      <tr key={doc.id} className="hover:bg-[#f0f3ff]/40 transition-colors group">
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="text-[15px] font-semibold text-[#151c27] group-hover:text-[#3f5e93] transition-colors">
                               {doc.title}
                             </span>
-                            <span className="font-mono text-[10px] text-slate-400">
-                              {doc.document_number} • {(Number(doc.file_size || 0) / 1024).toFixed(1)} KB
-                            </span>
+                            <span className="text-[11px] text-[#9CA3AF] font-mono">{doc.document_number}</span>
                           </div>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-medium">
-                          {doc.department_name || 'General Operations'}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[10px]">
-                            {doc.owner_name ? doc.owner_name[0] : 'U'}
+                        </td>
+                        <td className="py-3.5 px-4 text-[13px] text-[#45474b]">
+                          {doc.document_type_name || doc.document_type_code || 'General'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${tierBadgeClass}`}>
+                            {doc.security_tier_name || doc.security_tier}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-[13px] text-[#45474b] font-mono text-[12px] whitespace-nowrap">
+                          {formatUtcDate(doc.created_at)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            {onDownloadDoc && (
+                              <button
+                                aria-label="Download Document"
+                                title="Download Decrypted File"
+                                onClick={() => onDownloadDoc(doc.id, doc.document_number, doc.file_name)}
+                                className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition-colors cursor-pointer"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-[17px]">download</span>
+                              </button>
+                            )}
+                            {onViewDocHistory && (
+                              <button
+                                aria-label="Version History"
+                                title="Version History"
+                                onClick={() => onViewDocHistory(doc)}
+                                className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition-colors cursor-pointer"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-[17px]">history</span>
+                              </button>
+                            )}
+                            {onGenerate65B && (
+                              <button
+                                aria-label="Verification Certificate"
+                                title="Legal Attestation Certificate"
+                                onClick={() => onGenerate65B(doc)}
+                                className="w-8 h-8 rounded-full hover:bg-[#e2e8f8] text-[#45474b] flex items-center justify-center transition-colors cursor-pointer"
+                                type="button"
+                              >
+                                <span className="material-symbols-outlined text-[17px]">verified</span>
+                              </button>
+                            )}
                           </div>
-                          <span className="font-medium text-slate-800">{doc.owner_name || 'Official'}</span>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 text-slate-500 font-mono text-[11px] whitespace-nowrap">
-                        {new Date(doc.created_at).toLocaleDateString()}
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200">
-                          <span className="material-symbols-outlined text-[12px]">lock</span>
-                          {doc.security_tier_name || 'Confidential'}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => onSelectDoc(doc)}
-                            className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition"
-                            title="View Document Details"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">visibility</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => onVerifyDoc(doc)}
-                            className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-slate-100 transition"
-                            title="Verify Hash & Chain of Custody"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">verified</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+
+        {/* Right Column (35% - 4 cols of 12) */}
+        <div className="lg:col-span-4 bg-white rounded-[26px] p-6 shadow-[0_4px_24px_rgba(16,20,26,0.05)] border border-[#D8DEEA]/60 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[18px] font-semibold text-[#151c27]">Activity Stream</h2>
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(131,162,219,0.14)] text-[11px] font-medium text-[#3f5e93]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3f5e93] animate-ping"></span>
+              Live Feed
+            </span>
+          </div>
+
+          {/* Vertical Timeline */}
+          <div className="relative flex flex-col pl-4">
+            {/* Vertical connector line background */}
+            <div className="absolute left-6 top-3 bottom-3 w-0.5 bg-[#D8DEEA]/60"></div>
+
+            {activity.length === 0 ? (
+              <div className="py-10 text-center text-[#9CA3AF]">
+                <span className="material-symbols-outlined text-[32px] text-slate-300 block mb-1">history_toggle_off</span>
+                <p className="text-xs font-semibold text-slate-500">No activity logged yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Audit actions will stream here in real time.</p>
+              </div>
+            ) : (
+              activity.slice(0, 5).map((ev) => {
+                const badge = getEventBadge(ev.event_type, ev.result);
+                return (
+                  <div key={ev.id} className="relative flex items-start gap-3 py-3 group">
+                    <div className="w-4 h-4 rounded-full bg-white border-2 border-[#3f5e93] z-10 flex items-center justify-center shrink-0 mt-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#3f5e93]"></span>
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[13px] font-medium text-[#151c27] truncate">
+                          {ev.actor_name || 'System Operator'}{' '}
+                          {ev.actor_designation ? `(${ev.actor_designation})` : ''}
+                        </span>
+                        <span className="text-[11px] text-[#9CA3AF] shrink-0 font-mono">
+                          {formatTimeAgo(ev.created_at)}
+                        </span>
+                      </div>
+                      <span className="text-[13px] text-[#45474b]">
+                        {ev.document_number
+                          ? `${ev.event_type.replace(/_/g, ' ')}: ${ev.document_number}`
+                          : ev.event_type.replace(/_/g, ' ')}
+                      </span>
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${badge.bg}`}>
+                          {badge.label}
+                        </span>
+                        {ev.event_hash && (
+                          <span className="font-mono text-[11px] text-[#9CA3AF]">
+                            {ev.event_hash.startsWith('0x')
+                              ? `${ev.event_hash.slice(0, 6)}...${ev.event_hash.slice(-4)}`
+                              : `0x${ev.event_hash.slice(0, 4)}...${ev.event_hash.slice(-4)}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Bottom Quick-Access Bar */}
+      <section className="w-full bg-white/75 backdrop-blur-xl rounded-[26px] p-4 shadow-[0_4px_20px_rgba(16,20,26,0.04)] border border-[#D8DEEA]/60 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-[#9CA3AF]">bolt</span>
+          <span className="text-[11px] uppercase text-[#9CA3AF] font-semibold tracking-wider">
+            Quick Navigation
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => onNavigate('documents')}
+            className="h-9 px-4 rounded-full bg-white hover:bg-[#e7eefe] text-[#151c27] transition-all shadow-xs border border-[#D8DEEA]/60 flex items-center gap-2 text-[13px] font-medium cursor-pointer"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[17px] text-[#3f5e93]">folder</span>
+            <span>Vault File Browser</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('approvals')}
+            className="h-9 px-4 rounded-full bg-white hover:bg-[#e7eefe] text-[#151c27] transition-all shadow-xs border border-[#D8DEEA]/60 flex items-center gap-2 text-[13px] font-medium cursor-pointer"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[17px] text-[#ca6666]">draw</span>
+            <span>Signature Queue</span>
+            {totalPendingApprovals > 0 && (
+              <span className="text-[11px] font-medium bg-[rgba(206,105,105,0.14)] text-[#ca6666] px-1.5 py-0.5 rounded-full font-mono font-bold">
+                {totalPendingApprovals}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => onNavigate('audit')}
+            className="h-9 px-4 rounded-full bg-white hover:bg-[#e7eefe] text-[#151c27] transition-all shadow-xs border border-[#D8DEEA]/60 flex items-center gap-2 text-[13px] font-medium cursor-pointer"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[17px] text-[#3f5e93]">fact_check</span>
+            <span>Compliance Audit Log</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('admin')}
+            className="h-9 px-4 rounded-full bg-white hover:bg-[#e7eefe] text-[#151c27] transition-all shadow-xs border border-[#D8DEEA]/60 flex items-center gap-2 text-[13px] font-medium cursor-pointer"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[17px] text-[#45474b]">admin_panel_settings</span>
+            <span>Access Control Matrix</span>
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

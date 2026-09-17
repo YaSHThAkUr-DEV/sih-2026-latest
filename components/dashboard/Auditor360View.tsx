@@ -107,7 +107,7 @@ export default function Auditor360View({
 
   // Attestation State
   const [attesting, setAttesting] = useState(false);
-  const [merkleRoot, setMerkleRoot] = useState('');
+  const [merkleRoot, setMerkleRoot] = useState('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
 
   // Toast State
   const [toast, setToast] = useState<{ show: boolean; message: string; icon: string }>({
@@ -168,7 +168,7 @@ export default function Auditor360View({
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, departmentFilter, eventFilter, riskFilter]);
+  }, [page, searchQuery, departmentFilter, eventFilter, riskFilter, selectedEventId]);
 
   // 3. Fetch Officer Dossier
   const loadOfficerDossier = async (actorId: string | null, fallbackActor: any) => {
@@ -257,754 +257,658 @@ export default function Auditor360View({
   };
 
   return (
-    <div className="w-full flex flex-col gap-5 text-slate-800">
-      
-      {/* 1. TOP BANNER & AUDITOR CREDENTIALS HEADER */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200/80 p-5 flex flex-col gap-4">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* 1. Main Surface Card */}
+      <div className="bg-white/85 backdrop-blur-xl rounded-[26px] p-6 lg:p-8 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 space-y-6">
+        
+        {/* Header Ribbon */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-800 text-[11px] font-bold uppercase rounded border border-blue-200">
-                <span className="material-symbols-outlined text-[14px]">assured_workload</span>
-                <span>Section 65B Certified DMS</span>
+              <span className="material-symbols-outlined text-[#3f5e93] text-[22px]">policy</span>
+              <h1 className="text-xl lg:text-2xl font-semibold text-[#10141A] tracking-tight">
+                Forensic Audit & Ledger Attestation
+              </h1>
+              <span className="rounded-full text-[11px] font-medium px-2.5 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30">
+                Section 65B Certified
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 font-mono text-[11px] rounded border border-slate-200">
-                REGISTRY EPOCH: #2026.42
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>MERKLE INTEGRITY: 100% ATTESTED</span>
+              <span className="rounded-full text-[11px] font-medium px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/50 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Merkle Verified
               </span>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
-              <span>Central Forensic Audit & Cryptographic Compliance Console</span>
-            </h1>
-            <p className="text-xs text-slate-500 max-w-4xl">
-              Continuous verification of evidentiary chain of custody, user action provenance, and tamper-evident Merkle hash ledger under Section 65B Indian Evidence Act / Section 63 BSA 2023.
+            <p className="text-xs text-[#6B7280]">
+              Continuous evidentiary chain of custody verification, user action provenance, and tamper-evident Merkle hash ledger under Section 65B / Section 63 BSA 2023.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start xl:self-center flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setPersonnelModalOpen(true)}
-              className="h-9 px-3.5 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-800 text-xs font-semibold flex items-center gap-1.5 rounded border border-blue-200 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm"
             >
-              <span className="material-symbols-outlined text-[17px] text-blue-700">badge</span>
-              <span>Personnel Activity Dossiers</span>
+              <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">badge</span>
+              <span>Personnel Dossiers</span>
             </button>
             <button
               onClick={handleExportManifest}
-              className="h-9 px-3.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 text-xs font-semibold flex items-center gap-1.5 rounded border border-slate-300 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm"
             >
-              <span className="material-symbols-outlined text-[17px] text-blue-600">verified</span>
-              <span>Export Signed Judicial Manifest</span>
+              <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">verified</span>
+              <span>Export Manifest</span>
             </button>
             <button
               onClick={handleRunAttestation}
               disabled={attesting}
-              className="h-9 px-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white text-xs font-semibold flex items-center gap-1.5 rounded transition-all shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#000000] text-white hover:bg-[#181c22] text-xs font-medium transition-all shadow-[0_6px_18px_rgba(16,20,26,0.22)] disabled:opacity-50"
             >
               {attesting ? (
-                <span className="material-symbols-outlined text-[17px] text-blue-400 animate-spin">sync</span>
+                <span className="material-symbols-outlined text-[16px] animate-spin text-[#83A2DB]">sync</span>
               ) : (
-                <span className="material-symbols-outlined text-[17px] text-emerald-400">fingerprint</span>
+                <span className="material-symbols-outlined text-[16px] text-emerald-400">fingerprint</span>
               )}
-              <span>{attesting ? 'Attesting Ledger...' : 'Run Cryptographic Ledger Attestation'}</span>
+              <span>{attesting ? 'Attesting Ledger...' : 'Run Ledger Attestation'}</span>
             </button>
           </div>
         </div>
 
-        {/* Active Inspector Status Bar */}
-        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Auditor Credentials Status Bar */}
+        <div className="p-3.5 rounded-[18px] bg-white border border-[#D8DEEA]/60 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-blue-700 text-[18px]">security</span>
-              <span className="font-medium text-slate-600">Compliance Officer:</span>
-              <span className="font-bold text-slate-900">{stats?.inspector?.name || 'Vigilance Auditor'} (Auditor Grade-1)</span>
+              <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">verified_user</span>
+              <span className="text-[#6B7280]">Auditor:</span>
+              <span className="font-semibold text-[#10141A]">{stats?.inspector?.name || 'Vigilance Auditor'}</span>
             </div>
-            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="text-[#D8DEEA]">•</span>
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-slate-400 text-[16px]">shield</span>
-              <span className="font-mono text-slate-600">{stats?.inspector?.clearanceLevel || 'Clearance Level 5 (Maximum)'}</span>
+              <span className="material-symbols-outlined text-[#9CA3AF] text-[16px]">shield</span>
+              <span className="font-mono text-[#6B7280]">{stats?.inspector?.clearanceLevel || 'Clearance Level 5 (Maximum)'}</span>
             </div>
-            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="text-[#D8DEEA]">•</span>
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-slate-400 text-[16px]">dns</span>
-              <span className="font-mono text-slate-600">Node: {stats?.inspector?.node || 'DMS-SEC-NODE-01'}</span>
+              <span className="material-symbols-outlined text-[#9CA3AF] text-[16px]">dns</span>
+              <span className="font-mono text-[#6B7280]">Node: {stats?.inspector?.node || 'DMS-SEC-NODE-01'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-800 font-mono text-[11px] font-semibold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
-            <span className="material-symbols-outlined text-[15px] text-emerald-600">lock</span>
+          <div className="flex items-center gap-1.5 text-emerald-700 font-mono text-[11px] font-medium bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/50">
+            <span className="material-symbols-outlined text-[14px]">lock</span>
             <span>WORM IMMUTABLE STORAGE SEAL: ACTIVE</span>
           </div>
         </div>
-      </div>
 
-      {/* 2. AUDITOR KPI METRICS RIBBON */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1 */}
-        <div className="bg-white rounded-xl p-4 shadow-xs border border-slate-200 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Audit Events</span>
-            <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-800">
-              <span className="material-symbols-outlined text-[18px]">account_tree</span>
+        {/* 4 KPI Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wider">Total Audit Events</span>
+              <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center border border-[#83A2DB]/30">
+                <span className="material-symbols-outlined text-[18px]">account_tree</span>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-[#10141A]">
+                {(stats?.totalAuditEvents || totalRecords || 1428).toLocaleString()}
+              </div>
+              <div className="text-[11px] text-[#3f5e93] mt-0.5 flex items-center gap-1 font-mono">
+                <span className="material-symbols-outlined text-[13px]">link</span>
+                <span>100% SHA-256 Chained</span>
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">
-              {(stats?.totalAuditEvents || totalRecords || 1428).toLocaleString()} Recorded
+
+          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wider">Cryptographic Health</span>
+              <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1 mt-0.5 text-blue-700 text-xs font-semibold">
-              <span className="material-symbols-outlined text-[14px]">link</span>
-              <span className="font-mono text-[11px]">100% SHA-256 Chained</span>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-[#10141A]">
+                {stats?.cryptographicHealth?.status || '100% Attested'}
+              </div>
+              <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono">
+                0 Violations / {stats?.cryptographicHealth?.epochsCount || 42} Epochs
+              </div>
             </div>
           </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full w-full rounded-full"></div>
+
+          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wider">Active Custodians</span>
+              <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center border border-[#83A2DB]/30">
+                <span className="material-symbols-outlined text-[18px]">groups</span>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-[#10141A]">
+                {stats?.activeOfficersCount || 18} Officers
+              </div>
+              <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono truncate">
+                CCDF, ACD, SCU, LPW, ADMIN
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wider">Security Flags</span>
+              <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                <span className="material-symbols-outlined text-[18px]">warning</span>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-rose-600">
+                {stats?.securityAlertsCount || 2} Flags
+              </div>
+              <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono truncate">
+                Off-hour unwrap & challenges
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Card 2 */}
-        <div className="bg-white rounded-xl p-4 shadow-xs border border-slate-200 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cryptographic Health</span>
-            <div className="w-8 h-8 rounded bg-emerald-50 flex items-center justify-center text-emerald-700">
-              <span className="material-symbols-outlined text-[18px]">verified_user</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
-              <span>{stats?.cryptographicHealth?.status || '100% Attested'}</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            </div>
-            <div className="font-mono text-[11px] text-slate-500 mt-0.5">
-              0 Block Violations across {stats?.cryptographicHealth?.epochsCount || 42} Epochs
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-emerald-500 h-full w-full rounded-full"></div>
-          </div>
-        </div>
-
-        {/* Card 3 */}
-        <div className="bg-white rounded-xl p-4 shadow-xs border border-slate-200 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Officer Footprints</span>
-            <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-800">
-              <span className="material-symbols-outlined text-[18px]">groups</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">
-              {stats?.activeOfficersCount || 18} Officers
-            </div>
-            <div className="font-mono text-[11px] text-slate-500 mt-0.5 truncate">
-              CCDF, ACD, SCU, LPW, GENADMIN
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-slate-800 h-full w-4/5 rounded-full"></div>
-          </div>
-        </div>
-
-        {/* Card 4 */}
-        <div className="bg-white rounded-xl p-4 shadow-xs border border-slate-200 flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Security Alerts</span>
-            <div className="w-8 h-8 rounded bg-red-50 flex items-center justify-center text-red-700">
-              <span className="material-symbols-outlined text-[18px]">warning</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-xl font-bold text-red-700 flex items-center gap-1.5">
-              <span>{stats?.securityAlertsCount || 2} Flagged Events</span>
-            </div>
-            <div className="font-mono text-[11px] text-slate-500 mt-0.5 truncate">
-              Off-hour unwrap & PIN challenges
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-red-500 h-full w-1/4 rounded-full"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. OFFICER 360 & ACTOR PROVENANCE FILTER BAR */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-col gap-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Live Search Input */}
-          <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">filter_alt</span>
-            <input
-              type="text"
-              placeholder="Search by Officer Name, Badge ID, IP Address, or SHA-256 Hash..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-9 pl-9 pr-20 bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600 focus:bg-white transition"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
-          </div>
-
-          {/* Dropdown Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-xs">
-              <span className="text-slate-500 font-semibold mr-1.5">Dept:</span>
-              <select
-                value={departmentFilter}
+        {/* Filter Toolbar & Search Bar */}
+        <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 space-y-3">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[16px]">search</span>
+              <input
+                type="text"
+                placeholder="Search Officer Name, Badge ID, IP Address, or SHA-256 Hash..."
+                value={searchQuery}
                 onChange={(e) => {
-                  setDepartmentFilter(e.target.value);
+                  setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="bg-transparent font-medium text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="all">All Units (5)</option>
-                <option value="CCDF">Cyber Forensics (CCDF)</option>
-                <option value="ACD">Anti-Corruption (ACD)</option>
-                <option value="SCU">Special Crimes Unit (SCU)</option>
-                <option value="LPW">Legal Prosecution (LPW)</option>
-                <option value="GENADMIN">Administration</option>
-              </select>
+                className="w-full h-9 pl-9 pr-9 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] placeholder:text-[#9CA3AF] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-2.5 text-[#9CA3AF] hover:text-[#10141A]"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-xs">
-              <span className="text-slate-500 font-semibold mr-1.5">Event:</span>
-              <select
-                value={eventFilter}
-                onChange={(e) => {
-                  setEventFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-transparent font-medium text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="all">All Classifications</option>
-                <option value="FILE_UPLOAD">FILE_UPLOAD</option>
-                <option value="DEK_UNWRAP">DEK_UNWRAP_STREAM</option>
-                <option value="VERSION">VERSION_PROMOTION</option>
-                <option value="CERT">SECTION_65B_CERT</option>
-                <option value="AUTH">LOGIN / FAILED_AUTH</option>
-                <option value="APPROV">APPROVAL_ADJUDICATED</option>
-              </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center bg-[#f0f3ff] border border-[#D8DEEA] px-3 py-1 rounded-full text-xs">
+                <span className="text-[#6B7280] font-medium mr-1.5">Unit:</span>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => {
+                    setDepartmentFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent font-medium text-[#10141A] outline-none cursor-pointer"
+                >
+                  <option value="all">All Units</option>
+                  <option value="CCDF">Cyber Forensics (CCDF)</option>
+                  <option value="ACD">Anti-Corruption (ACD)</option>
+                  <option value="SCU">Special Crimes (SCU)</option>
+                  <option value="LPW">Legal Prosecution (LPW)</option>
+                  <option value="GENADMIN">Administration</option>
+                </select>
+              </div>
+
+              <div className="flex items-center bg-[#f0f3ff] border border-[#D8DEEA] px-3 py-1 rounded-full text-xs">
+                <span className="text-[#6B7280] font-medium mr-1.5">Event:</span>
+                <select
+                  value={eventFilter}
+                  onChange={(e) => {
+                    setEventFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent font-medium text-[#10141A] outline-none cursor-pointer"
+                >
+                  <option value="all">All Events</option>
+                  <option value="FILE_UPLOAD">FILE_UPLOAD</option>
+                  <option value="DEK_UNWRAP">DEK_UNWRAP_STREAM</option>
+                  <option value="VERSION">VERSION_PROMOTION</option>
+                  <option value="CERT">SECTION_65B_CERT</option>
+                  <option value="AUTH">LOGIN / AUTH</option>
+                  <option value="APPROV">APPROVAL_ADJUDICATED</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[#D8DEEA]/40">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider mr-1">Risk Filter:</span>
+              {[
+                { id: 'all', label: `All Activities (${totalRecords || 1428})`, color: 'bg-[#3f5e93]' },
+                { id: 'LOW', label: 'Standard', color: 'bg-emerald-500' },
+                { id: 'MEDIUM', label: 'Medium (Unwraps)', color: 'bg-amber-500' },
+                { id: 'FLAGGED', label: 'Flagged Anomalies', color: 'bg-rose-500' },
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => {
+                    setRiskFilter(pill.id as any);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                    riskFilter === pill.id
+                      ? 'bg-[#000000] text-white shadow-sm'
+                      : 'bg-[#f0f3ff] text-[#6B7280] hover:text-[#10141A] hover:bg-[#E9ECF4]'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${pill.color}`}></span>
+                  <span>{pill.label}</span>
+                </button>
+              ))}
             </div>
 
-            <div className="flex items-center bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-xs">
-              <span className="text-slate-500 font-semibold mr-1.5">Epoch:</span>
-              <span className="font-mono text-slate-700">Last 7 Days (Active)</span>
+            <div className="flex items-center gap-1 text-[#6B7280] font-mono text-[11px]">
+              <span className="material-symbols-outlined text-[14px]">sync</span>
+              <span>Ledger Synchronized</span>
             </div>
           </div>
         </div>
 
-        {/* Risk Level Pills */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Ledger Filters:</span>
-            {[
-              { id: 'all', label: `All Activities (${totalRecords || 1428})`, color: 'bg-blue-400' },
-              { id: 'LOW', label: 'Standard / Low Risk', color: 'bg-emerald-500' },
-              { id: 'MEDIUM', label: 'Medium Sensitivity (Unwraps)', color: 'bg-amber-500' },
-              { id: 'FLAGGED', label: 'Flagged Anomalies', color: 'bg-red-500' },
-            ].map((pill) => (
-              <button
-                key={pill.id}
-                onClick={() => {
-                  setRiskFilter(pill.id as any);
-                  setPage(1);
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  riskFilter === pill.id
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${pill.color}`}></span>
-                <span>{pill.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1 text-slate-400 font-mono text-[11px]">
-            <span className="material-symbols-outlined text-[14px]">sync</span>
-            <span>Live Ledger Synchronized</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. MAIN EVENT LEDGER TABLE & SIDEBAR INSPECTOR */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-        
-        {/* Left 8-Column Event Sequence Table */}
-        <div className="xl:col-span-8 bg-white rounded-xl shadow-xs border border-slate-200 flex flex-col overflow-hidden">
-          <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900">Cryptographic Event Sequence</span>
-              <span className="font-mono text-[10px] font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 rounded">
-                BLOCK #409,114 - 409,120
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
+        {/* 2-Column Split Table and Inspector */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Event Sequence Table (8 Cols) */}
+          <div className="xl:col-span-8 bg-white rounded-[20px] shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 overflow-hidden flex flex-col">
+            <div className="p-4 bg-[#f0f3ff]/40 border-b border-[#D8DEEA]/60 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[#10141A]">Cryptographic Event Sequence</span>
+                <span className="font-mono text-[10px] font-medium px-2.5 py-0.5 bg-[#E9ECF4] text-[#6B7280] rounded-full">
+                  Verified Blocks
+                </span>
+              </div>
               <button
                 onClick={() => {
                   loadStats();
                   loadTimeline();
                   showToast('Refreshed audit ledger feed');
                 }}
-                className="p-1 text-slate-400 hover:text-slate-800 rounded transition"
+                className="w-7 h-7 rounded-full text-[#6B7280] hover:text-[#10141A] hover:bg-white flex items-center justify-center transition shadow-2xs"
                 title="Refresh Feed"
               >
-                <span className="material-symbols-outlined text-[18px]">refresh</span>
+                <span className="material-symbols-outlined text-[16px]">refresh</span>
               </button>
             </div>
-          </div>
 
-          <div className="w-full overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100/80 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-2.5 px-3.5">Timestamp (UTC)</th>
-                  <th className="py-2.5 px-3.5">Actor & Designation</th>
-                  <th className="py-2.5 px-3.5">Event Class</th>
-                  <th className="py-2.5 px-3.5">Target Docket / Evidence</th>
-                  <th className="py-2.5 px-3.5">Provenance & Node</th>
-                  <th className="py-2.5 px-3.5">Status & Checksum</th>
-                  <th className="py-2.5 px-3.5 text-right">Inspect</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {loading && events.length === 0 ? (
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#f0f3ff]/60 text-[#6B7280] text-[10px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
-                      <span className="material-symbols-outlined text-[32px] animate-spin block mb-1">sync</span>
-                      <p className="text-xs font-semibold">Reading cryptographic audit ledger from PostgreSQL...</p>
-                    </td>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4">Custodian</th>
+                    <th className="py-3 px-4">Event Class</th>
+                    <th className="py-3 px-4">Target Docket</th>
+                    <th className="py-3 px-4">IP & Node</th>
+                    <th className="py-3 px-4">Checksum</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
-                ) : events.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-400">
-                      <span className="material-symbols-outlined text-[32px] block mb-1">search_off</span>
-                      <p className="text-xs font-semibold">No audit events match the filter criteria</p>
-                    </td>
-                  </tr>
-                ) : (
-                  events.map((ev) => {
-                    const isSelected = selectedEventId === ev.id;
-                    return (
-                      <tr
-                        key={ev.id}
-                        onClick={() => {
-                          setSelectedEventId(ev.id);
-                          loadOfficerDossier(ev.actor.id, ev.actor);
-                        }}
-                        className={`transition cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-50/70 border-l-4 border-l-blue-600'
-                            : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <td className="py-3 px-3.5 font-mono text-slate-600 whitespace-nowrap">
-                          <div className="font-semibold text-slate-900">{ev.timeUtc}</div>
-                          <div className="text-[10px] text-slate-400">{new Date(ev.createdAt).toLocaleDateString()}</div>
-                        </td>
+                </thead>
+                <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
+                  {loading && events.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-[#6B7280]">
+                        <span className="material-symbols-outlined text-[28px] animate-spin text-[#3f5e93] block mb-1">sync</span>
+                        <p className="text-xs font-medium">Reading cryptographic audit ledger...</p>
+                      </td>
+                    </tr>
+                  ) : events.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-[#6B7280]">
+                        <p className="text-xs font-medium">No audit events match current criteria</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    events.map((ev) => {
+                      const isSelected = selectedEventId === ev.id;
+                      return (
+                        <tr
+                          key={ev.id}
+                          onClick={() => {
+                            setSelectedEventId(ev.id);
+                            loadOfficerDossier(ev.actor.id, ev.actor);
+                          }}
+                          className={`transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#f0f3ff] border-l-4 border-l-[#3f5e93]'
+                              : 'hover:bg-[#f0f3ff]/40'
+                          }`}
+                        >
+                          <td className="py-3 px-4 font-mono text-[#6B7280] whitespace-nowrap">
+                            <div className="font-semibold text-[#10141A]">{ev.timeUtc}</div>
+                            <div className="text-[10px] text-[#9CA3AF]">{new Date(ev.createdAt).toLocaleDateString()}</div>
+                          </td>
 
-                        <td className="py-3 px-3.5 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-bold">
-                              {ev.actor.initials}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[#10141A] text-white flex items-center justify-center text-[10px] font-semibold">
+                                {ev.actor.initials}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-[#10141A] leading-tight">{ev.actor.name}</span>
+                                <span className="font-mono text-[10px] text-[#6B7280]">{ev.actor.badge}</span>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-900 leading-tight">{ev.actor.name}</span>
-                              <span className="font-mono text-[10px] text-slate-500">{ev.actor.badge}</span>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="py-3 px-3.5 whitespace-nowrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                            ev.eventClass === 'FILE_UPLOAD'
-                              ? 'bg-blue-100 text-blue-800'
-                              : ev.eventClass === 'DEK_UNWRAP_STREAM'
-                              ? 'bg-amber-100 text-amber-800'
-                              : ev.eventClass === 'VERSION_PROMOTION'
-                              ? 'bg-purple-100 text-purple-800'
-                              : ev.eventClass === 'SECTION_65B_CERT'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : ev.isFlagged
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {ev.eventClass}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-3.5">
-                          <div className="font-mono font-bold text-blue-700">{ev.targetDocket}</div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-[150px]">{ev.targetTitle}</div>
-                        </td>
-
-                        <td className="py-3 px-3.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                          <div>{ev.ipAddress}</div>
-                          <div className="text-[10px] text-slate-400">{ev.node}</div>
-                        </td>
-
-                        <td className="py-3 px-3.5 whitespace-nowrap">
-                          <div className="flex flex-col gap-0.5">
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${
-                              ev.isFlagged ? 'text-red-700' : 'text-emerald-700'
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase ${
+                              ev.eventClass === 'FILE_UPLOAD'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200/50'
+                                : ev.eventClass === 'DEK_UNWRAP_STREAM'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200/50'
+                                : ev.eventClass === 'VERSION_PROMOTION'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200/50'
+                                : ev.eventClass === 'SECTION_65B_CERT'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                                : ev.isFlagged
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
+                                : 'bg-slate-100 text-slate-700'
                             }`}>
-                              <span className="material-symbols-outlined text-[13px]">
-                                {ev.isFlagged ? 'gpp_bad' : 'check_circle'}
-                              </span>
-                              <span>{ev.result}</span>
+                              {ev.eventClass}
                             </span>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="font-mono font-semibold text-[#3f5e93]">{ev.targetDocket}</div>
+                            <div className="text-[11px] text-[#6B7280] truncate max-w-[140px]">{ev.targetTitle}</div>
+                          </td>
+
+                          <td className="py-3 px-4 font-mono text-[11px] text-[#6B7280] whitespace-nowrap">
+                            <div>{ev.ipAddress}</div>
+                            <div className="text-[10px] text-[#9CA3AF]">{ev.node}</div>
+                          </td>
+
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-medium uppercase ${
+                                ev.isFlagged ? 'text-rose-600' : 'text-emerald-700'
+                              }`}>
+                                <span className="material-symbols-outlined text-[13px]">
+                                  {ev.isFlagged ? 'gpp_bad' : 'check_circle'}
+                                </span>
+                                <span>{ev.result}</span>
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(ev.eventHash);
+                                  showToast('SHA-256 Hash copied');
+                                }}
+                                className="font-mono text-[10px] text-[#9CA3AF] hover:text-[#3f5e93] flex items-center gap-1 group text-left"
+                                title="Copy SHA-256 hash"
+                              >
+                                <span>sha256:{ev.eventHash.substring(0, 8)}...</span>
+                                <span className="material-symbols-outlined text-[11px] opacity-0 group-hover:opacity-100">content_copy</span>
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(ev.eventHash);
-                                showToast(`SHA-256 Hash copied to clipboard!`);
+                                if (onInspectDocument && ev.targetDocket !== 'SYSTEM_CORE') {
+                                  onInspectDocument(ev.targetDocket);
+                                } else {
+                                  showToast(`Provenance: ${ev.eventType} verified.`);
+                                }
                               }}
-                              className="font-mono text-[10px] text-slate-400 hover:text-blue-600 flex items-center gap-1 group text-left"
-                              title="Click to copy SHA-256 hash"
+                              className="w-7 h-7 rounded-full bg-white hover:bg-[#f0f3ff] text-[#10141A] border border-[#D8DEEA] inline-flex items-center justify-center transition"
+                              title="Inspect Context"
                             >
-                              <span>sha256:{ev.eventHash.substring(0, 8)}...</span>
-                              <span className="material-symbols-outlined text-[11px] opacity-0 group-hover:opacity-100">content_copy</span>
+                              <span className="material-symbols-outlined text-[15px]">visibility</span>
                             </button>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onInspectDocument && ev.targetDocket !== 'SYSTEM_CORE') {
-                                onInspectDocument(ev.targetDocket);
-                              } else {
-                                showToast(`Provenance: ${ev.eventType} verified authentic.`);
-                              }
-                            }}
-                            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-                            title="Inspect Docket / Context"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">visibility</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Pagination Footer */}
-          <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs">
-            <span className="font-mono text-[11px] text-slate-600">
-              Displaying {events.length} of {totalRecords} Ledger Verified Records
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="h-7 px-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded disabled:opacity-40 hover:bg-slate-100 transition"
-              >
-                Previous
-              </button>
-              <span className="font-mono text-[11px] text-slate-800 px-2 py-1 bg-slate-200 rounded">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="h-7 px-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded disabled:opacity-40 hover:bg-slate-100 transition"
-              >
-                Next
-              </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </div>
 
-        {/* Right 4-Column Officer Chronological Dossier & Anomaly Inspector */}
-        <div className="xl:col-span-4 flex flex-col gap-4">
-          
-          {/* Officer Dossier Card */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-col gap-3.5">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+            {/* Pagination */}
+            <div className="p-3.5 bg-[#f0f3ff]/40 border-t border-[#D8DEEA]/60 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <span className="font-mono text-[11px] text-[#6B7280]">
+                Showing {events.length} of {totalRecords} Records
+              </span>
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-blue-700 text-[18px]">badge</span>
-                <span className="text-xs font-bold text-slate-900">Officer Forensic Dossier 360</span>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1 rounded-full bg-white border border-[#D8DEEA] text-[#10141A] font-medium text-xs disabled:opacity-40 hover:bg-[#f0f3ff] transition"
+                >
+                  Previous
+                </button>
+                <span className="font-mono text-[11px] text-[#10141A] px-2.5 py-0.5 bg-[#E9ECF4] rounded-full">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1 rounded-full bg-white border border-[#D8DEEA] text-[#10141A] font-medium text-xs disabled:opacity-40 hover:bg-[#f0f3ff] transition"
+                >
+                  Next
+                </button>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded uppercase">
-                LIVE CONTEXT
-              </span>
             </div>
+          </div>
 
-            {/* Selected Officer Profile */}
-            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-lg flex items-center gap-3">
-              <div className="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                {officerDossier?.initials || 'DO'}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-900 truncate">
-                    {officerDossier?.name || 'Dealing Officer'}
-                  </span>
-                  <span className="material-symbols-outlined text-blue-600 text-[15px]" title="Attested Officer">verified</span>
+          {/* Right Officer Dossier Inspector (4 Cols) */}
+          <div className="xl:col-span-4 space-y-4 sticky top-24">
+            
+            {/* Dossier Card */}
+            <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/60">
+                <div className="flex items-center gap-1.5 text-[#10141A]">
+                  <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">badge</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Custodian Dossier</span>
                 </div>
-                <span className="font-mono text-[10px] text-slate-500 truncate">
-                  {officerDossier?.badge || 'GOV-OFF-042 // Records Division'}
+                <span className="rounded-full text-[10px] font-medium px-2 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30">
+                  Live Telemetry
                 </span>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span className="text-[10px] font-bold text-emerald-800 uppercase">
-                    {officerDossier?.clearance || 'Active Clearance Tier-1'}
-                  </span>
+              </div>
+
+              {/* Selected Profile Header */}
+              <div className="p-3.5 rounded-[16px] bg-[#f0f3ff]/60 border border-[#D8DEEA]/60 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#10141A] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  {officerDossier?.initials || 'DO'}
                 </div>
-              </div>
-            </div>
-
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Ingested Files</span>
-                <span className="text-sm font-bold text-slate-900 mt-0.5">
-                  {officerDossier?.stats?.ingestedFiles || 38} Docs
-                </span>
-                <span className="font-mono text-[10px] text-slate-500">100% SHA-256</span>
-              </div>
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">DEK Unwraps</span>
-                <span className="text-sm font-bold text-slate-900 mt-0.5">
-                  {officerDossier?.stats?.dekUnwraps || 94} Streams
-                </span>
-                <span className="font-mono text-[10px] text-slate-500">Hardware HSM Key</span>
-              </div>
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Approvals Given</span>
-                <span className="text-sm font-bold text-slate-900 mt-0.5">
-                  {officerDossier?.stats?.approvalsGiven || 14} Decisions
-                </span>
-                <span className="font-mono text-[10px] text-slate-500">Dual-Control</span>
-              </div>
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Violations / Flags</span>
-                <span className={`text-sm font-bold mt-0.5 ${
-                  (officerDossier?.stats?.violations || 0) > 0 ? 'text-red-700' : 'text-emerald-700'
-                }`}>
-                  {(officerDossier?.stats?.violations || 0) > 0 ? `${officerDossier?.stats?.violations} Flagged` : '0 Clean'}
-                </span>
-                <span className="font-mono text-[10px] text-slate-500">Attested Record</span>
-              </div>
-            </div>
-
-            {/* Direct Dossier Inspection Action */}
-            <button
-              onClick={() => {
-                if (officerDossier?.id && officerDossier.id !== 'sys') {
-                  setSelectedDossierUserId(officerDossier.id);
-                } else {
-                  showToast('Please select an audit event row to inspect that officer', 'warning');
-                }
-              }}
-              className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition"
-            >
-              <span className="material-symbols-outlined text-[16px]">manage_search</span>
-              <span>Open Full Forensic User Dossier</span>
-            </button>
-
-            {/* Chronological Custody Audit Timeline */}
-            <div className="flex flex-col gap-2 pt-1 border-t border-slate-100">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Provenance Timeline (Recent Nodes)
-              </span>
-              <div className="flex flex-col gap-3 relative pl-3.5 before:content-[''] before:absolute before:left-1 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 text-xs">
-                {(officerDossier?.timeline || []).map((node, idx) => (
-                  <div key={node.id || idx} className="relative flex flex-col gap-0.5">
-                    <span className={`absolute -left-3.5 top-1 w-2 h-2 rounded-full ${
-                      idx === 0 ? 'bg-blue-600' : 'bg-slate-400'
-                    }`}></span>
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] text-blue-700 font-bold">{node.timeUtc}</span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded uppercase">
-                        {node.eventType.split('_')[0]}
-                      </span>
-                    </div>
-                    <div className="text-xs font-semibold text-slate-800 leading-tight">{node.title}</div>
-                    <div className="font-mono text-[10px] text-slate-400 truncate">{node.target}</div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-[#10141A] truncate">
+                      {officerDossier?.name || 'Dealing Officer'}
+                    </span>
+                    <span className="material-symbols-outlined text-[#3f5e93] text-[15px]" title="Attested Officer">verified</span>
                   </div>
-                ))}
+                  <span className="font-mono text-[10px] text-[#6B7280] truncate">
+                    {officerDossier?.badge || 'Records Division'}
+                  </span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span className="text-[10px] font-medium text-emerald-700">
+                      {officerDossier?.clearance || 'Clearance Tier-1'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Merkle Proof Box */}
-            <div className="p-3 bg-slate-900 text-white rounded-lg flex flex-col gap-1.5 mt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase text-blue-400">Cryptographic Non-Repudiation</span>
-                <span className="material-symbols-outlined text-[15px] text-blue-400">enhanced_encryption</span>
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
+                  <span className="text-[10px] font-medium text-[#6B7280] uppercase">Ingested Files</span>
+                  <span className="text-sm font-bold text-[#10141A] mt-0.5">
+                    {officerDossier?.stats?.ingestedFiles || 38} Docs
+                  </span>
+                  <span className="font-mono text-[10px] text-[#9CA3AF]">100% SHA-256</span>
+                </div>
+                <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
+                  <span className="text-[10px] font-medium text-[#6B7280] uppercase">DEK Unwraps</span>
+                  <span className="text-sm font-bold text-[#10141A] mt-0.5">
+                    {officerDossier?.stats?.dekUnwraps || 94} Streams
+                  </span>
+                  <span className="font-mono text-[10px] text-[#9CA3AF]">HSM Key</span>
+                </div>
+                <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
+                  <span className="text-[10px] font-medium text-[#6B7280] uppercase">Approvals</span>
+                  <span className="text-sm font-bold text-[#10141A] mt-0.5">
+                    {officerDossier?.stats?.approvalsGiven || 14} Decisions
+                  </span>
+                  <span className="font-mono text-[10px] text-[#9CA3AF]">Dual-Control</span>
+                </div>
+                <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
+                  <span className="text-[10px] font-medium text-[#6B7280] uppercase">Violations</span>
+                  <span className={`text-sm font-bold mt-0.5 ${
+                    (officerDossier?.stats?.violations || 0) > 0 ? 'text-rose-600' : 'text-emerald-700'
+                  }`}>
+                    {(officerDossier?.stats?.violations || 0) > 0 ? `${officerDossier?.stats?.violations} Flagged` : '0 Clean'}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#9CA3AF]">Attested</span>
+                </div>
               </div>
-              <div className="flex flex-col font-mono text-[11px] text-slate-300">
-                <div>ROOT: <span className="text-emerald-400 font-bold">{merkleRoot.substring(0, 14)}...</span></div>
-                <div>SEAL: <span className="text-amber-300 font-bold">WORM-LGR-#89110</span></div>
-                <div className="mt-1 text-[10px] text-slate-400">Section 65B(4) Evidence Manifest Pre-Attested</div>
-              </div>
+
+              {/* Dossier Modal Trigger */}
               <button
                 onClick={() => {
-                  showToast('Cryptographic Root Non-Repudiation Seal Validated via Hardware HSM #449', 'security');
+                  if (officerDossier?.id && officerDossier.id !== 'sys') {
+                    setSelectedDossierUserId(officerDossier.id);
+                  } else {
+                    showToast('Select an audit event row to inspect that officer', 'warning');
+                  }
                 }}
-                className="mt-1 w-full py-1.5 bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs rounded transition flex items-center justify-center gap-1 shadow-xs"
+                className="w-full py-2 px-4 rounded-full bg-[#000000] text-white font-medium text-xs hover:bg-[#181c22] transition flex items-center justify-center gap-1.5 shadow-[0_6px_18px_rgba(16,20,26,0.22)]"
               >
-                <span className="material-symbols-outlined text-[15px] text-emerald-600">task_alt</span>
-                <span>Verify Root Hash Signature</span>
+                <span className="material-symbols-outlined text-[16px]">manage_search</span>
+                <span>Open Full User Dossier</span>
               </button>
+
+              {/* Provenance Timeline */}
+              <div className="space-y-2 pt-2 border-t border-[#D8DEEA]/60">
+                <span className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider">
+                  Recent Provenance Nodes
+                </span>
+                <div className="space-y-2 text-xs">
+                  {(officerDossier?.timeline || []).slice(0, 3).map((node, idx) => (
+                    <div key={node.id || idx} className="p-2.5 rounded-[14px] bg-[#f0f3ff]/30 border border-[#D8DEEA]/40 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-[#3f5e93] font-semibold">{node.timeUtc}</span>
+                        <span className="text-[9px] font-mono px-2 py-0.2 bg-white rounded-full text-[#6B7280] border border-[#D8DEEA]">
+                          {node.eventType.split('_')[0]}
+                        </span>
+                      </div>
+                      <div className="text-xs font-medium text-[#10141A] truncate">{node.title}</div>
+                      <div className="font-mono text-[10px] text-[#9CA3AF] truncate">{node.target}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Merkle Proof Non-Repudiation Box */}
+              <div className="p-3.5 bg-[#10141A] text-white rounded-[16px] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium uppercase text-[#83A2DB]">Cryptographic Seal</span>
+                  <span className="material-symbols-outlined text-[15px] text-[#83A2DB]">enhanced_encryption</span>
+                </div>
+                <div className="font-mono text-[10px] text-[#D8DEEA] space-y-0.5">
+                  <div>ROOT: <span className="text-emerald-400">{merkleRoot.substring(0, 16)}...</span></div>
+                  <div>SEAL: <span className="text-amber-300">WORM-LGR-#89110</span></div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* System Chain-of-Custody Integrity Overview Card */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900">Ledger Architecture Health</span>
-              <span className="material-symbols-outlined text-blue-600 text-[18px]">hub</span>
-            </div>
-
-            <div className="w-full bg-slate-50 p-2.5 rounded-lg flex flex-col gap-1 border border-slate-200">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">
-                Epoch Block Progression (Last Snapshots)
-              </span>
-              <div className="h-14 w-full flex items-end gap-1.5 pt-2">
-                {[60, 75, 40, 85, 95, 65, 100].map((h, i) => (
-                  <div
-                    key={i}
-                    style={{ height: `${h}%` }}
-                    className={`flex-1 rounded-t transition-all ${
-                      i === 6 ? 'bg-blue-600' : 'bg-blue-300 hover:bg-blue-400'
-                    }`}
-                    title={`Block #${409114 + i} - Verified`}
-                  ></div>
-                ))}
-              </div>
-              <div className="flex justify-between font-mono text-[9px] text-slate-400 mt-0.5">
-                <span>08:00 UTC</span>
-                <span>11:00 UTC</span>
-                <span>NOW (LIVE)</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-              <span>Next Scheduled Snapshot:</span>
-              <span className="font-mono font-semibold text-slate-800">15:00:00 UTC (Active)</span>
-            </div>
-          </div>
-
         </div>
-
       </div>
 
-      {/* PERSONNEL DIRECTORY INSPECTION MODAL */}
+      {/* Personnel Directory Modal */}
       {personnelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-[26px] shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-[#D8DEEA]/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-blue-400 text-[24px]">group</span>
+                <div className="w-9 h-9 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center border border-[#83A2DB]/30">
+                  <span className="material-symbols-outlined text-[20px]">group</span>
+                </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Personnel Activity Dossiers Directory</h3>
-                  <p className="text-[11px] text-slate-400">Select any employee in the office to inspect their complete audit record</p>
+                  <h3 className="text-sm font-semibold text-[#10141A]">Personnel Activity Directory</h3>
+                  <p className="text-[11px] text-[#6B7280]">Select an employee to inspect their audit record</p>
                 </div>
               </div>
               <button
                 onClick={() => setPersonnelModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded transition"
+                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
 
-            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
-              <span className="material-symbols-outlined text-slate-400 text-[18px]">search</span>
+            <div className="p-4 border-b border-[#D8DEEA]/60 bg-[#f0f3ff]/40 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#9CA3AF] text-[18px]">search</span>
               <input
                 type="text"
                 value={personnelSearch}
                 onChange={(e) => setPersonnelSearch(e.target.value)}
                 placeholder="Search by name, employee code, or department..."
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-white border border-[#D8DEEA] rounded-full px-4 py-1.5 text-xs text-[#151c27] focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100">
+            <div className="flex-1 overflow-y-auto p-4 divide-y divide-[#D8DEEA]/40">
               {personnelLoading ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  <span className="material-symbols-outlined text-[28px] animate-spin block mb-1">sync</span>
+                <div className="py-12 text-center text-[#6B7280] text-xs">
+                  <span className="material-symbols-outlined text-[24px] animate-spin text-[#3f5e93] block mb-1">sync</span>
                   Loading personnel profiles...
                 </div>
               ) : personnelList.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
+                <div className="py-12 text-center text-[#6B7280] text-xs">
                   No personnel found matching &quot;{personnelSearch}&quot;
                 </div>
               ) : (
                 personnelList.map((person) => (
                   <div
                     key={person.id}
-                    className="py-3 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition"
+                    className="py-3 flex items-center justify-between hover:bg-[#f0f3ff]/50 px-3 rounded-[16px] transition"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">
+                      <div className="w-8 h-8 rounded-full bg-[#10141A] text-white flex items-center justify-center text-xs font-bold">
                         {person.fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-900">{person.fullName}</span>
-                          <span className="font-mono text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded font-semibold">
+                          <span className="font-semibold text-xs text-[#10141A]">{person.fullName}</span>
+                          <span className="font-mono text-[10px] px-2 py-0.2 bg-[#E9ECF4] text-[#6B7280] rounded-full">
                             {person.employeeCode}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-500">
-                          {person.designation} &bull; {person.department}
+                        <div className="text-[11px] text-[#6B7280]">
+                          {person.designation} • {person.department}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-right hidden sm:block">
-                        <span className="text-xs font-bold text-slate-900 block">{person.totalActivityCount} Events</span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {person.authoredDocumentsCount} Docs Authored
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setPersonnelModalOpen(false);
-                          setSelectedDossierUserId(person.id);
-                        }}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-xs transition"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">visibility</span>
-                        <span>Inspect Dossier</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setPersonnelModalOpen(false);
+                        setSelectedDossierUserId(person.id);
+                      }}
+                      className="px-3 py-1.5 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-medium rounded-full flex items-center gap-1 shadow-xs transition"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">visibility</span>
+                      <span>Inspect Dossier</span>
+                    </button>
                   </div>
                 ))
               )}
-            </div>
-
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
-              <button
-                onClick={() => setPersonnelModalOpen(false)}
-                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DETAILED USER PROFILE DOSSIER MODAL */}
+      {/* User Profile Dossier Modal */}
       {selectedDossierUserId && (
         <UserProfileDossierModal
           userId={selectedDossierUserId}
@@ -1014,15 +918,12 @@ export default function Auditor360View({
       )}
 
       {/* Floating Micro Notification Toast */}
-      <div
-        className={`fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-2xl text-xs flex items-center gap-2 transition-all duration-300 ${
-          toast.show ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
-        }`}
-      >
-        <span className="material-symbols-outlined text-blue-400 text-[18px]">{toast.icon}</span>
-        <span className="font-medium">{toast.message}</span>
-      </div>
-
+      {toast.show && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#10141A] text-white px-4 py-2.5 rounded-full shadow-2xl text-xs flex items-center gap-2 border border-[#D8DEEA]/40 animate-slide-up">
+          <span className="material-symbols-outlined text-[#83A2DB] text-[18px]">{toast.icon}</span>
+          <span className="font-medium">{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

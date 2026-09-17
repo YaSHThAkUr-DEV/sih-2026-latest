@@ -7,31 +7,25 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Form states
-  const [orgCode, setOrgCode] = useState('DEMO');
-  const [email, setEmail] = useState('officer@dms.gov.in');
-  const [password, setPassword] = useState('Officer@DMS2026!');
-  const [persistSession, setPersistSession] = useState(true);
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [tenantId, setTenantId] = useState('DEMO');
+  const [userCredential, setUserCredential] = useState('officer@dms.gov.in');
+  const [userSecret, setUserSecret] = useState('Officer@DMS2026!');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activePreset, setActivePreset] = useState<'superadmin' | 'cyber' | 'investigator' | 'auditor' | null>('investigator');
+  const [activeRoleName, setActiveRoleName] = useState('Dealing Officer');
 
   // Alert & Toast states
-  const [alert, setAlert] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' } | null>(null);
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: 'error' | 'warning';
+  } | null>(null);
   const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
 
   // Theme & Clock
-  const [isSlate, setIsSlate] = useState(false);
-  const [utcTime, setUtcTime] = useState('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setUtcTime(now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [isDark, setIsDark] = useState(false);
 
   const showToast = (message: string) => {
     setToast({ show: true, message });
@@ -40,33 +34,22 @@ export default function LoginPage() {
     }, 3500);
   };
 
-  // Demo account preset switcher
-  const applyPreset = (roleKey: 'superadmin' | 'cyber' | 'investigator' | 'auditor') => {
-    setActivePreset(roleKey);
+  // Quick Demo Profiles selector
+  const setRoleDemo = (
+    tenant: string,
+    email: string,
+    secret: string,
+    roleTitle: string
+  ) => {
+    setTenantId(tenant);
+    setUserCredential(email);
+    setUserSecret(secret);
+    setActiveRoleName(roleTitle);
     setAlert(null);
-    if (roleKey === 'superadmin') {
-      setOrgCode('DEMO');
-      setEmail('admin@dms.gov.in');
-      setPassword('Admin@DMS2026!');
-      showToast('Loaded credentials: Super Administrator (Level 5 Clearance)');
-    } else if (roleKey === 'cyber') {
-      setOrgCode('DEMO');
-      setEmail('depthead@dms.gov.in');
-      setPassword('Head@DMS2026!');
-      showToast('Loaded credentials: Section Head / Approver (Level 4 Clearance)');
-    } else if (roleKey === 'investigator') {
-      setOrgCode('DEMO');
-      setEmail('officer@dms.gov.in');
-      setPassword('Officer@DMS2026!');
-      showToast('Loaded credentials: Senior Dealing Officer (Level 3 Clearance)');
-    } else if (roleKey === 'auditor') {
-      setOrgCode('DEMO');
-      setEmail('auditor@dms.gov.in');
-      setPassword('Auditor@DMS2026!');
-      showToast('Loaded credentials: Compliance Auditor (Level 5 Read-Only)');
-    }
+    showToast(`Autofilled credentials for ${roleTitle}`);
   };
 
+  // Submit Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAlert(null);
@@ -77,9 +60,9 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email.trim(),
-          password,
-          orgCode: orgCode.trim(),
+          email: userCredential.trim(),
+          password: userSecret,
+          orgCode: tenantId.trim(),
         }),
       });
 
@@ -99,7 +82,7 @@ export default function LoginPage() {
               : res.status === 429
               ? 'Rate Limit Exceeded'
               : 'Authentication Failed',
-          message: data.error || 'Invalid official credentials or organization.',
+          message: data.error || 'Invalid credentials or organization code.',
           type: res.status === 403 ? 'warning' : 'error',
         });
         setLoading(false);
@@ -115,7 +98,7 @@ export default function LoginPage() {
       setAlert({
         show: true,
         title: 'Connection Error',
-        message: err.message || 'Could not communicate with the authentication cluster. Please try again.',
+        message: err.message || 'Could not communicate with the authentication server. Please try again.',
         type: 'error',
       });
       setLoading(false);
@@ -123,232 +106,461 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col justify-between selection:bg-blue-100 selection:text-slate-900 antialiased transition-colors duration-300 ${isSlate ? 'bg-[#080d1a] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      
-      {/* Top Bar */}
-      <header className={`w-full border-b px-6 py-2.5 flex items-center justify-between text-xs sticky top-0 z-30 backdrop-blur-md transition-colors duration-300 ${isSlate ? 'border-slate-800/80 bg-[#0c1222]/80 text-slate-400' : 'border-slate-200 bg-white/80 text-slate-600'}`}>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-            <span className={isSlate ? 'text-slate-200' : 'text-slate-800'}>CloudDMS Portal</span>
-          </div>
-          <span className="text-slate-300 hidden sm:inline">|</span>
-          <span className="hidden sm:inline text-slate-500">Institutional Document Management System</span>
+    <div
+      className={`min-h-screen flex flex-col justify-between selection:bg-[#83A2DB] selection:text-white transition-colors duration-300 ${
+        isDark
+          ? 'bg-[#0b101b] text-slate-100'
+          : 'bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] text-[#10141A]'
+      }`}
+    >
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-50 animate-fade-in bg-[#10141A] text-white px-4 py-2.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2 border border-slate-700">
+          <span className="material-symbols-outlined text-[16px] text-[#83A2DB]">info</span>
+          <span>{toast.message}</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-1.5 font-mono text-[11px]">
-            <span className="text-slate-400">UTC:</span>
-            <span className={isSlate ? 'text-slate-300' : 'text-slate-700'}>{utcTime}</span>
+      )}
+
+      {/* Top Floating Header Bar */}
+      <header className="w-full pt-4 px-4 sm:px-8 z-30">
+        <div
+          className={`max-w-6xl mx-auto h-14 px-5 backdrop-blur-xl rounded-full border shadow-sm flex items-center justify-between transition-all ${
+            isDark
+              ? 'bg-[#121927]/85 border-slate-800 shadow-slate-950/40'
+              : 'bg-white/75 border-[#D8DEEA]/70 shadow-[0_4px_12px_rgba(16,20,26,0.04),0_16px_40px_rgba(16,20,26,0.06)]'
+          }`}
+        >
+          {/* Brand Logo & Name */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#83A2DB]/15 flex items-center justify-center p-1.5 shadow-xs text-[#83A2DB]">
+              <svg className="w-full h-full" fill="none" viewBox="0 0 40 40">
+                <rect fill="#83A2DB" height="40" rx="10" width="40"></rect>
+                <path
+                  d="M12 14C12 12.8954 12.8954 12 14 12H22L28 18V26C28 27.1046 27.1046 28 26 28H14C12.8954 28 12 27.1046 12 26V14Z"
+                  stroke="white"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                ></path>
+                <path
+                  d="M22 12V18H28"
+                  stroke="white"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                ></path>
+                <path d="M16 22H24" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
+                <path d="M16 25H21" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
+              </svg>
+            </div>
+            <span className={`font-semibold text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+              CloudDMS
+            </span>
+            <span
+              className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                isDark
+                  ? 'bg-slate-800 text-slate-300 border-slate-700'
+                  : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
+              }`}
+            >
+              Enterprise v2.4
+            </span>
           </div>
-          <button
-            onClick={() => {
-              setIsSlate(!isSlate);
-              showToast(isSlate ? 'Light Theme active' : 'Slate Theme active');
-            }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition text-xs font-medium border ${isSlate ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200' : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">{isSlate ? 'light_mode' : 'dark_mode'}</span>
-            <span>{isSlate ? 'Light' : 'Slate'}</span>
-          </button>
+
+          {/* Quick Actions / Theme Switcher */}
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Toggle theme"
+              onClick={() => {
+                setIsDark(!isDark);
+                showToast(isDark ? 'Light mode enabled' : 'Dark mode enabled');
+              }}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white'
+                  : 'bg-white border-[#D8DEEA]/60 hover:border-[#D8DEEA] text-[#6B7280] hover:text-[#10141A]'
+              }`}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[19px]">
+                {isDark ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md ml-1 ${
+                isDark ? 'bg-[#83A2DB] text-[#10141A]' : 'bg-[#10141A] text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">person</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 z-10 my-4">
-        
-        {/* Header Branding */}
-        <div className="w-full max-w-md text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/25 mb-3.5">
-            <span className="material-symbols-outlined text-[24px]">cloud_done</span>
-          </div>
-          <h1 className={`text-2xl font-bold tracking-tight mb-1 ${isSlate ? 'text-white' : 'text-slate-900'}`}>
-            Sign In to DMS
-          </h1>
-          <p className={`text-xs ${isSlate ? 'text-slate-400' : 'text-slate-500'}`}>
-            Secure Electronic Document Management &amp; Audit Custody
-          </p>
-        </div>
+      {/* Main Content Area */}
+      <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-8 relative z-10">
+        <div className="w-full max-w-[460px] mx-auto">
+          {/* Primary Floating Card */}
+          <div
+            className={`rounded-[26px] p-7 sm:p-9 border relative transition-all ${
+              isDark
+                ? 'bg-[#121927] border-slate-800 shadow-2xl shadow-slate-950/60'
+                : 'bg-white border-[#D8DEEA]/80 shadow-[0_4px_12px_rgba(16,20,26,0.04),0_16px_40px_rgba(16,20,26,0.06)]'
+            }`}
+          >
+            {/* Header / Title */}
+            <div className="flex flex-col items-start mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-[#83A2DB]/15 text-[#83A2DB] flex items-center justify-center mb-3 shadow-inner">
+                <span className="material-symbols-outlined text-[24px]">folder_managed</span>
+              </div>
+              <h1 className={`text-[24px] sm:text-[26px] font-semibold tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                Sign in to your workspace
+              </h1>
+              <p className={`text-[13px] mt-1 leading-normal ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                Enter your organization credentials to access the secure document cloud.
+              </p>
+            </div>
 
-        {/* Form Card */}
-        <div className={`w-full max-w-md rounded-2xl border shadow-xl overflow-hidden transition-all duration-300 ${isSlate ? 'bg-[#0f172a] border-slate-800 shadow-black/40' : 'bg-white border-slate-200 shadow-slate-200/50'}`}>
-          <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-700"></div>
-
-          <div className="p-6 sm:p-8">
-            {/* Alert Banner */}
+            {/* Error / Feedback Banner */}
             {alert && alert.show && (
-              <div className={`mb-5 rounded-lg border p-3 text-xs flex items-start gap-2.5 ${alert.type === 'error' ? 'border-rose-300 bg-rose-50 text-rose-800' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
-                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+              <div
+                className={`mb-5 p-3.5 rounded-[14px] border flex items-start gap-3 relative transition-all duration-200 ${
+                  alert.type === 'error'
+                    ? 'bg-[#CE6969]/10 border-[#CE6969]/30 text-[#CE6969]'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[19px] mt-0.5 shrink-0">
                   {alert.type === 'error' ? 'error' : 'warning'}
                 </span>
-                <div className="flex-1">
-                  <span className="font-bold block">{alert.title}</span>
-                  <span className="text-[11px]">{alert.message}</span>
+                <div className="flex-1 pr-4">
+                  <h4 className="text-[12px] font-semibold text-[#10141A] dark:text-slate-100">{alert.title}</h4>
+                  <p className="text-[12px] text-[#6B7280] dark:text-slate-400 mt-0.5 leading-snug">{alert.message}</p>
                 </div>
-                <button onClick={() => setAlert(null)} className="text-slate-400 hover:text-slate-600">
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                <button
+                  aria-label="Dismiss alert"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5"
+                  onClick={() => setAlert(null)}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              {/* Organization */}
-              <div>
-                <label htmlFor="orgCode" className={`block text-xs font-semibold mb-1.5 uppercase tracking-wider ${isSlate ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Organization / Directorate
-                </label>
-                <select
-                  id="orgCode"
-                  value={orgCode}
-                  onChange={(e) => setOrgCode(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 border text-xs rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition font-medium cursor-pointer ${isSlate ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800 focus:bg-white'}`}
+            {/* Login Form */}
+            <form className="flex flex-col gap-4" onSubmit={handleLogin}>
+              {/* Organization Code Input */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
+                    htmlFor="tenantId"
+                  >
+                    Organization code
+                  </label>
+                  <span
+                    className={`text-[11px] font-medium font-mono px-2 py-0.5 rounded-full border ${
+                      isDark
+                        ? 'bg-slate-800 text-slate-300 border-slate-700'
+                        : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
+                    }`}
+                  >
+                    Tenant ID
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
+                    domain
+                  </span>
+                  <input
+                    id="tenantId"
+                    type="text"
+                    required
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value.toUpperCase())}
+                    placeholder="DEMO"
+                    className={`w-full h-11 pl-10 pr-3.5 text-[13px] font-mono rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
+                      isDark
+                        ? 'bg-[#182234] text-white border-slate-700'
+                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Email or Username Input */}
+              <div className="flex flex-col gap-1.5">
+                <label
+                  className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
+                  htmlFor="userCredential"
                 >
-                  <option value="DEMO">General Administration Department (DEMO)</option>
-                  <option value="COLLECTORATE">District Collectorate &amp; Revenue Division</option>
-                  <option value="PANCHAYAT">Zilla Parishad &amp; Gram Panchayat Cell</option>
-                </select>
-              </div>
-
-              {/* Email / Username */}
-              <div>
-                <label htmlFor="email" className={`block text-xs font-semibold mb-1.5 uppercase tracking-wider ${isSlate ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Official Email or Username
+                  Email or username
                 </label>
-                <input 
-                  type="text" 
-                  id="email" 
-                  name="email" 
-                  required
-                  placeholder="officer@dms.gov.in" 
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setActivePreset(null);
-                  }}
-                  className={`w-full px-3.5 py-2.5 border text-xs rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition font-medium ${isSlate ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900 focus:bg-white'}`}
-                />
+                <div className="relative flex items-center">
+                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
+                    alternate_email
+                  </span>
+                  <input
+                    id="userCredential"
+                    type="text"
+                    required
+                    value={userCredential}
+                    onChange={(e) => setUserCredential(e.target.value)}
+                    placeholder="name@organization.gov.in"
+                    className={`w-full h-11 pl-10 pr-3.5 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
+                      isDark
+                        ? 'bg-[#182234] text-white border-slate-700'
+                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
+                    }`}
+                  />
+                </div>
               </div>
 
-              {/* Password */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="password" className={`block text-xs font-semibold uppercase tracking-wider ${isSlate ? 'text-slate-300' : 'text-slate-700'}`}>
+              {/* Password Input */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
+                    htmlFor="userSecret"
+                  >
                     Password
                   </label>
-                  <span className="text-[11px] text-slate-400">Institutional Access</span>
                 </div>
-                <div className="relative rounded-lg">
-                  <input 
-                    type={passwordVisible ? 'text' : 'password'}
-                    id="password" 
-                    name="password" 
+                <div className="relative flex items-center">
+                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
+                    lock
+                  </span>
+                  <input
+                    id="userSecret"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setActivePreset(null);
-                    }}
-                    className={`w-full px-3.5 pr-10 py-2.5 border text-xs rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition font-medium ${isSlate ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900 focus:bg-white'}`}
+                    value={userSecret}
+                    onChange={(e) => setUserSecret(e.target.value)}
+                    placeholder="••••••••••••"
+                    className={`w-full h-11 pl-10 pr-10 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
+                      isDark
+                        ? 'bg-[#182234] text-white border-slate-700'
+                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
+                    }`}
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setPasswordVisible(!passwordVisible)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 transition" 
+                  <button
                     aria-label="Toggle password visibility"
+                    className="absolute right-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    type="button"
                   >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {passwordVisible ? 'visibility_off' : 'visibility'}
+                    <span className="material-symbols-outlined text-[19px]">
+                      {showPassword ? 'visibility_off' : 'visibility'}
                     </span>
                   </button>
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-lg shadow-md shadow-blue-500/20 transition duration-150 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-60 text-xs"
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="material-symbols-outlined animate-spin text-[16px]">sync</span>
-                      <span>Verifying Credentials...</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <span>Sign In to Dashboard</span>
-                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </span>
-                  )}
-                </button>
+              {/* Remember Me Checkbox */}
+              <div className="flex items-center justify-between py-1">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded-sm border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
+                    type="checkbox"
+                  />
+                  <span className={`text-[12.5px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                    Remember me on this workstation
+                  </span>
+                </label>
               </div>
+
+              {/* Primary Submit Button */}
+              <button
+                disabled={loading}
+                className={`w-full h-11 text-[13.5px] font-medium rounded-full flex items-center justify-center gap-2 active:scale-[0.99] transition-all shadow-md mt-1 cursor-pointer ${
+                  isDark
+                    ? 'bg-[#83A2DB] hover:bg-[#9cb6e5] text-[#10141A]'
+                    : 'bg-[#10141A] hover:bg-[#1a212b] text-white'
+                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                type="submit"
+              >
+                {loading ? (
+                  <>
+                    <span className="inline-block animate-spin material-symbols-outlined text-[18px]">
+                      progress_activity
+                    </span>
+                    <span>Authenticating...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign in as {activeRoleName}</span>
+                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </>
+                )}
+              </button>
             </form>
 
-            {/* Account Preset Switcher */}
-            <div className={`mt-6 pt-4 border-t ${isSlate ? 'border-slate-800' : 'border-slate-100'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${isSlate ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Quick Demo Accounts
+            {/* Divider */}
+            <div className="flex items-center my-6">
+              <div className={`flex-1 h-[1px] ${isDark ? 'bg-slate-800' : 'bg-[#D8DEEA]'}`}></div>
+              <span className={`px-3 text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                or quick demo profiles
+              </span>
+              <div className={`flex-1 h-[1px] ${isDark ? 'bg-slate-800' : 'bg-[#D8DEEA]'}`}></div>
+            </div>
+
+            {/* Demo Profiles 2x2 Grid */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-[12px] font-medium ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                  Click to auto-fill credentials
                 </span>
-                <span className="text-[10px] text-slate-400">1-Click Fill</span>
+                <span className="text-[11px] text-[#83A2DB] font-medium">1-Click Test</span>
               </div>
-              
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                {[
-                  { id: 'superadmin' as const, label: 'Super Admin', sub: 'Level 5' },
-                  { id: 'cyber' as const, label: 'Section Head', sub: 'Level 4' },
-                  { id: 'investigator' as const, label: 'Dealing Officer', sub: 'Level 3' },
-                  { id: 'auditor' as const, label: 'Auditor', sub: 'Level 5 View' },
-                ].map((preset) => {
-                  const isSelected = activePreset === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => applyPreset(preset.id)}
-                      className={`px-2 py-1.5 rounded-lg border text-center transition flex flex-col items-center gap-0.5 active:scale-95 ${
-                        isSelected
-                          ? isSlate
-                            ? 'bg-blue-600/30 border-blue-500 text-blue-200 font-bold'
-                            : 'bg-blue-50 border-blue-500 text-blue-900 font-bold ring-1 ring-blue-500'
-                          : isSlate
-                            ? 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className="text-[10px] font-semibold">{preset.label}</span>
-                      <span className="text-[9px] text-slate-400 font-mono">{preset.sub}</span>
-                    </button>
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
+                    activeRoleName === 'Administrator'
+                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
+                      : isDark
+                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
+                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
+                  }`}
+                  onClick={() =>
+                    setRoleDemo('DEMO', 'admin@dms.gov.in', 'Admin@DMS2026!', 'Administrator')
+                  }
+                  type="button"
+                >
+                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
+                    <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                      Administrator
+                    </span>
+                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                      Tier 0 root
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
+                    activeRoleName === 'Department Head'
+                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
+                      : isDark
+                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
+                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
+                  }`}
+                  onClick={() =>
+                    setRoleDemo('DEMO', 'depthead@dms.gov.in', 'Head@DMS2026!', 'Department Head')
+                  }
+                  type="button"
+                >
+                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
+                    <span className="material-symbols-outlined text-[15px]">folder_shared</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                      Dept head
+                    </span>
+                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                      Approval sign-off
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
+                    activeRoleName === 'Dealing Officer'
+                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
+                      : isDark
+                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
+                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
+                  }`}
+                  onClick={() =>
+                    setRoleDemo('DEMO', 'officer@dms.gov.in', 'Officer@DMS2026!', 'Dealing Officer')
+                  }
+                  type="button"
+                >
+                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
+                    <span className="material-symbols-outlined text-[15px]">assignment_turned_in</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                      Dealing officer
+                    </span>
+                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                      Full read / write
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
+                    activeRoleName === 'Auditor'
+                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
+                      : isDark
+                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
+                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
+                  }`}
+                  onClick={() =>
+                    setRoleDemo('DEMO', 'auditor@dms.gov.in', 'Auditor@DMS2026!', 'Auditor')
+                  }
+                  type="button"
+                >
+                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
+                    <span className="material-symbols-outlined text-[15px]">visibility</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                      Auditor
+                    </span>
+                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+                      Read-only audit
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
 
+            {/* Micro status footer within card */}
+            <div className={`mt-6 pt-4 border-t flex items-center justify-between text-[11.5px] font-mono ${isDark ? 'border-slate-800 text-slate-400' : 'border-[#D8DEEA]/80 text-[#6B7280]'}`}>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#83A2DB] animate-pulse"></span>
+                <span>Gateway: ap-northeast-1</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-slate-400">lock</span>
+                <span>TLS 1.3 strict</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Outside Subtitle info */}
+          <div className="mt-4 text-center">
+            <p className={`text-[12px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+              Protected by multi-tenant authentication protocol.
+            </p>
           </div>
         </div>
-
       </main>
 
-      {/* Clean Footer */}
-      <footer className={`w-full border-t px-6 py-4 text-center text-xs transition-colors duration-300 ${isSlate ? 'border-slate-800/80 bg-[#0c1222]/80 text-slate-500' : 'border-slate-200 bg-white text-slate-500'}`}>
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>&copy; 2026 CloudDMS — Institutional Document Custody System</span>
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <span>Role-Based Access Control</span>
-            <span>•</span>
-            <span>SHA-256 Ledger Verifiable</span>
-          </div>
+      {/* Clean Footer Bar */}
+      <footer className="w-full py-4 px-6 relative z-10">
+        <div className={`max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+          <p>© 2026 CloudDMS Systems Inc. All rights reserved.</p>
+          <nav className="flex items-center gap-6">
+            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
+              Privacy policy
+            </a>
+            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
+              Terms of service
+            </a>
+            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
+              Security &amp; compliance
+            </a>
+          </nav>
         </div>
       </footer>
-
-      {/* Toast */}
-      <div 
-        className={`fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl text-xs flex items-center gap-2.5 transition-all duration-300 z-50 max-w-sm ${toast.show ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}
-      >
-        <span className="material-symbols-outlined text-blue-400 text-[18px]">info</span>
-        <span>{toast.message}</span>
-      </div>
-
     </div>
   );
 }
