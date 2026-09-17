@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentSession } from '@/lib/auth/jwt';
+import { query } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category') || 'all';
+    const search = searchParams.get('search')?.trim().toLowerCase() || '';
+    const sort = searchParams.get('sort') || 'newest';
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+
+    // 1. Fetch KPI metrics for ribbon & category counts
+    const [allCount, unreadCount, approvalCount, holdCount, ocrCount, securityCount, retentionCount] = await Promise.all([
+      query<{ count: string }>('SELECT COUNT(*) as count FROM notifications WHERE user_id = $1', [session.userId]),
+      query<{ count: string }>('SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL', [session.userId]),
+      query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'APPROVAL_REQUEST' OR metadata->>'category' = 'dual-custody')",
+        [session.userId]
+      ),
+      query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'LEGAL_HOLD' OR metadata->>'category' = 'legal-holds')",
+        [session.userId]
+      ),
+      query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'OCR_COMPLETE' OR metadata->>'category' = 'ocr-pipeline')",
+        [session.userId]
+      ),
+      query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR metadata->>'category' = 'security')",
+        [session.userId]
+      ),
+      query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'RETENTION_EXPIRY' OR metadata->>'category' = 'retention')",
+        [session.userId]
+      ),
+    ]);
+
+    const stats = {
+      total: parseInt(allCount[0]?.count || '0', 10),
+      unreadNotices: parseInt(unreadCount[0]?.count || '0', 10),
+      pendingApprovals: parseInt(approvalCount[0]?.count || '0', 10),
+      legalHolds: parseInt(holdCount[0]?.count || '0', 10),
+      ocrCompleted: parseInt(ocrCount[0]?.count || '0', 10),
+      categoryCounts: {
+        all: parseInt(allCount[0]?.count || '0', 10),
+        'dual-custody': parseInt(approvalCount[0]?.count || '0', 10),
+        'legal-holds': parseInt(holdCount[0]?.count || '0', 10),
+        'ocr-pipeline': parseInt(ocrCount[0]?.count || '0', 10),
+        security: parseInt(securityCount[0]?.count || '0', 10),
+        retention: parseInt(retentionCount[0]?.count || '0', 10),
+      },
+    };
+
+    // 2. Build filtered query
+    let sql = `
+      SELECT 
+        id,
+        user_id,
+        type,
+        title,
+        message,
+        resource_type,
+        resource_id,
+        severity,
+        read_at,
+        metadata,
+        created_at
+      FROM notifications
+      WHERE user_id = $1
+    `;
+    const params: any[] = [session.userId];
+
+    if (unreadOnly) {
+      sql += ' AND read_at IS NULL';
+    }
+
+    if (category !== 'all') {
+      if (category === 'dual-custody') {
+        sql += " AND (type = 'APPROVAL_REQUEST' OR metadata->>'category' = 'dual-custody')";
+      } else if (category === 'legal-holds') {
+        sql += " AND (type = 'LEGAL_HOLD' OR metadata->>'category' = 'legal-holds')";
+      } else if (category === 'ocr-pipeline') {
+        sql += " AND (type = 'OCR_COMPLETE' OR metadata->>'category' = 'ocr-pipeline')";
+      } else if (category === 'security') {
+        sql += " AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR metadata->>'category' = 'security')";
+      } else if (category === 'retention') {
+        sql += " AND (type = 'RETENTION_EXPIRY' OR metadata->>'category' = 'retention')";
+      }
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      const pIdx = params.length;
+      sql += ` AND (
+        LOWER(title) LIKE $${pIdx} OR 
+        LOWER(message) LIKE $${pIdx} OR 
+        LOWER(COALESCE(metadata->>'docketNumber', '')) LIKE $${pIdx} OR
+        LOWER(COALESCE(metadata->>'initiatingCustodian', '')) LIKE $${pIdx}
+      )`;
+    }
+
+    if (sort === 'oldest') {
+      sql += ' ORDER BY created_at ASC';
+    } else if (sort === 'critical') {
+      sql += ` ORDER BY 
+        CASE 
+          WHEN severity = 'CRITICAL' THEN 1 
+          WHEN severity = 'WARNING' THEN 2 
+          WHEN severity = 'SUCCESS' THEN 3 
+          ELSE 4 
+        END ASC, created_at DESC`;
+    } else {
+      sql += ' ORDER BY created_at DESC';
+    }
+
+    const rows = await query<any>(sql, params);
+
+    const notifications = rows.map((r) => {
+      const isUnread = r.read_at === null;
+      const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata || {};
+
+      return {
+        id: r.id,
+        type: r.type,
+        title: r.title,
+        message: r.message,
+        resourceType: r.resource_type,
+        resourceId: r.resource_id,
+        severity: r.severity || 'INFO',
+        isUnread,
+        readAt: r.read_at,
+        createdAt: r.created_at,
+        metadata: meta,
+      };
+    });
+
+    return NextResponse.json({
+      stats,
+      notifications,
+    });
+  } catch (error: any) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
