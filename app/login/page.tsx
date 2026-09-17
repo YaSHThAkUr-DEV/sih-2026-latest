@@ -83,12 +83,22 @@ export default function LoginPage() {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: `Server returned unexpected response (${res.status})` };
+      }
 
       if (!res.ok) {
         setAlert({
           show: true,
-          title: res.status === 403 ? 'Access Restricted' : 'Authentication Failed',
+          title:
+            res.status === 403
+              ? 'Access Restricted'
+              : res.status === 429
+              ? 'Rate Limit Exceeded'
+              : 'Authentication Failed',
           message: data.error || 'Invalid official credentials or organization.',
           type: res.status === 403 ? 'warning' : 'error',
         });
@@ -101,11 +111,11 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       }, 500);
-    } catch (err) {
+    } catch (err: any) {
       setAlert({
         show: true,
         title: 'Connection Error',
-        message: 'Could not communicate with the authentication cluster. Please try again.',
+        message: err.message || 'Could not communicate with the authentication cluster. Please try again.',
         type: 'error',
       });
       setLoading(false);

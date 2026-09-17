@@ -5,6 +5,8 @@ import { createSessionToken, setSessionCookie } from '@/lib/auth/jwt';
 import { logAuditEvent } from '@/lib/auth/audit';
 import { checkRateLimit, RATE_LIMIT_PRESETS } from '@/lib/security/rate-limiter';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
   const userAgent = req.headers.get('user-agent') || 'Unknown';

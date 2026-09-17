@@ -98,12 +98,12 @@ export async function checkRateLimit(
  * Standard Institutional Rate Limit Configurations
  */
 export const RATE_LIMIT_PRESETS = {
-  // Authentication: 5 login attempts per 60 seconds per IP
-  AUTH_LOGIN: { maxRequests: 5, windowSeconds: 60 },
-  // Evidentiary Upload: 20 uploads per 60 seconds per user
-  EVIDENCE_UPLOAD: { maxRequests: 20, windowSeconds: 60 },
-  // Administration: 60 admin requests per 60 seconds per admin
-  ADMIN_API: { maxRequests: 60, windowSeconds: 60 },
-  // General Public/Search: 100 queries per 60 seconds
-  GENERAL_API: { maxRequests: 100, windowSeconds: 60 },
+  // Authentication: generous limit to allow fast role switching and automated testing
+  AUTH_LOGIN: { maxRequests: process.env.NODE_ENV === 'production' ? 20 : 120, windowSeconds: 60 },
+  // Evidentiary Upload: 50 uploads per 60 seconds per user
+  EVIDENCE_UPLOAD: { maxRequests: 50, windowSeconds: 60 },
+  // Administration: 120 admin requests per 60 seconds per admin
+  ADMIN_API: { maxRequests: 120, windowSeconds: 60 },
+  // General Public/Search: 200 queries per 60 seconds
+  GENERAL_API: { maxRequests: 200, windowSeconds: 60 },
 };

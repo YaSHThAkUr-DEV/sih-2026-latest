@@ -7,6 +7,7 @@ import { putEncryptedObject, BUCKET_NAME } from '@/lib/storage/minio';
 import { logAuditEvent } from '@/lib/auth/audit';
 import { invalidateCache } from '@/lib/cache/redis';
 import { JobQueueManager } from '@/lib/jobs/queue';
+import { OcrPipelineService } from '@/lib/ocr/pipeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,7 +230,7 @@ export async function POST(req: NextRequest) {
     // 10. Invalidate Redis Caches
     await invalidateCache('dms:dashboard:*');
 
-    // 11. Enqueue Asynchronous OCR Processing (Module 20 Background Job Queue)
+    // 11. Enqueue & Execute OCR Processing in Background
     await JobQueueManager.enqueue(
       'ocr-queue',
       'OCR_EXTRACTION',
@@ -240,6 +241,11 @@ export async function POST(req: NextRequest) {
       },
       { documentVersionId: verId }
     );
+
+    // Run direct background OCR extraction to immediately index text & GIN vector
+    OcrPipelineService.processVersion(verId, session.userId).catch((err) => {
+      console.warn(`[OCR] Direct background processing for version ${verId}:`, err.message);
+    });
 
     // 12. Enqueue Blockchain Hash Anchoring (Module 21 — Hyperledger Fabric Integrity)
     try {

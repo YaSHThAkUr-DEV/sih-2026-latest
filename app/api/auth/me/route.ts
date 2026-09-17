@@ -3,6 +3,8 @@ import { getCurrentSession } from '@/lib/auth/jwt';
 import { query } from '@/lib/db';
 import { getOrganizationFeatures } from '@/lib/service/service-config';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const session = await getCurrentSession();
 
