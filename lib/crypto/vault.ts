@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
 const VAULT_ADDR = process.env.VAULT_ADDR || 'http://127.0.0.1:8200';
-const VAULT_TOKEN = process.env.VAULT_TOKEN || 'dms-vault-dev-token';
-const KEY_NAME = 'dms-master-key';
+const VAULT_TOKEN = process.env.VAULT_TOKEN || 'dev-only-token';
+const KEY_NAME = process.env.VAULT_KEY_NAME || 'dms-master-key';
 
 // Local KMS Fallback key (32 bytes) for dev/offline resilience
 const LOCAL_KEK = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'dms-master-kek-2026').digest();

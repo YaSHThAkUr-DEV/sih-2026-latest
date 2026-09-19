@@ -328,3 +328,111 @@ mark {
   }
 }
 
+/* ==========================================================================
+   Custom Uiverse Animated Notification Bell
+   ========================================================================== */
+
+.bell-btn {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 300ms ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+}
+
+.bell-btn:hover {
+  background: rgba(131, 162, 219, 0.15);
+  color: #10141A;
+}
+
+.bell-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: top center;
+}
+
+.bell-btn:hover > .bell-container {
+  animation: bell-animation 650ms ease-out 0s 1 normal both;
+}
+
+.bell {
+  border: 2px solid currentColor;
+  border-radius: 9px 9px 0 0;
+  width: 14px;
+  height: 15px;
+  background: transparent;
+  display: block;
+  position: relative;
+  top: -2px;
+}
+
+.bell::before,
+.bell::after {
+  content: "";
+  background: currentColor;
+  display: block;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 2px;
+}
+
+.bell::before {
+  top: 100%;
+  width: 18px;
+}
+
+.bell::after {
+  top: calc(100% + 3.5px);
+  width: 6px;
+  border-radius: 0 0 3px 3px;
+}
+
+.bell-badge {
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background-color: #ba1a1a;
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+  border: 1.5px solid white;
+  box-shadow: 0 1px 4px rgba(186, 26, 26, 0.4);
+}
+
+@keyframes bell-animation {
+  20% {
+    transform: rotate(15deg);
+  }
+  40% {
+    transform: rotate(-15deg) scale(1.1);
+  }
+  60% {
+    transform: rotate(10deg) scale(1.1);
+  }
+  80% {
+    transform: rotate(-10deg);
+  }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+

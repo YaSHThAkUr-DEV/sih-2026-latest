@@ -817,11 +817,16 @@ export default function DashboardPage() {
             <button
               aria-label="System Notifications"
               onClick={() => setActiveView('notifications')}
-              className="w-9 h-9 rounded-full bg-[#f0f3ff] text-[#45474b] hover:bg-[#e2e8f8] hover:text-[#151c27] flex items-center justify-center transition-all relative cursor-pointer"
+              className="bell-btn cursor-pointer"
+              title="Alerts & System Notifications"
             >
-              <span className="material-symbols-outlined text-[18px]">notifications</span>
+              <div className="bell-container">
+                <div className="bell"></div>
+              </div>
               {unreadNotices > 0 && (
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#ba1a1a]"></span>
+                <span className="bell-badge">
+                  {unreadNotices > 9 ? '9+' : unreadNotices}
+                </span>
               )}
             </button>
 
