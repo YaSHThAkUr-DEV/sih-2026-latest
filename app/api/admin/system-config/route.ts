@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession } from '@/lib/auth/admin-guard';
 import { query } from '@/lib/db';
 import { logAuditEvent } from '@/lib/auth/audit';
+import { checkRedisHealth } from '@/lib/cache/redis';
+import { VaultService } from '@/lib/crypto/vault';
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAdminSession(req);
@@ -21,12 +23,14 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Dynamic institutional metrics
-    const [userCountRes, auditCountRes, deptCountRes, activeDocsRes] = await Promise.all([
+    // Dynamic institutional metrics + live service health
+    const [userCountRes, auditCountRes, deptCountRes, activeDocsRes, redisHealth, vaultHealth] = await Promise.all([
       query<{ count: string }>(`SELECT count(*) as count FROM users WHERE organization_id = $1`, [session.organizationId]),
       query<{ count: string }>(`SELECT count(*) as count FROM audit_events WHERE organization_id = $1`, [session.organizationId]),
       query<{ count: string }>(`SELECT count(*) as count FROM departments WHERE organization_id = $1`, [session.organizationId]),
       query<{ count: string }>(`SELECT count(*) as count FROM documents WHERE organization_id = $1 AND status != 'DELETED'`, [session.organizationId]),
+      checkRedisHealth().catch(() => ({ ok: false, latencyMs: 0 })),
+      VaultService.checkHealth().catch(() => ({ ok: false, latencyMs: 0 })),
     ]);
 
     const systemMetrics = {
@@ -34,7 +38,12 @@ export async function GET(req: NextRequest) {
       totalAuditEvents: parseInt(auditCountRes[0]?.count || '0', 10),
       totalDepartments: parseInt(deptCountRes[0]?.count || '0', 10),
       activeDocuments: parseInt(activeDocsRes[0]?.count || '0', 10),
-      dbEngine: 'PostgreSQL 18.3-Airgapped',
+      dbEngine: 'PostgreSQL 18 (Active)',
+      dbConnected: true,
+      vaultKmsStatus: vaultHealth.ok ? `Vault Transit Active (${vaultHealth.latencyMs}ms)` : 'Local KMS Fallback',
+      vaultKmsOk: vaultHealth.ok,
+      redisStatus: redisHealth.ok ? `Redis 7 Connected (${redisHealth.latencyMs}ms)` : 'Redis Offline',
+      redisOk: redisHealth.ok,
       ledgerIntegrity: 'SHA-256 Chained Hash Chain Active',
       nodeStatus: 'ONLINE / SYNCHRONIZED',
     };

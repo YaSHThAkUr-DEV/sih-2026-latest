@@ -1006,20 +1006,37 @@ export default function AdministrationView({
         {/* TAB 7: SYSTEM */}
         {activeTab === 'system' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-[18px] bg-white border border-[#D8DEEA]/60 space-y-1 shadow-2xs">
-                <span className="text-[10px] uppercase text-[#6B7280] font-medium">PostgreSQL Database</span>
-                <div className="text-base font-semibold text-[#10141A]">dms_db (Active)</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase text-[#6B7280] font-medium">PostgreSQL Database</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                </div>
+                <div className="text-base font-semibold text-[#10141A]">{systemMetrics?.dbEngine || 'PostgreSQL 18 (Active)'}</div>
                 <div className="text-[11px] text-emerald-700">Multi-tenant schema isolated</div>
               </div>
               <div className="p-4 rounded-[18px] bg-white border border-[#D8DEEA]/60 space-y-1 shadow-2xs">
-                <span className="text-[10px] uppercase text-[#6B7280] font-medium">KMS Security Node</span>
-                <div className="text-base font-semibold text-[#10141A]">AES-256-GCM Hardware Sealed</div>
-                <div className="text-[11px] text-[#3f5e93]">FIPS-140-3 Non-Repudiable</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase text-[#6B7280] font-medium">KMS Security Node</span>
+                  <span className={`w-2 h-2 rounded-full ${systemMetrics?.vaultKmsOk !== false ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                </div>
+                <div className="text-base font-semibold text-[#10141A]">{systemMetrics?.vaultKmsStatus || 'AES-256-GCM Transit Engine'}</div>
+                <div className="text-[11px] text-[#3f5e93]">Envelope Encryption Active</div>
               </div>
               <div className="p-4 rounded-[18px] bg-white border border-[#D8DEEA]/60 space-y-1 shadow-2xs">
-                <span className="text-[10px] uppercase text-[#6B7280] font-medium">Audit Trail Status</span>
-                <div className="text-base font-semibold text-[#10141A]">100% SHA-256 Chained</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase text-[#6B7280] font-medium">Redis Queue Engine</span>
+                  <span className={`w-2 h-2 rounded-full ${systemMetrics?.redisOk !== false ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                </div>
+                <div className="text-base font-semibold text-[#10141A]">{systemMetrics?.redisStatus || 'Redis 7 (Connected)'}</div>
+                <div className="text-[11px] text-emerald-700">Task Queues Operational</div>
+              </div>
+              <div className="p-4 rounded-[18px] bg-white border border-[#D8DEEA]/60 space-y-1 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase text-[#6B7280] font-medium">Audit Ledger</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </div>
+                <div className="text-base font-semibold text-[#10141A]">{systemMetrics?.totalAuditEvents ? `${systemMetrics.totalAuditEvents} Chained Events` : '100% SHA-256 Chained'}</div>
                 <div className="text-[11px] text-emerald-700">Section 65B Attested</div>
               </div>
             </div>

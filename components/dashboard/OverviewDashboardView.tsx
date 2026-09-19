@@ -207,12 +207,20 @@ export default function OverviewDashboardView({
             </span>
           </div>
 
-          {/* Live Operational Gateway Badge */}
-          <div className="hidden sm:flex items-center gap-2 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-3 py-1.5 rounded-full text-[11px] font-mono border border-[#83A2DB]/30">
-            <span className="w-2 h-2 rounded-full bg-[#3f5e93] animate-pulse"></span>
-            <span>
-              Gateway: {typeof window !== 'undefined' ? window.location.hostname : 'localhost'} · Operational (TLS 1.3 Strict)
-            </span>
+          {/* Live Operational Gateway & Services Health Badge */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-3 py-1.5 rounded-full text-[11px] font-mono border border-[#83A2DB]/30">
+              <span className={`w-2 h-2 rounded-full ${systemHealth?.database?.ok !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+              <span>PostgreSQL {systemHealth?.database?.latencyMs ? `${systemHealth.database.latencyMs}ms` : 'Connected'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-3 py-1.5 rounded-full text-[11px] font-mono border border-[#83A2DB]/30">
+              <span className={`w-2 h-2 rounded-full ${systemHealth?.kms?.ok !== false ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+              <span>Vault KMS {systemHealth?.kms?.latencyMs ? `${systemHealth.kms.latencyMs}ms` : 'Active'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-3 py-1.5 rounded-full text-[11px] font-mono border border-[#83A2DB]/30">
+              <span className={`w-2 h-2 rounded-full ${systemHealth?.cacheQueue?.ok !== false ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+              <span>Redis {systemHealth?.cacheQueue?.latencyMs ? `${systemHealth.cacheQueue.latencyMs}ms` : 'Ready'}</span>
+            </div>
           </div>
         </div>
 
@@ -282,11 +290,15 @@ export default function OverviewDashboardView({
           </div>
           <div>
             <div className="text-[26px] font-semibold text-[#151c27] tracking-tight">
-              100.0%
+              {totalEncryptedDocs.toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#9CA3AF] font-mono">
               <span className="material-symbols-outlined text-[15px] text-[#9CA3AF]">lock</span>
-              <span>AES-256-GCM / SHA-256</span>
+              <span>
+                {totalActiveDocs > 0
+                  ? `${Math.min(100, Math.round((totalEncryptedDocs / Math.max(1, totalActiveDocs)) * 100))}% Sealed (AES-256)`
+                  : 'AES-256-GCM / SHA-256'}
+              </span>
             </div>
           </div>
         </div>
