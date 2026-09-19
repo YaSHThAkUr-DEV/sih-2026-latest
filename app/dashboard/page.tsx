@@ -16,6 +16,7 @@ import AdministrationView from '@/components/dashboard/AdministrationView';
 import UsersManagementView from '@/components/dashboard/UsersManagementView';
 import DepartmentsManagementView from '@/components/dashboard/DepartmentsManagementView';
 import OverviewDashboardView from '@/components/dashboard/OverviewDashboardView';
+import { SquareLoader } from '@/components/ui/SquareLoader';
 
 interface UserProfile {
   id: string;
@@ -409,17 +410,9 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-4 bg-white/80 backdrop-blur-xl p-8 rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]">
-          <div className="w-12 h-12 rounded-full bg-[#10141A] text-white flex items-center justify-center shadow-lg">
-            <span className="material-symbols-outlined text-[24px]">cloud_done</span>
-          </div>
-          <div className="flex items-center gap-2.5 text-[#151c27] text-xs font-semibold">
-            <svg className="animate-spin h-4 w-4 text-[#3f5e93]" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Verifying Session &amp; Loading Vault Records...</span>
-          </div>
+        <div className="flex flex-col items-center gap-5 bg-white/80 backdrop-blur-xl p-10 rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]">
+          <SquareLoader size="md" color="#3f5e93" />
+          <span className="text-[#151c27] text-xs font-semibold">Verifying Session &amp; Loading Vault Records...</span>
         </div>
       </div>
     );

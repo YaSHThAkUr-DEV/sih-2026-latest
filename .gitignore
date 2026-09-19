@@ -1,26 +1,29 @@
 # ==============================================================================
-# SECURE DMS PROJECT - .gitignore
-# Comprehensive ignore rules for Next.js, TypeScript, Node.js, IDEs, and OS
+# SECURE DMS PROJECT - COMPREHENSIVE .gitignore
+# Production-grade ignore rules for Next.js, TypeScript, Node.js, Databases, IDEs, and OS
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # 1. DEPENDENCIES & PACKAGE MANAGERS
 # ------------------------------------------------------------------------------
-/node_modules
-/.pnp
+node_modules/
+**/node_modules/
+.pnp
 .pnp.*
+.pnpm-store/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-.pnpm-store/
 
 # ------------------------------------------------------------------------------
-# 2. ENVIRONMENT FILES & SECRETS (NEVER COMMIT SENSITIVE DATA!)
+# 2. ENVIRONMENT FILES, SECRETS & CREDENTIALS (NEVER COMMIT SENSITIVE DATA!)
 # ------------------------------------------------------------------------------
-.env*
+.env
+.env.*
 !.env.example
+*.env
 *.pem
 *.key
 *.cert
@@ -28,79 +31,117 @@
 *.pfx
 *.p12
 *.vault-token
+*.kdbx
+id_rsa*
+id_ed25519*
+credentials.json
+service-account*.json
 secrets/
+.secret*
 
 # ------------------------------------------------------------------------------
-# 3. NEXT.JS & BUILD OUTPUTS
+# 3. BUILD OUTPUTS & PRODUCTION BUNDLES
 # ------------------------------------------------------------------------------
-/.next/
-/out/
-/build
-/dist
-/.turbo
-.vercel
+.next/
+**/.next/
+out/
+build/
+dist/
+.output/
+.turbo/
+.vercel/
+.contentlayer/
 
 # ------------------------------------------------------------------------------
-# 4. TYPESCRIPT & LINTER CACHES
+# 4. COMPILER, LINTER & TYPESCRIPT CACHES
 # ------------------------------------------------------------------------------
 *.tsbuildinfo
+tsconfig.tsbuildinfo
 next-env.d.ts
 .eslintcache
 .stylelintcache
 .parcel-cache
-
-
-# ------------------------------------------------------------------------------
-# 5. TESTING & CODE COVERAGE
-# ------------------------------------------------------------------------------
-/coverage
-/.nyc_output
-/test-results
-/playwright-report
-/cypress/videos
-/cypress/screenshots
+.cache/
+.swc/
 
 # ------------------------------------------------------------------------------
-# 6. LOGS & DEBUGGING
+# 5. TESTING, COVERAGE & E2E REPORTS
 # ------------------------------------------------------------------------------
-logs
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+cypress/videos/
+cypress/screenshots/
+
+# ------------------------------------------------------------------------------
+# 6. RUNTIME LOGS & PROCESS CRASH DUMPS
+# ------------------------------------------------------------------------------
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+core.*
+*.pid
 
 # ------------------------------------------------------------------------------
-# 7. LOCAL STORAGE, RUNTIME CACHES & DATABASE DUMPS
+# 7. LOCAL STORAGE, DATABASE VOLUMES, BACKUPS & DUMPS
 # ------------------------------------------------------------------------------
 dump.rdb
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
 *.db-journal
-/temp
-/tmp
+*.dump
+*.sql.gz
+*.tar.gz
+*.bak
+uploads/
 /uploads
+minio-data/
 /minio-data
+vault-data/
 /vault-data
+postgres-data/
+/postgres-data
+pgdata/
+/pgdata
+storage/
+/storage
+backups/
+/backups
+temp/
+/temp
+tmp/
+/tmp
 
 # ------------------------------------------------------------------------------
-# 8. IDE & CODE EDITORS
+# 8. IDE, CODE EDITORS & WORKSPACES
 # ------------------------------------------------------------------------------
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/
+.vscode
 .idea/
+.vs/
+.fleet/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swo
 *~
 *.sublime-workspace
 *.sublime-project
+.project
+.classpath
+.settings/
 
 # ------------------------------------------------------------------------------
 # 9. OPERATING SYSTEM ARTIFACTS
@@ -124,3 +165,38 @@ $RECYCLE.BIN/
 # Linux
 .directory
 .Trash-*
+
+# ------------------------------------------------------------------------------
+# 10. PYTHON & OCR / ML ENVIRONMENTS (IF APPLICABLE)
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ------------------------------------------------------------------------------
+# 11. LOCAL DEV & AGENT ARTIFACTS
+# ------------------------------------------------------------------------------
+.agents/scratch/
+.gemini/
+docker-compose.override.yml

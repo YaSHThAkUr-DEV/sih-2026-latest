@@ -121,78 +121,76 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Top Floating Header Bar */}
-      <header className="w-full pt-4 px-4 sm:px-8 z-30">
-        <div
-          className={`max-w-6xl mx-auto h-14 px-5 backdrop-blur-xl rounded-full border shadow-sm flex items-center justify-between transition-all ${
-            isDark
-              ? 'bg-[#121927]/85 border-slate-800 shadow-slate-950/40'
-              : 'bg-white/75 border-[#D8DEEA]/70 shadow-[0_4px_12px_rgba(16,20,26,0.04),0_16px_40px_rgba(16,20,26,0.06)]'
-          }`}
-        >
-          {/* Brand Logo & Name */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#83A2DB]/15 flex items-center justify-center p-1.5 shadow-xs text-[#83A2DB]">
-              <svg className="w-full h-full" fill="none" viewBox="0 0 40 40">
-                <rect fill="#83A2DB" height="40" rx="10" width="40"></rect>
-                <path
-                  d="M12 14C12 12.8954 12.8954 12 14 12H22L28 18V26C28 27.1046 27.1046 28 26 28H14C12.8954 28 12 27.1046 12 26V14Z"
-                  stroke="white"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                ></path>
-                <path
-                  d="M22 12V18H28"
-                  stroke="white"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                ></path>
-                <path d="M16 22H24" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
-                <path d="M16 25H21" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
-              </svg>
-            </div>
-            <span className={`font-semibold text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-              CloudDMS
-            </span>
-            <span
-              className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
-                isDark
-                  ? 'bg-slate-800 text-slate-300 border-slate-700'
-                  : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
-              }`}
-            >
-              Enterprise v2.4
-            </span>
+      {/* Top Header Bar */}
+      <header
+        className={`w-full h-14 px-6 sm:px-10 border-b backdrop-blur-xl flex items-center justify-between transition-all z-30 ${
+          isDark
+            ? 'bg-[#121927]/85 border-slate-800 shadow-sm shadow-slate-950/20'
+            : 'bg-white/80 border-[#D8DEEA]/80 shadow-[0_1px_3px_rgba(16,20,26,0.04)]'
+        }`}
+      >
+        {/* Brand Logo & Name */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-[#83A2DB]/15 flex items-center justify-center p-1.5 shadow-xs text-[#83A2DB]">
+            <svg className="w-full h-full" fill="none" viewBox="0 0 40 40">
+              <rect fill="#83A2DB" height="40" rx="10" width="40"></rect>
+              <path
+                d="M12 14C12 12.8954 12.8954 12 14 12H22L28 18V26C28 27.1046 27.1046 28 26 28H14C12.8954 28 12 27.1046 12 26V14Z"
+                stroke="white"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+              ></path>
+              <path
+                d="M22 12V18H28"
+                stroke="white"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+              ></path>
+              <path d="M16 22H24" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
+              <path d="M16 25H21" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
+            </svg>
           </div>
+          <span className={`font-semibold text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+            CloudDMS
+          </span>
+          <span
+            className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+              isDark
+                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
+            }`}
+          >
+            Enterprise v2.4
+          </span>
+        </div>
 
-          {/* Quick Actions / Theme Switcher */}
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="Toggle theme"
-              onClick={() => {
-                setIsDark(!isDark);
-                showToast(isDark ? 'Light mode enabled' : 'Dark mode enabled');
-              }}
-              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
-                isDark
-                  ? 'bg-slate-800 border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white'
-                  : 'bg-white border-[#D8DEEA]/60 hover:border-[#D8DEEA] text-[#6B7280] hover:text-[#10141A]'
-              }`}
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[19px]">
-                {isDark ? 'light_mode' : 'dark_mode'}
-              </span>
-            </button>
-            <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md ml-1 ${
-                isDark ? 'bg-[#83A2DB] text-[#10141A]' : 'bg-[#10141A] text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">person</span>
-            </div>
+        {/* Quick Actions / Theme Switcher */}
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Toggle theme"
+            onClick={() => {
+              setIsDark(!isDark);
+              showToast(isDark ? 'Light mode enabled' : 'Dark mode enabled');
+            }}
+            className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white'
+                : 'bg-white border-[#D8DEEA]/60 hover:border-[#D8DEEA] text-[#6B7280] hover:text-[#10141A]'
+            }`}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[19px]">
+              {isDark ? 'light_mode' : 'dark_mode'}
+            </span>
+          </button>
+          <div
+            className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md ml-1 ${
+              isDark ? 'bg-[#83A2DB] text-[#10141A]' : 'bg-[#10141A] text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">person</span>
           </div>
         </div>
       </header>
