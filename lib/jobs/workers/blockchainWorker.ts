@@ -68,13 +68,14 @@ export class BlockchainWorker {
       // 3. Enqueue an evidentiary notification about the anchoring
       if (actorId || organizationId) {
         try {
+          const docNum = (metadata as any)?.documentNumber || (metadata as any)?.docketNumber;
           await JobQueueManager.enqueue(
             'notification-queue',
             'NOTIFICATION_DISPATCH',
             {
               userId: actorId,
               type: 'BLOCKCHAIN_ANCHOR',
-              title: `Evidence Hash Anchored to Hyperledger Fabric Ledger`,
+              title: `Evidence Hash Anchored to Hyperledger Fabric Ledger${docNum ? `: ${docNum}` : ''}`,
               message:
                 `SHA-256 payload hash ${payloadHash.substring(0, 16)}... successfully committed ` +
                 `to ${receipt.channelName} (Block #${receipt.blockNumber}). ` +
@@ -87,7 +88,11 @@ export class BlockchainWorker {
                 transactionId: receipt.transactionId,
                 blockNumber: receipt.blockNumber,
                 eventType,
-                actionTarget: 'blockchain',
+                actionTarget: 'audit',
+                category: 'security',
+                docketNumber: docNum,
+                sha256: payloadHash,
+                tier: 'Immutable Ledger',
               },
             }
           );

@@ -32,6 +32,8 @@ interface NotificationItem {
     charsExtracted?: number;
     confidence?: number;
     merkleRoot?: string;
+    transactionId?: string;
+    blockNumber?: number;
   };
 }
 
@@ -165,7 +167,8 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
 
   // Copy SHA-256 hash
   const handleCopyHash = () => {
-    const hash = selectedAlert?.metadata?.sha256 || '7d4a82c9e4b10fa789d0c64483a31c518b53298f12a';
+    const hash = selectedAlert?.metadata?.sha256 || selectedAlert?.metadata?.transactionId || '';
+    if (!hash) return;
     navigator.clipboard.writeText(hash);
     setCopyHashSuccess(true);
     setTimeout(() => setCopyHashSuccess(false), 2000);
@@ -443,6 +446,12 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
                               Auditor 360
                             </span>
                           )}
+                          {item.type === 'BLOCKCHAIN_ANCHOR' && (
+                            <span className="rounded-full text-[10px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/50 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Blockchain Sealed
+                            </span>
+                          )}
                           <span className="font-mono text-[#10141A] font-semibold text-xs select-all">
                             {item.metadata?.docketNumber || item.resourceType}
                           </span>
@@ -488,6 +497,8 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
                             ? 'View Extracted Text'
                             : item.type === 'RETENTION_EXPIRY'
                             ? 'View Schedule'
+                            : item.type === 'BLOCKCHAIN_ANCHOR'
+                            ? 'Inspect in Ledger'
                             : 'Inspect Dossier'}
                         </button>
                       </div>
@@ -517,8 +528,12 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
                   <div className="p-3.5 rounded-[16px] bg-[#f0f3ff]/60 border border-[#D8DEEA]/60 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider">Target Docket</span>
-                      <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 uppercase">
-                        {selectedAlert.metadata?.tier || 'T5 Critical'}
+                      <span className={`rounded-full text-[9px] font-semibold px-2 py-0.5 uppercase ${
+                        selectedAlert.severity === 'CRITICAL' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                        selectedAlert.severity === 'WARNING' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                        'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      }`}>
+                        {selectedAlert.metadata?.tier || (selectedAlert.severity === 'CRITICAL' ? 'T5 Critical' : 'Standard')}
                       </span>
                     </div>
                     <div className="font-mono text-sm text-[#10141A] font-bold tracking-tight select-all">
@@ -562,7 +577,7 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
                       </button>
                     </div>
                     <div className="p-2 rounded-xl bg-[#f0f3ff] font-mono text-[10px] text-[#10141A] break-all select-all border border-[#D8DEEA]">
-                      {selectedAlert.metadata?.sha256 || '7d4a82c9e4b10fa789d0c64483a31c518b53298f12a'}
+                      {selectedAlert.metadata?.sha256 || selectedAlert.metadata?.transactionId || 'N/A'}
                     </div>
                   </div>
 

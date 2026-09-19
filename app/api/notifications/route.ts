@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         [session.userId]
       ),
       query<{ count: string }>(
-        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR metadata->>'category' = 'security')",
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR type = 'BLOCKCHAIN_ANCHOR' OR metadata->>'category' = 'security')",
         [session.userId]
       ),
       query<{ count: string }>(
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       } else if (category === 'ocr-pipeline') {
         sql += " AND (type = 'OCR_COMPLETE' OR metadata->>'category' = 'ocr-pipeline')";
       } else if (category === 'security') {
-        sql += " AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR metadata->>'category' = 'security')";
+        sql += " AND (type = 'SECURITY_ALERT' OR type = 'AUDIT_ATTESTATION' OR type = 'BLOCKCHAIN_ANCHOR' OR metadata->>'category' = 'security')";
       } else if (category === 'retention') {
         sql += " AND (type = 'RETENTION_EXPIRY' OR metadata->>'category' = 'retention')";
       }

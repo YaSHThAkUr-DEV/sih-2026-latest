@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
       (tick.ocr.processed ? 1 : 0) +
       (tick.notification.processed ? 1 : 0) +
       (tick.retention.processed ? 1 : 0) +
-      (tick.cleanup.processed ? 1 : 0);
+      (tick.cleanup.processed ? 1 : 0) +
+      (tick.blockchain.processed ? 1 : 0);
 
     return NextResponse.json({
       success: true,
