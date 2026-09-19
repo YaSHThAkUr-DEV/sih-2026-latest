@@ -206,12 +206,51 @@ export default function DashboardPage() {
     };
   }, [user]);
 
-  // Fallback view if module turned off
+  // ─── RBAC Sidebar Visibility Helper ────────────────────────────────────────
+  // Derived from the authenticated session's permissions & roles.
+  // SUPER_ADMIN bypasses all checks (full visibility).
+  const canDo = useMemo(() => {
+    const perms: string[] = user?.permissions || [];
+    const roles: string[] = user?.roles || [];
+    const isSuperAdmin = roles.includes('SUPER_ADMIN');
+    const has = (...codes: string[]) =>
+      isSuperAdmin || codes.some((c) => perms.includes(c));
+
+    return {
+      // Workspace
+      viewDocuments:  has('DOCUMENT_VIEW'),
+      uploadDocument: has('DOCUMENT_CREATE'),
+      viewOcr:        has('DOCUMENT_VIEW'),
+      // Personnel & Access
+      manageUsers:       has('PERMISSION_MANAGE', 'USER_MANAGE'),
+      manageDepartments: has('PERMISSION_MANAGE', 'DEPARTMENT_MANAGE'),
+      showPersonnelSection: has('PERMISSION_MANAGE', 'USER_MANAGE', 'DEPARTMENT_MANAGE'),
+      // Governance
+      viewApprovals:  has('DOCUMENT_APPROVE_CHANGE', 'DOCUMENT_REJECT_CHANGE', 'DOCUMENT_REQUEST_CHANGE'),
+      viewRetention:  has('RETENTION_MANAGE'),
+      viewAudit:      has('AUDIT_VIEW'),
+      viewJobs:       has('DOCUMENT_CREATE', 'PERMISSION_MANAGE'),   // officers + admins
+      // Administration
+      viewSystemSettings: has('PERMISSION_MANAGE'),
+    };
+  }, [user]);
+
+  // Fallback view if module turned off OR permission revoked
   useEffect(() => {
     if (!features.feature_approvals && activeView === 'approvals') setActiveView('overview');
     if (!features.feature_deep_ocr && activeView === 'ocr') setActiveView('overview');
     if (!features.feature_retention_holds && activeView === 'retention') setActiveView('overview');
-  }, [features, activeView]);
+    // Permission-based fallbacks
+    if (!canDo.viewDocuments && activeView === 'documents') setActiveView('overview');
+    if (!canDo.uploadDocument && activeView === 'upload') setActiveView('overview');
+    if (!canDo.viewOcr && activeView === 'ocr') setActiveView('overview');
+    if (!canDo.manageUsers && activeView === 'users') setActiveView('overview');
+    if (!canDo.manageDepartments && activeView === 'departments') setActiveView('overview');
+    if (!canDo.viewApprovals && activeView === 'approvals') setActiveView('overview');
+    if (!canDo.viewRetention && activeView === 'retention') setActiveView('overview');
+    if (!canDo.viewAudit && activeView === 'audit') setActiveView('overview');
+    if (!canDo.viewSystemSettings && activeView === 'admin') setActiveView('overview');
+  }, [features, canDo, activeView]);
 
   // System Services Health
   const [systemHealth, setSystemHealth] = useState<{
@@ -442,14 +481,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Navigation Sections */}
+          {/* Navigation Sections — RBAC-gated: only permitted items render */}
           <nav className="flex flex-col gap-3 text-xs">
-            {/* SECTION 1: WORKSPACE */}
+
+            {/* SECTION 1: WORKSPACE — always visible, items gated by DOCUMENT_VIEW / DOCUMENT_CREATE */}
             <div className="flex flex-col gap-0.5">
               <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
                 Workspace
               </span>
 
+              {/* Overview — always visible */}
               <button
                 onClick={() => setActiveView('overview')}
                 className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
@@ -464,101 +505,118 @@ export default function DashboardPage() {
                 </div>
               </button>
 
-              <button
-                onClick={() => setActiveView('documents')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'documents'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">description</span>
-                  <span>Documents</span>
-                </div>
-                <span
-                  className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-semibold ${
+              {/* Documents — requires DOCUMENT_VIEW */}
+              {canDo.viewDocuments && (
+                <button
+                  onClick={() => setActiveView('documents')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
                     activeView === 'documents'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-[#f0f3ff] text-[#45474b] border border-[#D8DEEA]'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
                   }`}
                 >
-                  {stats.totalDocuments || documents.length}
-                </span>
-              </button>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">description</span>
+                    <span>Documents</span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-semibold ${
+                      activeView === 'documents'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#f0f3ff] text-[#45474b] border border-[#D8DEEA]'
+                    }`}
+                  >
+                    {stats.totalDocuments || documents.length}
+                  </span>
+                </button>
+              )}
 
-              <button
-                onClick={() => setActiveView('upload')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'upload'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">upload_file</span>
-                  <span>Upload File</span>
-                </div>
-                <span
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[11px] font-bold ${
+              {/* Upload File — requires DOCUMENT_CREATE */}
+              {canDo.uploadDocument && (
+                <button
+                  onClick={() => setActiveView('upload')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
                     activeView === 'upload'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-[#3f5e93] text-white'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
                   }`}
                 >
-                  +
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">upload_file</span>
+                    <span>Upload File</span>
+                  </div>
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                      activeView === 'upload'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#3f5e93] text-white'
+                    }`}
+                  >
+                    +
+                  </span>
+                </button>
+              )}
+
+              {/* Search & OCR — requires DOCUMENT_VIEW and feature flag */}
+              {canDo.viewOcr && features.feature_deep_ocr && (
+                <button
+                  onClick={() => setActiveView('ocr')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'ocr'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">document_scanner</span>
+                    <span>Search &amp; OCR</span>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            {/* SECTION 2: PERSONNEL & ACCESS — only if user can manage users/departments */}
+            {canDo.showPersonnelSection && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
+                  Personnel &amp; Access
                 </span>
-              </button>
 
-              <button
-                onClick={() => setActiveView('ocr')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'ocr'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">document_scanner</span>
-                  <span>Search &amp; OCR</span>
-                </div>
-              </button>
-            </div>
+                {/* Users & Clearance — requires USER_MANAGE or PERMISSION_MANAGE */}
+                {canDo.manageUsers && (
+                  <button
+                    onClick={() => setActiveView('users')}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                      activeView === 'users'
+                        ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                        : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[17px]">manage_accounts</span>
+                      <span>Users &amp; Clearance</span>
+                    </div>
+                  </button>
+                )}
 
-            {/* SECTION 2: PERSONNEL & ACCESS */}
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
-                Personnel &amp; Access
-              </span>
-
-              <button
-                onClick={() => setActiveView('users')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'users'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">manage_accounts</span>
-                  <span>Users &amp; Clearance</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveView('departments')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'departments'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
-                  <span>Departments</span>
-                </div>
-              </button>
-            </div>
+                {/* Departments — requires DEPARTMENT_MANAGE or PERMISSION_MANAGE */}
+                {canDo.manageDepartments && (
+                  <button
+                    onClick={() => setActiveView('departments')}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                      activeView === 'departments'
+                        ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                        : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
+                      <span>Departments</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* SECTION 3: GOVERNANCE & OPERATIONS */}
             <div className="flex flex-col gap-0.5">
@@ -566,7 +624,8 @@ export default function DashboardPage() {
                 Governance &amp; Operations
               </span>
 
-              {features.feature_approvals && (
+              {/* Approvals — requires approval permission + feature flag */}
+              {canDo.viewApprovals && features.feature_approvals && (
                 <button
                   onClick={() => setActiveView('approvals')}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
@@ -593,7 +652,8 @@ export default function DashboardPage() {
                 </button>
               )}
 
-              {features.feature_retention_holds && (
+              {/* Retention Holds — requires RETENTION_MANAGE + feature flag */}
+              {canDo.viewRetention && features.feature_retention_holds && (
                 <button
                   onClick={() => setActiveView('retention')}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
@@ -609,34 +669,41 @@ export default function DashboardPage() {
                 </button>
               )}
 
-              <button
-                onClick={() => setActiveView('audit')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'audit'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">receipt_long</span>
-                  <span>Audit Trail</span>
-                </div>
-              </button>
+              {/* Audit Trail — requires AUDIT_VIEW */}
+              {canDo.viewAudit && (
+                <button
+                  onClick={() => setActiveView('audit')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'audit'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">receipt_long</span>
+                    <span>Audit Trail</span>
+                  </div>
+                </button>
+              )}
 
-              <button
-                onClick={() => setActiveView('jobs')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'jobs'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">hourglass_top</span>
-                  <span>Job Queues</span>
-                </div>
-              </button>
+              {/* Job Queues — visible to anyone with create/admin perms */}
+              {canDo.viewJobs && (
+                <button
+                  onClick={() => setActiveView('jobs')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'jobs'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">hourglass_top</span>
+                    <span>Job Queues</span>
+                  </div>
+                </button>
+              )}
 
+              {/* Alerts & Notices — always visible to authenticated users */}
               <button
                 onClick={() => setActiveView('notifications')}
                 className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
@@ -655,26 +722,28 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* SECTION 4: ADMINISTRATION */}
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
-                Administration
-              </span>
+            {/* SECTION 4: ADMINISTRATION — requires PERMISSION_MANAGE */}
+            {canDo.viewSystemSettings && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
+                  Administration
+                </span>
 
-              <button
-                onClick={() => setActiveView('admin')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                  activeView === 'admin'
-                    ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
-                    : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[17px]">settings</span>
-                  <span>System Settings</span>
-                </div>
-              </button>
-            </div>
+                <button
+                  onClick={() => setActiveView('admin')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'admin'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">settings</span>
+                    <span>System Settings</span>
+                  </div>
+                </button>
+              </div>
+            )}
           </nav>
         </div>
 

@@ -1,10 +1,10 @@
-import { redis } from '@/lib/cache/redis';
+import { RedisClientManager } from '@/lib/cache/redis';
 import { query } from '@/lib/db';
 import { randomUUID } from 'crypto';
 
 export type QueueName = 'ocr-queue' | 'notification-queue' | 'retention-queue' | 'cleanup-queue' | 'blockchain-queue';
 
-export type JobType = 
+export type JobType =
   | 'OCR_EXTRACTION'
   | 'NOTIFICATION_DISPATCH'
   | 'RETENTION_AUDIT'
@@ -76,14 +76,12 @@ export class JobQueueManager {
       createdAt: now,
     };
 
-    // 2. Persist job metadata in Redis Hash / String
+    // 2. Persist job metadata in Redis
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
-      await redis.set(`dms:job:${jobId}`, JSON.stringify(jobData));
+      const r = await RedisClientManager.connect();
+      await r.set(`dms:job:${jobId}`, JSON.stringify(jobData));
       // Push to waiting list (FIFO: LPUSH then RPOP)
-      await redis.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
+      await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
     } catch (redisErr: any) {
       console.error('[QUEUE_REDIS_ERROR] Failed pushing job to Redis:', redisErr.message);
     }
@@ -96,21 +94,19 @@ export class JobQueueManager {
    */
   public static async getNextJob<T = any>(queueName: QueueName): Promise<JobData<T> | null> {
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
+      const r = await RedisClientManager.connect();
 
       // RPOP from waiting queue
-      const jobId = await redis.rpop(`${this.prefix}:${queueName}:waiting`);
+      const jobId = await r.rpop(`${this.prefix}:${queueName}:waiting`);
       if (!jobId) {
         return null;
       }
 
       // Add to active set
-      await redis.sadd(`${this.prefix}:${queueName}:active`, jobId);
+      await r.sadd(`${this.prefix}:${queueName}:active`, jobId);
 
       // Fetch job metadata
-      const raw = await redis.get(`dms:job:${jobId}`);
+      const raw = await r.get(`dms:job:${jobId}`);
       let job: JobData<T>;
 
       if (raw) {
@@ -119,17 +115,17 @@ export class JobQueueManager {
         // Fallback from DB
         const rows = await query<any>('SELECT * FROM processing_jobs WHERE id = $1', [jobId]);
         if (!rows.length) return null;
-        const r = rows[0];
+        const row = rows[0];
         job = {
-          id: r.id,
+          id: row.id,
           queue: queueName,
-          type: r.job_type as JobType,
+          type: row.job_type as JobType,
           payload: {} as T,
-          documentVersionId: r.document_version_id,
-          attempts: r.attempts || 0,
+          documentVersionId: row.document_version_id,
+          attempts: row.attempts || 0,
           maxRetries: 3,
           status: 'RUNNING',
-          createdAt: r.created_at,
+          createdAt: row.created_at,
         };
       }
 
@@ -138,12 +134,12 @@ export class JobQueueManager {
       job.startedAt = new Date().toISOString();
 
       // Update Redis metadata
-      await redis.set(`dms:job:${jobId}`, JSON.stringify(job));
+      await r.set(`dms:job:${jobId}`, JSON.stringify(job));
 
       // Update PostgreSQL processing_jobs
       await query(
-        `UPDATE processing_jobs 
-         SET status = 'RUNNING', attempts = $1, started_at = now() 
+        `UPDATE processing_jobs
+         SET status = 'RUNNING', attempts = $1, started_at = now()
          WHERE id = $2;`,
         [job.attempts, jobId]
       );
@@ -160,29 +156,27 @@ export class JobQueueManager {
    */
   public static async completeJob(queueName: QueueName, jobId: string, resultMeta?: any): Promise<void> {
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
+      const r = await RedisClientManager.connect();
 
       // Remove from active, add to completed list (trim to last 100)
-      await redis.srem(`${this.prefix}:${queueName}:active`, jobId);
-      await redis.lpush(`${this.prefix}:${queueName}:completed`, jobId);
-      await redis.ltrim(`${this.prefix}:${queueName}:completed`, 0, 99);
+      await r.srem(`${this.prefix}:${queueName}:active`, jobId);
+      await r.lpush(`${this.prefix}:${queueName}:completed`, jobId);
+      await r.ltrim(`${this.prefix}:${queueName}:completed`, 0, 99);
 
       // Update Redis job record
-      const raw = await redis.get(`dms:job:${jobId}`);
+      const raw = await r.get(`dms:job:${jobId}`);
       if (raw) {
         const job = JSON.parse(raw);
         job.status = 'COMPLETED';
         job.completedAt = new Date().toISOString();
         job.result = resultMeta;
-        await redis.setex(`dms:job:${jobId}`, 86400, JSON.stringify(job)); // 24h retention
+        await r.setex(`dms:job:${jobId}`, 86400, JSON.stringify(job)); // 24h retention
       }
 
       // Update PostgreSQL processing_jobs
       await query(
-        `UPDATE processing_jobs 
-         SET status = 'COMPLETED', completed_at = now() 
+        `UPDATE processing_jobs
+         SET status = 'COMPLETED', completed_at = now()
          WHERE id = $1;`,
         [jobId]
       );
@@ -202,14 +196,12 @@ export class JobQueueManager {
   ): Promise<{ retrying: boolean; attempts: number }> {
     const errorMsg = typeof error === 'string' ? error : error.message || 'Unknown failure';
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
+      const r = await RedisClientManager.connect();
 
       // Remove from active
-      await redis.srem(`${this.prefix}:${queueName}:active`, jobId);
+      await r.srem(`${this.prefix}:${queueName}:active`, jobId);
 
-      const raw = await redis.get(`dms:job:${jobId}`);
+      const raw = await r.get(`dms:job:${jobId}`);
       let job: JobData | null = raw ? JSON.parse(raw) : null;
       const currentAttempts = job ? job.attempts : 1;
       const maxRetries = job ? job.maxRetries : 3;
@@ -220,14 +212,14 @@ export class JobQueueManager {
           job.status = 'QUEUED';
           job.errorMessage = `Attempt ${currentAttempts} failed: ${errorMsg}`;
           job.errorCode = errorCode;
-          await redis.set(`dms:job:${jobId}`, JSON.stringify(job));
+          await r.set(`dms:job:${jobId}`, JSON.stringify(job));
         }
 
-        await redis.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
+        await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
 
         await query(
-          `UPDATE processing_jobs 
-           SET status = 'QUEUED', error_code = $1, error_message = $2 
+          `UPDATE processing_jobs
+           SET status = 'QUEUED', error_code = $1, error_message = $2
            WHERE id = $3;`,
           [errorCode, `[RETRY_PENDING] ${errorMsg}`, jobId]
         );
@@ -235,20 +227,20 @@ export class JobQueueManager {
         return { retrying: true, attempts: currentAttempts };
       } else {
         // Max retries exceeded: move to failed list
-        await redis.lpush(`${this.prefix}:${queueName}:failed`, jobId);
-        await redis.ltrim(`${this.prefix}:${queueName}:failed`, 0, 99);
+        await r.lpush(`${this.prefix}:${queueName}:failed`, jobId);
+        await r.ltrim(`${this.prefix}:${queueName}:failed`, 0, 99);
 
         if (job) {
           job.status = 'FAILED';
           job.errorMessage = errorMsg;
           job.errorCode = errorCode;
           job.completedAt = new Date().toISOString();
-          await redis.setex(`dms:job:${jobId}`, 86400 * 3, JSON.stringify(job));
+          await r.setex(`dms:job:${jobId}`, 86400 * 3, JSON.stringify(job));
         }
 
         await query(
-          `UPDATE processing_jobs 
-           SET status = 'FAILED', error_code = $1, error_message = $2, completed_at = now() 
+          `UPDATE processing_jobs
+           SET status = 'FAILED', error_code = $1, error_message = $2, completed_at = now()
            WHERE id = $3;`,
           [errorCode, errorMsg, jobId]
         );
@@ -266,11 +258,9 @@ export class JobQueueManager {
    */
   public static async retryJob(jobId: string): Promise<boolean> {
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
+      const r = await RedisClientManager.connect();
 
-      const raw = await redis.get(`dms:job:${jobId}`);
+      const raw = await r.get(`dms:job:${jobId}`);
       let queueName: QueueName = 'ocr-queue';
 
       if (raw) {
@@ -280,24 +270,24 @@ export class JobQueueManager {
         job.attempts = 0;
         job.errorMessage = null;
         job.errorCode = null;
-        await redis.set(`dms:job:${jobId}`, JSON.stringify(job));
-        await redis.lrem(`${this.prefix}:${queueName}:failed`, 0, jobId);
-        await redis.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
+        await r.set(`dms:job:${jobId}`, JSON.stringify(job));
+        await r.lrem(`${this.prefix}:${queueName}:failed`, 0, jobId);
+        await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
       } else {
         // Fallback to DB
         const rows = await query<any>('SELECT * FROM processing_jobs WHERE id = $1', [jobId]);
         if (!rows.length) return false;
-        const r = rows[0];
-        if (r.job_type === 'NOTIFICATION_DISPATCH') queueName = 'notification-queue';
-        else if (r.job_type === 'RETENTION_AUDIT') queueName = 'retention-queue';
-        else if (r.job_type === 'CRYPTO_SHRED_CLEANUP') queueName = 'cleanup-queue';
+        const row = rows[0];
+        if (row.job_type === 'NOTIFICATION_DISPATCH') queueName = 'notification-queue';
+        else if (row.job_type === 'RETENTION_AUDIT') queueName = 'retention-queue';
+        else if (row.job_type === 'CRYPTO_SHRED_CLEANUP') queueName = 'cleanup-queue';
 
-        await redis.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
+        await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
       }
 
       await query(
-        `UPDATE processing_jobs 
-         SET status = 'QUEUED', attempts = 0, error_message = NULL, error_code = NULL 
+        `UPDATE processing_jobs
+         SET status = 'QUEUED', attempts = 0, error_message = NULL, error_code = NULL
          WHERE id = $1;`,
         [jobId]
       );
@@ -331,21 +321,19 @@ export class JobQueueManager {
     let totalFailed = 0;
 
     try {
-      if (redis.status === 'wait') {
-        await redis.connect();
-      }
+      const r = await RedisClientManager.connect();
 
       for (const q of queueNames) {
-        const waiting = await redis.llen(`${this.prefix}:${q}:waiting`);
-        const active = await redis.scard(`${this.prefix}:${q}:active`);
-        const completed = await redis.llen(`${this.prefix}:${q}:completed`);
-        const failed = await redis.llen(`${this.prefix}:${q}:failed`);
+        const waiting   = await r.llen(`${this.prefix}:${q}:waiting`);
+        const active    = await r.scard(`${this.prefix}:${q}:active`);
+        const completed = await r.llen(`${this.prefix}:${q}:completed`);
+        const failed    = await r.llen(`${this.prefix}:${q}:failed`);
 
         result[q] = { waiting, active, completed, failed };
-        totalWaiting += waiting;
-        totalActive += active;
+        totalWaiting   += waiting;
+        totalActive    += active;
         totalCompleted += completed;
-        totalFailed += failed;
+        totalFailed    += failed;
       }
     } catch (err: any) {
       console.warn('[QUEUE_STATS_WARN] Redis unreachable, pulling from DB:', err.message);
@@ -355,20 +343,20 @@ export class JobQueueManager {
       );
       for (const row of counts) {
         const c = parseInt(row.count, 10);
-        if (row.status === 'QUEUED') totalWaiting = c;
-        if (row.status === 'RUNNING') totalActive = c;
+        if (row.status === 'QUEUED')    totalWaiting   = c;
+        if (row.status === 'RUNNING')   totalActive    = c;
         if (row.status === 'COMPLETED') totalCompleted = c;
-        if (row.status === 'FAILED') totalFailed = c;
+        if (row.status === 'FAILED')    totalFailed    = c;
       }
     }
 
     return {
       queues: result,
       totals: {
-        waiting: totalWaiting,
-        active: totalActive,
+        waiting:   totalWaiting,
+        active:    totalActive,
         completed: totalCompleted,
-        failed: totalFailed,
+        failed:    totalFailed,
       },
     };
   }
