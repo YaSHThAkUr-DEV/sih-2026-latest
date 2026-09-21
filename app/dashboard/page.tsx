@@ -465,7 +465,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] font-sans text-[#151c27] antialiased selection:bg-[#83A2DB]/30 selection:text-[#151c27]">
       {/* 1. Full Expanded Google Stitch Sidebar */}
-      <aside className="fixed left-4 top-4 bottom-4 w-60 bg-white/95 backdrop-blur-xl rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 z-40 hidden md:flex flex-col justify-between p-3.5 overflow-y-auto [&::-webkit-scrollbar]:hidden select-none">
+      <aside className="fixed left-4 top-4 bottom-4 w-60 bg-white/95 backdrop-blur-xl rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 z-40 hidden md:flex flex-col justify-between p-3.5 overflow-y-auto [&::-webkit-scrollbar]:hidden select-none font-oswald">
         <div className="flex flex-col gap-3.5">
           {/* Brand Logo & Name */}
           <div
@@ -826,11 +826,6 @@ export default function DashboardPage() {
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-[#f0f3ff] rounded-full border border-[#D8DEEA]/50">
-              <span className="w-2 h-2 rounded-full bg-[#3f5e93] animate-pulse"></span>
-              <span className="text-[11px] text-[#45474b] font-mono">Vault Operational</span>
-            </div>
-
             <button
               aria-label="Global Search"
               onClick={() => setGlobalSearchOpen(true)}
@@ -1205,7 +1200,16 @@ export default function DashboardPage() {
           )}
 
           {/* 5.1 BLOCKCHAIN LEDGER (MODULE 21) */}
-          {activeView === 'blockchain' && <BlockchainLedgerView />}
+          {activeView === 'blockchain' && (
+            <BlockchainLedgerView
+              onInspectDocument={(docket) => {
+                const doc = documents.find((d) => d.document_number === docket);
+                if (doc) setSelectedDoc(doc);
+                else showToast(`Inspecting docket: ${docket}`);
+              }}
+              onReturnToOverview={() => setActiveView('overview')}
+            />
+          )}
 
           {/* 6. OCR INTELLIGENCE */}
           {activeView === 'ocr' && (
@@ -1238,6 +1242,7 @@ export default function DashboardPage() {
                 if (doc) setSelectedDoc(doc);
                 else showToast(`Inspecting docket: ${docket}`);
               }}
+              onUnreadCountChange={(count) => setUnreadNotices(count)}
             />
           )}
 

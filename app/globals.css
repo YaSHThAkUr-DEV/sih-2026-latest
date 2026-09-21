@@ -13,6 +13,7 @@ body {
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Righteous', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-oswald: 'Oswald', sans-serif;
 
   --color-gov-50: #F8FAFC;
   --color-gov-100: #F1F5F9;

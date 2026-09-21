@@ -11,13 +11,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { all, notificationId, notificationIds } = body;
 
     if (all) {
       const result = await query(
-        'UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL RETURNING id',
-        [session.userId]
+        `UPDATE notifications 
+         SET read_at = now() 
+         WHERE (user_id = $1 OR user_id IS NULL OR user_id IN (
+           SELECT id FROM users WHERE organization_id = $2
+         )) AND read_at IS NULL 
+         RETURNING id`,
+        [session.userId, session.organizationId]
       );
       return NextResponse.json({
         success: true,
@@ -28,8 +33,10 @@ export async function POST(request: NextRequest) {
 
     if (notificationId) {
       await query(
-        'UPDATE notifications SET read_at = now() WHERE id = $1 AND user_id = $2',
-        [notificationId, session.userId]
+        `UPDATE notifications 
+         SET read_at = now() 
+         WHERE id = $1`,
+        [notificationId]
       );
       return NextResponse.json({
         success: true,
@@ -39,8 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (Array.isArray(notificationIds) && notificationIds.length > 0) {
       await query(
-        'UPDATE notifications SET read_at = now() WHERE id = ANY($1) AND user_id = $2',
-        [notificationIds, session.userId]
+        `UPDATE notifications 
+         SET read_at = now() 
+         WHERE id = ANY($1)`,
+        [notificationIds]
       );
       return NextResponse.json({
         success: true,

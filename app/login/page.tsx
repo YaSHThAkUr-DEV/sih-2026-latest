@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
 
   // Form states
-  const [tenantId, setTenantId] = useState('');
+  const [tenantId, setTenantId] = useState('DEMO');
   const [userCredential, setUserCredential] = useState('');
   const [userSecret, setUserSecret] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeRoleName, setActiveRoleName] = useState('');
@@ -24,14 +24,11 @@ export default function LoginPage() {
   } | null>(null);
   const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
 
-  // Theme & Clock
-  const [isDark, setIsDark] = useState(false);
-
   const showToast = (message: string) => {
     setToast({ show: true, message });
     setTimeout(() => {
       setToast({ show: false, message: '' });
-    }, 3500);
+    }, 3200);
   };
 
   // Quick Demo Profiles selector
@@ -93,7 +90,7 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/dashboard');
         router.refresh();
-      }, 500);
+      }, 400);
     } catch (err: any) {
       setAlert({
         show: true,
@@ -106,190 +103,174 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className={`min-h-screen flex flex-col justify-between selection:bg-[#83A2DB] selection:text-white transition-colors duration-300 ${
-        isDark
-          ? 'bg-[#0b101b] text-slate-100'
-          : 'bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] text-[#10141A]'
-      }`}
-    >
+    <div className="h-screen max-h-screen w-screen bg-[#EBF0F7] text-slate-800 font-sans flex items-center justify-center p-3 sm:p-4 md:p-[1cm] selection:bg-[#F37021] selection:text-white relative overflow-hidden">
+      
+      {/* Dynamic Ambient Background Color Orbs for High-Refraction Glassmorphism */}
+      <div className="absolute -top-32 -left-32 w-[540px] h-[540px] bg-gradient-to-br from-[#F37021]/25 via-amber-500/15 to-transparent rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-1/3 -left-20 w-[440px] h-[440px] bg-gradient-to-tr from-[#10B981]/20 via-emerald-400/10 to-transparent rounded-full blur-[90px] pointer-events-none"></div>
+      <div className="absolute -bottom-24 left-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-[#3f5e93]/20 via-[#83A2DB]/15 to-transparent rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-10 right-10 w-[520px] h-[520px] bg-gradient-to-bl from-indigo-500/15 via-purple-500/10 to-transparent rounded-full blur-[110px] pointer-events-none"></div>
+
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-6 right-6 z-50 animate-fade-in bg-[#10141A] text-white px-4 py-2.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2 border border-slate-700">
-          <span className="material-symbols-outlined text-[16px] text-[#83A2DB]">info</span>
+        <div className="fixed top-5 right-5 z-50 animate-fadeIn bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-2xl text-xs font-medium flex items-center gap-2 border border-slate-700">
+          <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Top Header Bar */}
-      <header
-        className={`w-full h-14 px-6 sm:px-10 border-b backdrop-blur-xl flex items-center justify-between transition-all z-30 ${
-          isDark
-            ? 'bg-[#121927]/85 border-slate-800 shadow-sm shadow-slate-950/20'
-            : 'bg-white/80 border-[#D8DEEA]/80 shadow-[0_1px_3px_rgba(16,20,26,0.04)]'
-        }`}
+      {/* Embedded Light Beam Keyframe & Styles */}
+      <style jsx global>{`
+        .hero-light-beam {
+          position: absolute;
+          width: 220%;
+          height: 90px;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
+          transform: rotate(-36deg);
+          top: 15%;
+          left: -50%;
+          pointer-events: none;
+        }
+        
+        .hero-light-beam-thin {
+          position: absolute;
+          width: 200%;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, rgba(243, 112, 33, 0.35) 35%, rgba(16, 185, 129, 0.35) 65%, transparent);
+          transform: rotate(-36deg);
+          top: 24%;
+          left: -40%;
+          pointer-events: none;
+        }
+
+        .shadow-container-card {
+          box-shadow: 0 20px 60px -15px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .shadow-logo-glow {
+          box-shadow: 0 25px 50px -10px rgba(243, 112, 33, 0.22), 0 10px 30px -6px rgba(16, 185, 129, 0.18);
+        }
+
+        .shadow-btn-shadow {
+          box-shadow: 0 10px 24px -4px rgba(12, 17, 29, 0.3), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
+
+      {/* Main Split Container: 60/40 Split, Tight ~1cm Screen Margins, No Scrollbars, Rounded-2xl */}
+      <main
+        className="w-full max-w-[calc(100vw-2cm)] h-[calc(100vh-2cm)] max-h-[calc(100vh-2cm)] rounded-2xl shadow-container-card border border-white/60 overflow-hidden grid grid-cols-1 lg:grid-cols-10 relative backdrop-blur-2xl"
+        data-purpose="auth-container"
       >
-        {/* Brand Logo & Name */}
-        <div className="flex items-center gap-3">
-          <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-8 h-8 object-contain rounded-lg shadow-xs" />
-          <div className="flex flex-col">
-            <span className={`font-black text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-              NIRMAN <span className="text-amber-600">DMS</span>
-            </span>
-          </div>
-          <span
-            className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
-              isDark
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                : 'bg-amber-50 text-amber-800 border-amber-200'
-            }`}
-          >
-            Organise • Secure • Progress
-          </span>
-        </div>
-
-        {/* Quick Actions / Theme Switcher */}
-        <div className="flex items-center gap-2">
-          <button
-            aria-label="Toggle theme"
-            onClick={() => {
-              setIsDark(!isDark);
-              showToast(isDark ? 'Light mode enabled' : 'Dark mode enabled');
-            }}
-            className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
-              isDark
-                ? 'bg-slate-800 border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white'
-                : 'bg-white border-[#D8DEEA]/60 hover:border-[#D8DEEA] text-[#6B7280] hover:text-[#10141A]'
-            }`}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[19px]">
-              {isDark ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
-          <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md ml-1 ${
-              isDark ? 'bg-[#83A2DB] text-[#10141A]' : 'bg-[#10141A] text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">person</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-8 relative z-10">
-        <div className="w-full max-w-[460px] mx-auto">
-          {/* Primary Floating Card */}
-          <div
-            className={`rounded-[26px] p-7 sm:p-9 border relative transition-all ${
-              isDark
-                ? 'bg-[#121927] border-slate-800 shadow-2xl shadow-slate-950/60'
-                : 'bg-white border-[#D8DEEA]/80 shadow-[0_4px_12px_rgba(16,20,26,0.04),0_16px_40px_rgba(16,20,26,0.06)]'
-            }`}
-          >
-            {/* Header / Title */}
-            <div className="flex flex-col items-start mb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-14 h-14 object-contain rounded-2xl drop-shadow-md border border-slate-200/40 p-1 bg-white" />
-                <div>
-                  <h1 className={`text-[22px] sm:text-[24px] font-black tracking-tight leading-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                    NIRMAN <span className="text-amber-600">DMS</span>
-                  </h1>
-                  <p className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider uppercase">
-                    ORGANISE &bull; SECURE &bull; PROGRESS
-                  </p>
-                </div>
+        {/* ------------------------------------------------------------------ */}
+        {/* LEFT PANEL (60%): Rich Glassmorphic Authentication & Workspace Access */}
+        {/* ------------------------------------------------------------------ */}
+        <section
+          className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center p-4 sm:p-5 md:p-6 lg:p-7 xl:p-8 relative z-10 h-full overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.46) 100%)',
+            backdropFilter: 'blur(32px)',
+            WebkitBackdropFilter: 'blur(32px)',
+            boxShadow: 'inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), inset -1px 0 2px 0 rgba(255, 255, 255, 0.6), 0 20px 40px -15px rgba(0, 0, 0, 0.03)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.6)',
+          }}
+        >
+          <div className="w-full max-w-[500px] mx-auto flex flex-col justify-center">
+            {/* Brand Header */}
+            <div className="flex items-center gap-2 mb-2.5 sm:mb-3" data-purpose="brand-header">
+              <div className="w-8 h-8 rounded-lg bg-white/80 backdrop-blur-md border border-white/90 p-1 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.04)] shrink-0">
+                <img
+                  alt="NIRMAN DMS Icon"
+                  className="w-full h-full object-contain"
+                  src="/nirman-logo.png"
+                />
               </div>
-              <p className={`text-[13px] mt-1 leading-normal ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                National Document Management System — enter your institutional credentials to authenticate.
+              <div className="flex flex-col">
+                <div className="flex items-center tracking-tight leading-tight">
+                  <span className="text-base sm:text-lg font-extrabold text-slate-900 font-sans">NIRMAN</span>
+                  <span className="text-base sm:text-lg font-black text-[#F37021] ml-1.5 font-sans">DMS</span>
+                </div>
+                <span className="text-[8.5px] font-extrabold text-emerald-700 tracking-wider uppercase">
+                  Organise • Secure • Progress
+                </span>
+              </div>
+            </div>
+
+            {/* Greeting Headings */}
+            <div className="mb-2 sm:mb-3">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight mb-0.5">
+                Welcome back
+              </h1>
+              <p className="text-[11.5px] text-slate-600">
+                National Sovereign Repository — authenticate to access institutional records.
               </p>
             </div>
 
-            {/* Error / Feedback Banner */}
+            {/* Error Banner */}
             {alert && alert.show && (
               <div
-                className={`mb-5 p-3.5 rounded-[14px] border flex items-start gap-3 relative transition-all duration-200 ${
+                className={`mb-2.5 p-2 rounded-lg border flex items-start gap-2 text-xs animate-fadeIn backdrop-blur-md ${
                   alert.type === 'error'
-                    ? 'bg-[#CE6969]/10 border-[#CE6969]/30 text-[#CE6969]'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                    ? 'bg-rose-50/90 border-rose-200/90 text-rose-800'
+                    : 'bg-amber-50/90 border-amber-200/90 text-amber-800'
                 }`}
               >
-                <span className="material-symbols-outlined text-[19px] mt-0.5 shrink-0">
+                <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0 text-rose-600">
                   {alert.type === 'error' ? 'error' : 'warning'}
                 </span>
-                <div className="flex-1 pr-4">
-                  <h4 className="text-[12px] font-semibold text-[#10141A] dark:text-slate-100">{alert.title}</h4>
-                  <p className="text-[12px] text-[#6B7280] dark:text-slate-400 mt-0.5 leading-snug">{alert.message}</p>
+                <div className="flex-1 pr-1">
+                  <h4 className="font-semibold text-slate-900 text-[11.5px]">{alert.title}</h4>
+                  <p className="text-slate-600 text-[10.5px] leading-snug">{alert.message}</p>
                 </div>
                 <button
-                  aria-label="Dismiss alert"
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-0.5"
                   onClick={() => setAlert(null)}
+                  className="text-slate-400 hover:text-slate-700 transition p-0.5"
                   type="button"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <span className="material-symbols-outlined text-[14px]">close</span>
                 </button>
               </div>
             )}
 
-            {/* Login Form */}
-            <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-              {/* Organization Code Input */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label
-                    className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
-                    htmlFor="tenantId"
-                  >
-                    Organization code
+            {/* Credentials Form */}
+            <form className="space-y-2 sm:space-y-2.5" onSubmit={handleLogin}>
+              {/* Organization / Tenant ID Field */}
+              <div>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="block text-[10.5px] font-semibold uppercase tracking-wider text-slate-700" htmlFor="tenantId">
+                    Organization / Tenant ID
                   </label>
-                  <span
-                    className={`text-[11px] font-medium font-mono px-2 py-0.5 rounded-full border ${
-                      isDark
-                        ? 'bg-slate-800 text-slate-300 border-slate-700'
-                        : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
-                    }`}
-                  >
-                    Tenant ID
+                  <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-white/70 backdrop-blur-md text-slate-600 border border-white/80 shadow-2xs">
+                    Org Code
                   </span>
                 </div>
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
-                    domain
-                  </span>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                    <span className="material-symbols-outlined text-[16px]">domain</span>
+                  </div>
                   <input
                     id="tenantId"
                     type="text"
                     required
                     value={tenantId}
-                    onChange={(e) => {
-                      setTenantId(e.target.value.toUpperCase());
-                    }}
+                    onChange={(e) => setTenantId(e.target.value.toUpperCase())}
                     placeholder="DEMO"
-                    className={`w-full h-11 pl-10 pr-3.5 text-[13px] font-mono rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
-                      isDark
-                        ? 'bg-[#182234] text-white border-slate-700'
-                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
-                    }`}
+                    className="w-full h-9 pl-8 pr-3 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs font-mono rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
                   />
                 </div>
               </div>
 
-              {/* Email or Username Input */}
-              <div className="flex flex-col gap-1.5">
-                <label
-                  className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
-                  htmlFor="userCredential"
-                >
-                  Email or username
+              {/* Work Email / Username Field */}
+              <div>
+                <label className="block text-[10.5px] font-semibold uppercase tracking-wider text-slate-700 mb-0.5" htmlFor="workEmail">
+                  Work Email or Username
                 </label>
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
-                    alternate_email
-                  </span>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                    <span className="material-symbols-outlined text-[16px]">alternate_email</span>
+                  </div>
                   <input
-                    id="userCredential"
+                    id="workEmail"
+                    name="email"
                     type="text"
                     required
                     value={userCredential}
@@ -297,32 +278,26 @@ export default function LoginPage() {
                       setUserCredential(e.target.value);
                       if (activeRoleName) setActiveRoleName('');
                     }}
-                    placeholder="name@organization.gov.in"
-                    className={`w-full h-11 pl-10 pr-3.5 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
-                      isDark
-                        ? 'bg-[#182234] text-white border-slate-700'
-                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
-                    }`}
+                    placeholder="officer@dms.gov.in"
+                    className="w-full h-9 pl-8 pr-3 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
                   />
                 </div>
               </div>
 
-              {/* Password Input */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label
-                    className={`text-[13px] font-medium ${isDark ? 'text-slate-200' : 'text-[#10141A]'}`}
-                    htmlFor="userSecret"
-                  >
+              {/* Password Field */}
+              <div>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="block text-[10.5px] font-semibold uppercase tracking-wider text-slate-700" htmlFor="loginPassword">
                     Password
                   </label>
                 </div>
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3.5 text-slate-400 pointer-events-none text-[19px]">
-                    lock
-                  </span>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                    <span className="material-symbols-outlined text-[16px]">lock</span>
+                  </div>
                   <input
-                    id="userSecret"
+                    id="loginPassword"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={userSecret}
@@ -331,229 +306,201 @@ export default function LoginPage() {
                       if (activeRoleName) setActiveRoleName('');
                     }}
                     placeholder="••••••••••••"
-                    className={`w-full h-11 pl-10 pr-10 text-[13px] rounded-[14px] border placeholder:text-slate-400 focus:outline-none focus:border-[#83A2DB] focus:ring-2 focus:ring-[#83A2DB]/30 transition-all ${
-                      isDark
-                        ? 'bg-[#182234] text-white border-slate-700'
-                        : 'bg-white text-[#10141A] border-[#D8DEEA] shadow-[0_1px_3px_rgba(16,20,26,0.03)]'
-                    }`}
+                    className="w-full h-9 pl-8 pr-9 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
                   />
                   <button
                     aria-label="Toggle password visibility"
-                    className="absolute right-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors"
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition cursor-pointer"
                     onClick={() => setShowPassword(!showPassword)}
                     type="button"
                   >
-                    <span className="material-symbols-outlined text-[19px]">
+                    <span className="material-symbols-outlined text-[17px]">
                       {showPassword ? 'visibility_off' : 'visibility'}
                     </span>
                   </button>
                 </div>
               </div>
 
-              {/* Remember Me Checkbox */}
-              <div className="flex items-center justify-between py-1">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              {/* Remember & Forgot Password Links */}
+              <div className="flex items-center justify-between pt-0.5">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
                   <input
+                    id="rememberMe"
+                    type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded-sm border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
-                    type="checkbox"
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-[#F37021] focus:ring-orange-500/30 transition cursor-pointer"
                   />
-                  <span className={`text-[12.5px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                    Remember me on this workstation
-                  </span>
+                  <span className="text-[11.5px] font-medium text-slate-600">Remember me</span>
                 </label>
+                <button
+                  type="button"
+                  onClick={() => showToast('Please contact your System Administrator to reset your credentials.')}
+                  className="text-[11.5px] font-semibold text-[#F37021] hover:text-[#DE5D10] transition-colors cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
               </div>
 
-              {/* Primary Submit Button */}
-              <button
-                disabled={loading}
-                className={`w-full h-11 text-[13.5px] font-medium rounded-full flex items-center justify-center gap-2 active:scale-[0.99] transition-all shadow-md mt-1 cursor-pointer ${
-                  isDark
-                    ? 'bg-[#83A2DB] hover:bg-[#9cb6e5] text-[#10141A]'
-                    : 'bg-[#10141A] hover:bg-[#1a212b] text-white'
-                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                type="submit"
-              >
-                {loading ? (
-                  <>
-                    <span className="inline-block animate-spin material-symbols-outlined text-[18px]">
-                      progress_activity
-                    </span>
-                    <span>Authenticating...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{activeRoleName ? `Sign in as ${activeRoleName}` : 'Sign In'}</span>
-                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                  </>
-                )}
-              </button>
+              {/* Primary Sign In Button */}
+              <div className="pt-0.5">
+                <button
+                  disabled={loading}
+                  className="w-full h-9.5 px-5 bg-slate-900 hover:bg-black active:scale-[0.99] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-btn-shadow transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60"
+                  type="submit"
+                >
+                  {loading ? (
+                    <>
+                      <span className="material-symbols-outlined text-[16px] animate-spin text-orange-400">sync</span>
+                      <span>Authenticating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{activeRoleName ? `Sign in as ${activeRoleName}` : 'Sign In'}</span>
+                      <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
+                        arrow_forward
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
 
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className={`flex-1 h-[1px] ${isDark ? 'bg-slate-800' : 'bg-[#D8DEEA]'}`}></div>
-              <span className={`px-3 text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                or quick demo profiles
-              </span>
-              <div className={`flex-1 h-[1px] ${isDark ? 'bg-slate-800' : 'bg-[#D8DEEA]'}`}></div>
-            </div>
-
-            {/* Demo Profiles 2x2 Grid */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-[12px] font-medium ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                  Click to auto-fill credentials
+            {/* Quick Demo Profiles Section */}
+            <div className="mt-2.5 pt-2 border-t border-white/70">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px] text-[#F37021]">bolt</span>
+                  <span>Quick 1-Click Demo Profiles</span>
                 </span>
-                <span className="text-[11px] text-[#83A2DB] font-medium">1-Click Test</span>
+                <span className="text-[9.5px] text-emerald-800 font-semibold bg-emerald-500/10 backdrop-blur-md px-1.5 py-0.2 rounded border border-emerald-500/20">
+                  Auto-Fill
+                </span>
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* 1. Administrator */}
                 <button
-                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
-                    activeRoleName === 'Administrator'
-                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
-                      : isDark
-                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
-                  }`}
+                  type="button"
                   onClick={() =>
                     setRoleDemo('DEMO', 'admin@dms.gov.in', 'Admin@DMS2026!', 'Administrator')
                   }
-                  type="button"
+                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                    activeRoleName === 'Administrator'
+                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
+                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                  }`}
                 >
-                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
-                    <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
+                  <div className="w-5.5 h-5.5 rounded-md bg-orange-50 text-[#F37021] border border-orange-200/60 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">admin_panel_settings</span>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                      Administrator
-                    </span>
-                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                      Tier 0 root
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 truncate">Administrator</span>
+                    <span className="text-[9px] text-slate-600 truncate">SuperAdmin • Tier 5</span>
                   </div>
                 </button>
 
+                {/* 2. Department Head */}
                 <button
-                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
-                    activeRoleName === 'Department Head'
-                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
-                      : isDark
-                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
-                  }`}
+                  type="button"
                   onClick={() =>
                     setRoleDemo('DEMO', 'depthead@dms.gov.in', 'Head@DMS2026!', 'Department Head')
                   }
-                  type="button"
+                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                    activeRoleName === 'Department Head'
+                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
+                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                  }`}
                 >
-                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
-                    <span className="material-symbols-outlined text-[15px]">folder_shared</span>
+                  <div className="w-5.5 h-5.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">corporate_fare</span>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                      Dept head
-                    </span>
-                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                      Approval sign-off
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 truncate">Dept Head</span>
+                    <span className="text-[9px] text-slate-600 truncate">Approvals • Tier 4</span>
                   </div>
                 </button>
 
+                {/* 3. Dealing Officer */}
                 <button
-                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
-                    activeRoleName === 'Dealing Officer'
-                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
-                      : isDark
-                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
-                  }`}
+                  type="button"
                   onClick={() =>
                     setRoleDemo('DEMO', 'officer@dms.gov.in', 'Officer@DMS2026!', 'Dealing Officer')
                   }
-                  type="button"
+                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                    activeRoleName === 'Dealing Officer'
+                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
+                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                  }`}
                 >
-                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
-                    <span className="material-symbols-outlined text-[15px]">assignment_turned_in</span>
+                  <div className="w-5.5 h-5.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">badge</span>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                      Dealing officer
-                    </span>
-                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                      Full read / write
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 truncate">Dealing Officer</span>
+                    <span className="text-[9px] text-slate-600 truncate">Upload • Read/Write</span>
                   </div>
                 </button>
 
+                {/* 4. Auditor */}
                 <button
-                  className={`p-2.5 rounded-[14px] border transition-all text-left flex items-start gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#83A2DB]/30 cursor-pointer ${
-                    activeRoleName === 'Auditor'
-                      ? 'border-[#83A2DB] bg-[#83A2DB]/10'
-                      : isDark
-                      ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700'
-                      : 'bg-[#F3F5FA]/80 hover:bg-[#F3F5FA] border-[#D8DEEA]/60 hover:border-[#83A2DB]/40'
-                  }`}
+                  type="button"
                   onClick={() =>
                     setRoleDemo('DEMO', 'auditor@dms.gov.in', 'Auditor@DMS2026!', 'Auditor')
                   }
-                  type="button"
+                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                    activeRoleName === 'Auditor'
+                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
+                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                  }`}
                 >
-                  <div className={`p-1 rounded-full shadow-xs border ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-white text-[#6B7280] border-[#D8DEEA]/40'}`}>
-                    <span className="material-symbols-outlined text-[15px]">visibility</span>
+                  <div className="w-5.5 h-5.5 rounded-md bg-purple-50 text-purple-600 border border-purple-200/60 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[13px]">policy</span>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[12px] font-medium truncate ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                      Auditor
-                    </span>
-                    <span className={`text-[10.5px] truncate ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                      Read-only audit
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-900 truncate">Auditor</span>
+                    <span className="text-[9px] text-slate-600 truncate">Audit 360 • Sec 65B</span>
                   </div>
                 </button>
               </div>
             </div>
+          </div>
+        </section>
 
-            {/* Micro status footer within card */}
-            <div className={`mt-6 pt-4 border-t flex items-center justify-between text-[11.5px] font-mono ${isDark ? 'border-slate-800 text-slate-400' : 'border-[#D8DEEA]/80 text-[#6B7280]'}`}>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#83A2DB] animate-pulse"></span>
-                <span>Gateway: ap-northeast-1</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-slate-400">lock</span>
-                <span>TLS 1.3 strict</span>
+        {/* ------------------------------------------------------------------ */}
+        {/* RIGHT PANEL (40%): Visual Showcase & Brand Ambient Spotlight */}
+        {/* ------------------------------------------------------------------ */}
+        <section
+          className="lg:col-span-4 xl:col-span-4 bg-[#0B0F19] p-3 sm:p-4 lg:p-6 flex flex-col justify-center relative overflow-hidden h-full"
+          data-purpose="hero-showcase-panel"
+        >
+          {/* Inner Dark Card Frame */}
+          <div className="relative w-full h-full rounded-xl bg-gradient-to-b from-[#111827] via-[#0D121F] to-[#080C14] border border-slate-800/80 p-4 sm:p-6 md:p-8 flex flex-col overflow-hidden justify-center items-center">
+            
+            {/* Ambient Geometric Facet Accents & Light Beams */}
+            <div className="hero-light-beam"></div>
+            <div className="hero-light-beam-thin"></div>
+
+            {/* Soft ambient diffuse glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-orange-500/20 via-emerald-500/15 to-transparent blur-3xl pointer-events-none rounded-full"></div>
+
+            {/* Center: Framed White Logo Showcase with Ambient Glow */}
+            <div className="relative z-10 my-auto py-2 flex flex-col items-center justify-center text-center w-full px-2">
+              {/* Purpose-built pristine white display card with warm ambient glow */}
+              <div className="relative group w-full flex justify-center">
+                <div className="absolute -inset-2 bg-gradient-to-r from-orange-500/40 via-emerald-500/30 to-orange-500/40 rounded-2xl blur-xl opacity-85 group-hover:opacity-100 transition duration-700"></div>
+                <div className="relative bg-white rounded-2xl p-6 sm:p-8 md:p-10 shadow-logo-glow border border-white/90 w-full max-w-[320px] sm:max-w-[360px] md:max-w-[400px] lg:max-w-[440px] flex flex-col items-center justify-center transition duration-300 transform group-hover:scale-[1.02]">
+                  <img
+                    alt="NIRMAN DMS - Document Management System"
+                    className="w-full max-w-[260px] sm:max-w-[300px] md:max-w-[340px] lg:max-w-[370px] h-auto object-contain select-none pointer-events-none drop-shadow-sm"
+                    src="/nirman-logo.png"
+                  />
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Outside Subtitle info */}
-          <div className="mt-4 text-center">
-            <p className={`text-[12px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-              Protected by multi-tenant authentication protocol.
-            </p>
-          </div>
-        </div>
+        </section>
       </main>
-
-      {/* Clean Footer Bar */}
-      <footer className="w-full py-4 px-6 relative z-10">
-        <div className={`max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-          <p>© 2026 NIRMAN DMS — National Sovereign Repository. All rights reserved.</p>
-          <nav className="flex items-center gap-6">
-            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
-              Privacy policy
-            </a>
-            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
-              Terms of service
-            </a>
-            <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
-              Security &amp; compliance
-            </a>
-          </nav>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -56,9 +56,10 @@ interface NotificationStats {
 interface NotificationsViewProps {
   onNavigateTab?: (tab: 'overview' | 'documents' | 'upload' | 'approvals' | 'audit' | 'ocr' | 'retention') => void;
   onInspectDocument?: (docket: string) => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-export default function NotificationsView({ onNavigateTab, onInspectDocument }: NotificationsViewProps) {
+export default function NotificationsView({ onNavigateTab, onInspectDocument, onUnreadCountChange }: NotificationsViewProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [stats, setStats] = useState<NotificationStats>({
     total: 0,
@@ -87,6 +88,14 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [copyHashSuccess, setCopyHashSuccess] = useState(false);
   const [rulesSavedToast, setRulesSavedToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
+  };
 
   // Dispatch rules toggles
   const [rules, setRules] = useState({
@@ -110,7 +119,10 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
-        if (data.stats) setStats(data.stats);
+        if (data.stats) {
+          setStats(data.stats);
+          if (onUnreadCountChange) onUnreadCountChange(data.stats.unreadNotices || 0);
+        }
 
         // Select first alert by default if none selected or not in current list
         if (data.notifications?.length > 0) {
@@ -130,19 +142,33 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
     loadNotifications();
   }, [activeCategory, sortOption]);
 
-  // Mark all as read
+  // Mark all as read with instant optimistic UI update
   const handleMarkAllRead = async () => {
+    // 1. Optimistic update
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, isUnread: false, readAt: n.readAt || new Date().toISOString() }))
+    );
+    setStats((prev) => ({
+      ...prev,
+      unreadNotices: 0,
+    }));
+    if (selectedAlert) {
+      setSelectedAlert((prev) =>
+        prev ? { ...prev, isUnread: false, readAt: prev.readAt || new Date().toISOString() } : null
+      );
+    }
+    if (onUnreadCountChange) {
+      onUnreadCountChange(0);
+    }
+    showToast('✓ All operational notices marked as read.');
+
+    // 2. Persistent API call
     try {
-      const res = await fetch('/api/notifications/mark-read', {
+      await fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true }),
       });
-
-      if (res.ok) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false, readAt: new Date().toISOString() })));
-        setStats((prev) => ({ ...prev, unreadNotices: 0 }));
-      }
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
@@ -152,16 +178,19 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
   const handleSelectAlert = (item: NotificationItem) => {
     setSelectedAlert(item);
     if (item.isUnread) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isUnread: false, readAt: new Date().toISOString() } : n))
+      );
+      setStats((prev) => {
+        const nextCount = Math.max(0, prev.unreadNotices - 1);
+        if (onUnreadCountChange) onUnreadCountChange(nextCount);
+        return { ...prev, unreadNotices: nextCount };
+      });
       fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationId: item.id }),
-      }).then(() => {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === item.id ? { ...n, isUnread: false, readAt: new Date().toISOString() } : n))
-        );
-        setStats((prev) => ({ ...prev, unreadNotices: Math.max(0, prev.unreadNotices - 1) }));
-      });
+      }).catch((err) => console.error('Failed to mark single read:', err));
     }
   };
 
@@ -211,6 +240,13 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-[#10141A] text-white rounded-full shadow-2xl text-xs font-medium border border-slate-700 animate-slide-up">
+          <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {rulesSavedToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-[#10141A] text-white rounded-full shadow-2xl text-xs font-medium border border-[#D8DEEA]/40 animate-slide-up">
           <span className="material-symbols-outlined text-emerald-400 text-[18px]">verified</span>
@@ -241,14 +277,14 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument }: 
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm cursor-pointer active:scale-95"
             >
               <span className="material-symbols-outlined text-[16px] text-emerald-600">done_all</span>
               <span>Mark All Read</span>
             </button>
             <button
               onClick={() => setRulesModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">tune</span>
               <span>Dispatch Rules</span>
