@@ -23,8 +23,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Secure Institutional Document Management System (DMS)",
-  description: "Modular Government Electronic Records Management System with Cryptographic Integrity and Immutability",
+  title: "NIRMAN DMS — Document Management System",
+  description: "Organise | Secure | Progress — National Sovereign Document Management System with Cryptographic Integrity, Section 65B Certificates & Hyperledger Fabric Blockchain",
+  icons: {
+    icon: "/nirman-logo.png",
+    shortcut: "/nirman-logo.png",
+    apple: "/nirman-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

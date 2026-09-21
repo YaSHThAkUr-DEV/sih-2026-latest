@@ -37,7 +37,36 @@ export class BlockchainService {
     // 1. Submit transaction to blockchain (simulated or real Fabric)
     const txResult = await client.submitTransaction(request.payloadHash);
 
-    // 2. Persist the anchoring record in blockchain_records table
+    // 2. Ensure a valid auditEventId exists for foreign key integrity
+    let validAuditEventId = request.auditEventId;
+    if (validAuditEventId) {
+      const checkAudit = await query<{ id: string }>(
+        'SELECT id FROM audit_events WHERE id = $1 LIMIT 1;',
+        [validAuditEventId]
+      );
+      if (!checkAudit.length) {
+        validAuditEventId = '';
+      }
+    }
+
+    if (!validAuditEventId) {
+      validAuditEventId = await logAuditEvent({
+        organizationId: request.organizationId,
+        actorId: request.actorId || null,
+        eventType: request.eventType || 'BLOCKCHAIN_ANCHOR',
+        resourceType: 'BLOCKCHAIN',
+        documentId: request.documentId,
+        result: 'SUCCESS',
+        metadata: {
+          transactionId: txResult.transactionId,
+          payloadHash: request.payloadHash,
+          autoCreated: true,
+          ...request.metadata,
+        },
+      });
+    }
+
+    // 3. Persist the anchoring record in blockchain_records table
     const recordId = crypto.randomUUID();
     try {
       await query(
@@ -53,7 +82,7 @@ export class BlockchainService {
            confirmed_at = EXCLUDED.confirmed_at;`,
         [
           recordId,
-          request.auditEventId,
+          validAuditEventId,
           config.networkName,
           config.channelName,
           config.chaincodeName,

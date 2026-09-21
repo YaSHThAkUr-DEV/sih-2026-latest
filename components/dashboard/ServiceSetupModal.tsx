@@ -153,12 +153,14 @@ export function ServiceSetupModal({ isOpen, onClose, onSuccess }: ServiceSetupMo
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-[#D8DEEA]/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center border border-[#83A2DB]/30">
-              <span className="material-symbols-outlined text-[20px]">domain_add</span>
-            </div>
+            <img
+              src="/nirman-logo.png"
+              alt="NIRMAN DMS"
+              className="w-10 h-10 object-contain rounded-xl border border-slate-200 p-0.5 bg-white shrink-0 shadow-xs"
+            />
             <div>
               <h2 className="text-base font-semibold text-[#10141A] tracking-tight">
-                DMS-as-a-Service: Onboard New Department / Organization
+                NIRMAN DMS-as-a-Service: Onboard New Organization
               </h2>
               <p className="text-xs text-[#6B7280]">
                 Calibrate modular features, customized document classes, and initial administrator credentials

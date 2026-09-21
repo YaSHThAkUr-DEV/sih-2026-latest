@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "fabric:up": "docker compose -f docker/fabric/docker-compose.fabric.yml up -d",
+    "fabric:down": "docker compose -f docker/fabric/docker-compose.fabric.yml down",
+    "fabric:logs": "docker compose -f docker/fabric/docker-compose.fabric.yml logs -f",
+    "fabric:sync": "tsx scripts/sync-blockchain-ledger.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

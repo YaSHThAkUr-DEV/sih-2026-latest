@@ -16,6 +16,7 @@ import AdministrationView from '@/components/dashboard/AdministrationView';
 import UsersManagementView from '@/components/dashboard/UsersManagementView';
 import DepartmentsManagementView from '@/components/dashboard/DepartmentsManagementView';
 import OverviewDashboardView from '@/components/dashboard/OverviewDashboardView';
+import BlockchainLedgerView from '@/components/dashboard/BlockchainLedgerView';
 import { SquareLoader } from '@/components/ui/SquareLoader';
 
 interface UserProfile {
@@ -163,6 +164,7 @@ export default function DashboardPage() {
     | 'upload'
     | 'approvals'
     | 'audit'
+    | 'blockchain'
     | 'ocr'
     | 'search-ocr'
     | 'retention'
@@ -229,6 +231,7 @@ export default function DashboardPage() {
       viewApprovals:  has('DOCUMENT_APPROVE_CHANGE', 'DOCUMENT_REJECT_CHANGE', 'DOCUMENT_REQUEST_CHANGE'),
       viewRetention:  has('RETENTION_MANAGE'),
       viewAudit:      has('AUDIT_VIEW'),
+      viewBlockchain: has('BLOCKCHAIN_VIEW', 'AUDIT_VIEW', 'PERMISSION_MANAGE', 'DOCUMENT_VIEW'),
       viewJobs:       has('DOCUMENT_CREATE', 'PERMISSION_MANAGE'),   // officers + admins
       // Administration
       viewSystemSettings: has('PERMISSION_MANAGE'),
@@ -240,6 +243,7 @@ export default function DashboardPage() {
     if (!features.feature_approvals && activeView === 'approvals') setActiveView('overview');
     if (!features.feature_deep_ocr && activeView === 'ocr') setActiveView('overview');
     if (!features.feature_retention_holds && activeView === 'retention') setActiveView('overview');
+    if (!features.feature_blockchain && activeView === 'blockchain') setActiveView('overview');
     // Permission-based fallbacks
     if (!canDo.viewDocuments && activeView === 'documents') setActiveView('overview');
     if (!canDo.uploadDocument && activeView === 'upload') setActiveView('overview');
@@ -249,6 +253,7 @@ export default function DashboardPage() {
     if (!canDo.viewApprovals && activeView === 'approvals') setActiveView('overview');
     if (!canDo.viewRetention && activeView === 'retention') setActiveView('overview');
     if (!canDo.viewAudit && activeView === 'audit') setActiveView('overview');
+    if (!canDo.viewBlockchain && activeView === 'blockchain') setActiveView('overview');
     if (!canDo.viewSystemSettings && activeView === 'admin') setActiveView('overview');
   }, [features, canDo, activeView]);
 
@@ -467,17 +472,16 @@ export default function DashboardPage() {
             onClick={() => setActiveView('overview')}
             className="flex items-center gap-2.5 px-2 py-0.5 cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-full bg-[#000000] text-white flex items-center justify-center shadow-sm shrink-0">
-              <span className="material-symbols-outlined text-[18px]">cloud_done</span>
-            </div>
+            <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-9 h-9 object-contain rounded-xl shadow-xs shrink-0 bg-white p-0.5 border border-slate-200" />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold tracking-tight text-[#151c27]">CloudDMS</span>
-                <span className="text-[10px] font-semibold bg-[rgba(131,162,219,0.14)] text-[#3f5e93] px-1.5 py-0.2 rounded-full border border-[#83A2DB]/30">
-                  v2.4
+                <span className="text-sm font-black tracking-tight text-[#151c27]">
+                  NIRMAN <span className="text-amber-600">DMS</span>
                 </span>
               </div>
-              <span className="text-[10px] text-[#9CA3AF] truncate">Institutional Vault</span>
+              <span className="text-[9px] font-extrabold text-emerald-700 tracking-wider uppercase truncate">
+                Organise • Secure • Progress
+              </span>
             </div>
           </div>
 
@@ -683,6 +687,32 @@ export default function DashboardPage() {
                     <span className="material-symbols-outlined text-[17px]">receipt_long</span>
                     <span>Audit Trail</span>
                   </div>
+                </button>
+              )}
+
+              {/* Blockchain Ledger — requires viewBlockchain + feature flag */}
+              {canDo.viewBlockchain && features.feature_blockchain && (
+                <button
+                  onClick={() => setActiveView('blockchain')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeView === 'blockchain'
+                      ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                      : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">token</span>
+                    <span>Blockchain Ledger</span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-semibold ${
+                      activeView === 'blockchain'
+                        ? 'bg-cyan-400 text-black font-bold'
+                        : 'bg-cyan-50 text-cyan-800 border border-cyan-200'
+                    }`}
+                  >
+                    Fabric
+                  </span>
                 </button>
               )}
 
@@ -1173,6 +1203,9 @@ export default function DashboardPage() {
               onReturnToOverview={() => setActiveView('overview')}
             />
           )}
+
+          {/* 5.1 BLOCKCHAIN LEDGER (MODULE 21) */}
+          {activeView === 'blockchain' && <BlockchainLedgerView />}
 
           {/* 6. OCR INTELLIGENCE */}
           {activeView === 'ocr' && (

@@ -804,14 +804,20 @@ export default function AdministrationView({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[500px] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
                 {permissions.map((p) => {
                   const isChecked = rolePermissionsState.includes(p.id);
+                  const isBlockchain = p.code.startsWith('BLOCKCHAIN');
                   return (
                     <label
                       key={p.id}
-                      className={`p-3 rounded-[16px] border flex items-start gap-2.5 cursor-pointer transition ${isChecked ? 'bg-[#f0f3ff] border-[#83A2DB]/50' : 'bg-white border-[#D8DEEA]/60'
-                        }`}
+                      className={`p-3 rounded-[16px] border flex items-start gap-2.5 cursor-pointer transition ${
+                        isChecked
+                          ? isBlockchain
+                            ? 'bg-cyan-500/10 border-cyan-400/50 shadow-xs'
+                            : 'bg-[#f0f3ff] border-[#83A2DB]/50 shadow-xs'
+                          : 'bg-white border-[#D8DEEA]/60 hover:bg-[#f0f3ff]/40'
+                      }`}
                     >
                       <input
                         type="checkbox"
@@ -825,9 +831,22 @@ export default function AdministrationView({
                         }}
                         className="mt-0.5 w-3.5 h-3.5 text-[#3f5e93] rounded"
                       />
-                      <div>
-                        <div className="font-semibold text-xs text-[#10141A]">{p.code}</div>
-                        <div className="text-[11px] text-[#6B7280]">{p.description}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-semibold text-xs text-[#10141A] font-mono">{p.code}</span>
+                          {p.category && (
+                            <span
+                              className={`text-[9px] font-semibold px-2 py-0.2 rounded-full ${
+                                isBlockchain
+                                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-300 font-bold'
+                                  : 'bg-[#f0f3ff] text-[#45474b] border border-[#D8DEEA]'
+                              }`}
+                            >
+                              {p.category}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#6B7280] mt-0.5">{p.description}</div>
                       </div>
                     </label>
                   );

@@ -133,14 +133,12 @@ export function Section65BCertificateModal({
             <div className="border-4 border-double border-slate-800 p-6 sm:p-8 flex flex-col gap-6 text-slate-900 font-serif">
               {/* Header Crest */}
               <div className="text-center border-b-2 border-slate-800 pb-5 space-y-1">
-                <div className="w-12 h-12 rounded-full bg-[#000000] text-white mx-auto flex items-center justify-center font-sans font-bold shadow-xs">
-                  <span className="material-symbols-outlined text-[26px]">shield</span>
-                </div>
-                <h1 className="text-base sm:text-lg font-bold uppercase tracking-widest text-slate-950 font-sans mt-2">
-                  INSTITUTIONAL RECORD MANAGEMENT SYSTEM
+                <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-16 h-16 object-contain mx-auto mb-1 drop-shadow-sm" />
+                <h1 className="text-base sm:text-lg font-black uppercase tracking-widest text-slate-950 font-sans mt-2">
+                  NIRMAN DMS &bull; SOVEREIGN DIGITAL RECORD REPOSITORY
                 </h1>
-                <p className="text-[11px] font-sans text-slate-600 uppercase tracking-wider font-semibold">
-                  STATUTORY EVIDENCE DEPOSITORY &amp; CRYPTOGRAPHIC VAULT
+                <p className="text-[11px] font-sans text-amber-700 uppercase tracking-wider font-extrabold">
+                  ORGANISE &bull; SECURE &bull; PROGRESS
                 </p>
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900 pt-2 font-sans">
                   CERTIFICATE OF ELECTRONIC EVIDENCE UNDER SECTION 65B(4)

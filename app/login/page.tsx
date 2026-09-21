@@ -131,38 +131,20 @@ export default function LoginPage() {
       >
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-[#83A2DB]/15 flex items-center justify-center p-1.5 shadow-xs text-[#83A2DB]">
-            <svg className="w-full h-full" fill="none" viewBox="0 0 40 40">
-              <rect fill="#83A2DB" height="40" rx="10" width="40"></rect>
-              <path
-                d="M12 14C12 12.8954 12.8954 12 14 12H22L28 18V26C28 27.1046 27.1046 28 26 28H14C12.8954 28 12 27.1046 12 26V14Z"
-                stroke="white"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-              ></path>
-              <path
-                d="M22 12V18H28"
-                stroke="white"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-              ></path>
-              <path d="M16 22H24" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
-              <path d="M16 25H21" stroke="white" strokeLinecap="round" strokeWidth="2.5"></path>
-            </svg>
+          <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-8 h-8 object-contain rounded-lg shadow-xs" />
+          <div className="flex flex-col">
+            <span className={`font-black text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+              NIRMAN <span className="text-amber-600">DMS</span>
+            </span>
           </div>
-          <span className={`font-semibold text-[16px] tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-            CloudDMS
-          </span>
           <span
-            className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+            className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
               isDark
-                ? 'bg-slate-800 text-slate-300 border-slate-700'
-                : 'bg-[#F3F5FA] text-[#6B7280] border-[#D8DEEA]/60'
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}
           >
-            Enterprise v2.4
+            Organise • Secure • Progress
           </span>
         </div>
 
@@ -208,14 +190,19 @@ export default function LoginPage() {
           >
             {/* Header / Title */}
             <div className="flex flex-col items-start mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-[#83A2DB]/15 text-[#83A2DB] flex items-center justify-center mb-3 shadow-inner">
-                <span className="material-symbols-outlined text-[24px]">folder_managed</span>
+              <div className="flex items-center gap-3 mb-3">
+                <img src="/nirman-logo.png" alt="NIRMAN DMS" className="w-14 h-14 object-contain rounded-2xl drop-shadow-md border border-slate-200/40 p-1 bg-white" />
+                <div>
+                  <h1 className={`text-[22px] sm:text-[24px] font-black tracking-tight leading-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
+                    NIRMAN <span className="text-amber-600">DMS</span>
+                  </h1>
+                  <p className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider uppercase">
+                    ORGANISE &bull; SECURE &bull; PROGRESS
+                  </p>
+                </div>
               </div>
-              <h1 className={`text-[24px] sm:text-[26px] font-semibold tracking-tight ${isDark ? 'text-white' : 'text-[#10141A]'}`}>
-                Sign in to your workspace
-              </h1>
               <p className={`text-[13px] mt-1 leading-normal ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                Enter your organization credentials to access the secure document cloud.
+                National Document Management System — enter your institutional credentials to authenticate.
               </p>
             </div>
 
@@ -553,7 +540,7 @@ export default function LoginPage() {
       {/* Clean Footer Bar */}
       <footer className="w-full py-4 px-6 relative z-10">
         <div className={`max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] ${isDark ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-          <p>© 2026 CloudDMS Systems Inc. All rights reserved.</p>
+          <p>© 2026 NIRMAN DMS — National Sovereign Repository. All rights reserved.</p>
           <nav className="flex items-center gap-6">
             <a className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-[#10141A]'}`} href="#">
               Privacy policy

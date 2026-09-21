@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import crypto from 'crypto';
+import { BlockchainService } from '@/lib/blockchain/service';
 
 export interface AuditLogParams {
   organizationId: string;
@@ -56,7 +57,30 @@ export async function logAuditEvent(params: AuditLogParams): Promise<string> {
       ]
     );
 
-    return rows[0]?.id;
+    const auditId = rows[0]?.id;
+
+    // Asynchronously anchor event to blockchain in the background (skip self-referential blockchain events)
+    if (auditId && params.eventType !== 'BLOCKCHAIN_ANCHOR' && params.resourceType !== 'BLOCKCHAIN') {
+      BlockchainService.anchorHash({
+        auditEventId: auditId,
+        payloadHash: eventHash,
+        documentId: params.documentId,
+        eventType: (params.eventType as any) || 'AUDIT_ATTESTATION',
+        actorId: params.actorId || undefined,
+        organizationId: params.organizationId,
+        metadata: {
+          resourceType: params.resourceType,
+          result: params.result,
+          ipAddress: validIp,
+          autoAnchored: true,
+        },
+      }).catch((err) => {
+        // Non-blocking log error
+        console.error('[BLOCKCHAIN_AUTO_ANCHOR_ERROR]', err);
+      });
+    }
+
+    return auditId || '';
   } catch (err) {
     console.error('[AUDIT_LOG_ERROR] Failed to write audit event:', err);
     // Return empty string but don't break main business flow

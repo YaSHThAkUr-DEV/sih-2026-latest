@@ -14,7 +14,9 @@ export async function GET(req: Request) {
     // Group logically by category
     const categorized = permissions.map((p) => {
       let category = 'Document Management';
-      if (p.code.startsWith('AUDIT') || p.code.includes('AUDIT')) {
+      if (p.code.startsWith('BLOCKCHAIN') || p.code.includes('BLOCKCHAIN')) {
+        category = 'Blockchain & Ledger Integrity';
+      } else if (p.code.startsWith('AUDIT') || p.code.includes('AUDIT')) {
         category = 'Audit & Forensics';
       } else if (p.code.includes('APPROVE') || p.code.includes('REJECT') || p.code.includes('REQUEST_CHANGE')) {
         category = 'Maker-Checker Workflows';

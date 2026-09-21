@@ -1,0 +1,57 @@
+{
+  "name": "dms-fabric-network",
+  "version": "1.0.0",
+  "client": {
+    "organization": "Org1",
+    "connection": {
+      "timeout": {
+        "peer": {
+          "endorser": "300"
+        },
+        "orderer": "300"
+      }
+    }
+  },
+  "channels": {
+    "recordschannel": {
+      "orderers": [
+        "orderer.dms.gov.in"
+      ],
+      "peers": {
+        "peer0.org1.dms.gov.in": {
+          "endorsingPeer": true,
+          "chaincodeQuery": true,
+          "ledgerQuery": true,
+          "eventSource": true
+        }
+      }
+    }
+  },
+  "organizations": {
+    "Org1": {
+      "mspid": "Org1MSP",
+      "peers": [
+        "peer0.org1.dms.gov.in"
+      ],
+      "certificateAuthorities": [
+        "ca.org1.dms.gov.in"
+      ]
+    }
+  },
+  "orderers": {
+    "orderer.dms.gov.in": {
+      "url": "grpc://localhost:7050"
+    }
+  },
+  "peers": {
+    "peer0.org1.dms.gov.in": {
+      "url": "grpc://localhost:7051"
+    }
+  },
+  "certificateAuthorities": {
+    "ca.org1.dms.gov.in": {
+      "url": "http://localhost:7054",
+      "caName": "ca-org1"
+    }
+  }
+}

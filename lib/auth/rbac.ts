@@ -44,6 +44,22 @@ export function hasAllPermissions(session: UserSessionPayload, permissionCodes: 
 }
 
 // ---------------------------------------------------------------------------
+// Module Specific Permission Helpers
+// ---------------------------------------------------------------------------
+
+export function canViewBlockchain(session: UserSessionPayload): boolean {
+  return hasAnyPermission(session, ['BLOCKCHAIN_VIEW', 'AUDIT_VIEW', 'PERMISSION_MANAGE']);
+}
+
+export function canAnchorBlockchain(session: UserSessionPayload): boolean {
+  return hasAnyPermission(session, ['BLOCKCHAIN_ANCHOR', 'PERMISSION_MANAGE']);
+}
+
+export function canVerifyBlockchain(session: UserSessionPayload): boolean {
+  return hasAnyPermission(session, ['BLOCKCHAIN_VERIFY', 'BLOCKCHAIN_VIEW', 'AUDIT_VIEW', 'DOCUMENT_VIEW']);
+}
+
+// ---------------------------------------------------------------------------
 // Role Checks (only used for SUPER_ADMIN bypass — everything else is permissions)
 // ---------------------------------------------------------------------------
 
