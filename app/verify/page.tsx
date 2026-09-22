@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import jsQR from 'jsqr';
 import { Section65BCertificateModal } from '@/components/dashboard/Section65BCertificateModal';
 import { MobileQrScanner } from '@/components/verify/MobileQrScanner';
 
@@ -222,24 +223,120 @@ function PublicVerifierTerminal() {
     return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => x.toString(16).padStart(8, '0')).join('');
   };
 
-  // Local Zero-Upload SHA-256 file hashing
+  // Scan QR code from an image File using jsQR
+  const scanQrFromImageFile = (file: File): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            const ratio = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const imgData = ctx.getImageData(0, 0, width, height);
+          const qrFn = typeof jsQR === 'function' ? jsQR : (jsQR as any)?.default;
+          const code = qrFn ? qrFn(imgData.data, width, height) : null;
+          if (code && code.data) {
+            resolve(code.data);
+          } else {
+            resolve(null);
+          }
+        } catch {
+          resolve(null);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  };
+
+  // Local Zero-Upload SHA-256 file hashing & Comprehensive Multi-Format Verifier
   const processLocalFile = async (file: File) => {
     try {
       setIsHashing(true);
       setError(null);
+      setResult(null);
+
       const buffer = await file.arrayBuffer();
-      const hashHex = await computeSha256(buffer);
+      const rawHash = await computeSha256(buffer);
 
       setHashedFile({
         name: file.name,
         size: file.size,
-        hash: hashHex,
+        hash: rawHash,
       });
 
-      setInputKey(hashHex);
-      await executeVerification(hashHex);
+      // 1. If image file, attempt client-side QR decode first
+      let qrResolvedKey: string | null = null;
+      if (file.type.startsWith('image/') || file.name.match(/\.(png|jpe?g|webp|bmp|gif)$/i)) {
+        try {
+          const qrContent = await scanQrFromImageFile(file);
+          if (qrContent) {
+            try {
+              const parsed = JSON.parse(qrContent);
+              qrResolvedKey = (parsed.sha256 || parsed.txId || parsed.docket || parsed.cert || qrContent).trim();
+            } catch {
+              qrResolvedKey = qrContent.trim();
+            }
+          }
+        } catch {}
+      }
+
+      if (qrResolvedKey) {
+        setInputKey(qrResolvedKey);
+        setHashedFile({
+          name: file.name,
+          size: file.size,
+          hash: qrResolvedKey,
+        });
+        await executeVerification(qrResolvedKey);
+        return;
+      }
+
+      // 2. Post file directly to the unified verification endpoint
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/blockchain/verify-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data: VerificationResponse & { resolvedKey?: string } = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Verification query failed against Hyperledger Fabric');
+      }
+
+      const verifiedKey = data.resolvedKey || rawHash;
+      setInputKey(verifiedKey);
+      setHashedFile({
+        name: file.name,
+        size: file.size,
+        hash: verifiedKey,
+      });
+
+      setResult(data);
     } catch (err: any) {
-      setError('Failed to compute client-side SHA-256 hash: ' + err.message);
+      setError('Verification failed: ' + err.message);
     } finally {
       setIsHashing(false);
     }
@@ -406,11 +503,11 @@ function PublicVerifierTerminal() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* INTERACTIVE VERIFICATION CARD WITH 3-WAY TABS */}
+        {/* INTERACTIVE VERIFICATION CARD WITH DUAL TABS */}
         {/* ------------------------------------------------------------------ */}
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#CBD5E1] shadow-xl shadow-slate-200/50 overflow-hidden mb-8">
           {/* Tab Selection Bar (Touch-Optimized for Phones) */}
-          <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] p-1.5 sm:p-2 grid grid-cols-3 gap-1.5 sm:gap-2 select-none relative z-20">
+          <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] p-1.5 sm:p-2 grid grid-cols-2 gap-1.5 sm:gap-2 select-none relative z-20">
             <button
               type="button"
               onClick={() => setActiveTab('DIRECT')}
@@ -422,19 +519,6 @@ function PublicVerifierTerminal() {
             >
               <span className="material-symbols-outlined text-[20px] pointer-events-none">key</span>
               <span className="leading-tight pointer-events-none">TX / Hash</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('FILE')}
-              className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
-                activeTab === 'FILE'
-                  ? 'bg-[#0B1C30] text-white shadow-md'
-                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px] pointer-events-none">upload_file</span>
-              <span className="leading-tight pointer-events-none">File Verify</span>
             </button>
 
             <button

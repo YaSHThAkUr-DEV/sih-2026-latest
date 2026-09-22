@@ -704,15 +704,6 @@ export default function DashboardPage() {
                     <span className="material-symbols-outlined text-[17px]">token</span>
                     <span>Blockchain Ledger</span>
                   </div>
-                  <span
-                    className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-semibold ${
-                      activeView === 'blockchain'
-                        ? 'bg-cyan-400 text-black font-bold'
-                        : 'bg-cyan-50 text-cyan-800 border border-cyan-200'
-                    }`}
-                  >
-                    Fabric
-                  </span>
                 </button>
               )}
 
@@ -962,48 +953,39 @@ export default function DashboardPage() {
                       )}
                     </form>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-semibold text-[#45474b]">Clearance:</span>
-                      <select
-                        value={selectedTierFilter}
-                        onChange={(e) => handleTierFilterChange(e.target.value)}
-                        className="h-10 px-3 bg-white border border-[#D8DEEA] text-xs font-medium text-[#151c27] rounded-full focus:outline-none focus:ring-2 focus:ring-[#3f5e93] cursor-pointer"
-                      >
-                        <option value="ALL">All Clearance Levels</option>
-                        {securityLevels.map((sl) => (
-                          <option key={sl.id} value={sl.code}>
-                            {sl.code} — {sl.name} (Rank {sl.rank})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                    <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-[#45474b]">Type:</span>
+                        <select
+                          value={activeTypeFilter}
+                          onChange={(e) => handleTypeFilterChange(e.target.value)}
+                          className="h-10 px-3.5 bg-white border border-[#D8DEEA] text-xs font-medium text-[#151c27] rounded-full focus:outline-none focus:ring-2 focus:ring-[#3f5e93] cursor-pointer shadow-2xs"
+                        >
+                          <option value="ALL">All Types</option>
+                          {docTypes.map((dt) => (
+                            <option key={dt.id} value={dt.code}>
+                              {dt.name} ({dt.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {/* Dynamic Document Type Pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
-                    <button
-                      onClick={() => handleTypeFilterChange('ALL')}
-                      className={`px-3.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
-                        activeTypeFilter === 'ALL'
-                          ? 'bg-[#000000] text-white shadow-xs'
-                          : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
-                      }`}
-                    >
-                      All Types
-                    </button>
-                    {docTypes.map((dt) => (
-                      <button
-                        key={dt.id}
-                        onClick={() => handleTypeFilterChange(dt.code)}
-                        className={`px-3.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
-                          activeTypeFilter === dt.code
-                            ? 'bg-[#3f5e93] text-white shadow-xs'
-                            : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
-                        }`}
-                      >
-                        {dt.name} ({dt.code})
-                      </button>
-                    ))}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-[#45474b]">Clearance:</span>
+                        <select
+                          value={selectedTierFilter}
+                          onChange={(e) => handleTierFilterChange(e.target.value)}
+                          className="h-10 px-3.5 bg-white border border-[#D8DEEA] text-xs font-medium text-[#151c27] rounded-full focus:outline-none focus:ring-2 focus:ring-[#3f5e93] cursor-pointer shadow-2xs"
+                        >
+                          <option value="ALL">All Clearance Levels</option>
+                          {securityLevels.map((sl) => (
+                            <option key={sl.id} value={sl.code}>
+                              {sl.code} — {sl.name} (Rank {sl.rank})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
