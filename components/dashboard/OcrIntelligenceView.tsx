@@ -81,18 +81,6 @@ export function OcrIntelligenceView({
       {/* Header Banner */}
       <section className="bg-white/85 backdrop-blur-xl rounded-[26px] p-6 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30 rounded-full font-semibold flex items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">document_scanner</span>
-              LEXICAL &amp; OCR ENGINE ACTIVE
-            </span>
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full font-semibold">
-              POSTGRESQL GIN TSVECTOR
-            </span>
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full">
-              TESSERACT 5.0 + PDF-STREAM
-            </span>
-          </div>
           <h1 className="text-xl font-bold text-[#151c27] tracking-tight mt-0.5 flex items-center gap-2">
             <span>OCR Intelligence &amp; Lexical Search</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#000000] text-white font-mono font-semibold">

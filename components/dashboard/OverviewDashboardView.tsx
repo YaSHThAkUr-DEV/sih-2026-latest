@@ -236,7 +236,6 @@ export default function OverviewDashboardView({
           >
             <span className="material-symbols-outlined text-[18px] text-[#45474b]">search</span>
             <span>Quick Search</span>
-            <kbd className="ml-1 px-1.5 py-0.5 rounded bg-[#e2e8f8] text-[#45474b] font-mono text-[10px]">⌘K</kbd>
           </button>
 
           <button

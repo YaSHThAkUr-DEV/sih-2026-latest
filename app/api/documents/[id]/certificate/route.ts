@@ -87,18 +87,15 @@ export async function GET(
       cert: certSerial,
       docket: doc.document_number,
       sha256: doc.sha256_hash,
-      issuer: doc.organization_name || 'Institutional Document Authority',
-      jurisdiction: doc.department_name,
-      statute: 'Section 65B Indian Evidence Act 1872 / BSA 2023',
     });
 
-    // 4. Generate SVG / PNG QR Code Data URL
+    // 4. Generate High-Contrast, High-DPI QR Code (Optimized for instant mobile phone camera detection)
     const qrDataUrl = await QRCode.toDataURL(verificationPayload, {
-      errorCorrectionLevel: 'H',
-      margin: 1,
-      width: 160,
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 450,
       color: {
-        dark: '#0f172a',
+        dark: '#000000',
         light: '#ffffff',
       },
     });

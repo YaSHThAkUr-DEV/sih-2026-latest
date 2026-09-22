@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Section65BCertificateModal } from '@/components/dashboard/Section65BCertificateModal';
+import { MobileQrScanner } from '@/components/verify/MobileQrScanner';
 
 interface ProofData {
   transactionId: string;
@@ -73,9 +74,25 @@ function PublicVerifierTerminal() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialKey = searchParams.get('key') || searchParams.get('txId') || '';
+  const initialTabParam = searchParams.get('tab')?.toUpperCase();
+  const getValidTab = (t?: string | null): 'DIRECT' | 'FILE' | 'QR' => {
+    if (t === 'QR' || t === 'SCAN') return 'QR';
+    if (t === 'FILE' || t === 'UPLOAD') return 'FILE';
+    return 'DIRECT';
+  };
 
   // Tab mode: 'DIRECT' | 'FILE' | 'QR'
-  const [activeTab, setActiveTab] = useState<'DIRECT' | 'FILE' | 'QR'>('DIRECT');
+  const [activeTab, setActiveTab] = useState<'DIRECT' | 'FILE' | 'QR'>(() => getValidTab(initialTabParam));
+
+  // Sync tab with URL hash if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '').toUpperCase();
+      if (hash === 'QR' || hash === 'SCAN') setActiveTab('QR');
+      else if (hash === 'FILE') setActiveTab('FILE');
+      else if (hash === 'DIRECT' || hash === 'TX') setActiveTab('DIRECT');
+    }
+  }, []);
 
   // Direct Input state
   const [inputKey, setInputKey] = useState(initialKey);
@@ -147,15 +164,73 @@ function PublicVerifierTerminal() {
     }
   };
 
+  // Pure JS SHA-256 fallback when WebCrypto is unavailable (e.g. non-HTTPS mobile network)
+  const computeSha256 = async (buffer: ArrayBuffer): Promise<string> => {
+    if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+      try {
+        const digestBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(digestBuffer));
+        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      } catch {
+        // Fall back to pure JS
+      }
+    }
+
+    const bytes = new Uint8Array(buffer);
+    const K = [
+      0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+      0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+      0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+      0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    ];
+    let [h0, h1, h2, h3, h4, h5, h6, h7] = [
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
+    const l = bytes.length;
+    const bitLen = l * 8;
+    const padLen = (((l + 8) >> 6) + 1) << 6;
+    const padded = new Uint8Array(padLen);
+    padded.set(bytes);
+    padded[l] = 0x80;
+    const view = new DataView(padded.buffer);
+    view.setUint32(padLen - 4, bitLen & 0xffffffff);
+    view.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000));
+    const w = new Uint32Array(64);
+    for (let i = 0; i < padLen; i += 64) {
+      for (let t = 0; t < 16; t++) w[t] = view.getUint32(i + t * 4);
+      for (let t = 16; t < 64; t++) {
+        const s0 = ((w[t - 15] >>> 7) | (w[t - 15] << 25)) ^ ((w[t - 15] >>> 18) | (w[t - 15] << 14)) ^ (w[t - 15] >>> 3);
+        const s1 = ((w[t - 2] >>> 17) | (w[t - 2] << 15)) ^ ((w[t - 2] >>> 19) | (w[t - 2] << 13)) ^ (w[t - 2] >>> 10);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) >>> 0;
+      }
+      let [a, b, c, d, e, f, g, h] = [h0, h1, h2, h3, h4, h5, h6, h7];
+      for (let t = 0; t < 64; t++) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        const ch = (e & f) ^ (~e & g);
+        const temp1 = (h + S1 + ch + K[t] + w[t]) >>> 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const temp2 = (S0 + maj) >>> 0;
+        h = g; g = f; f = e; e = (d + temp1) >>> 0;
+        d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+      }
+      h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+      h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+    }
+    return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => x.toString(16).padStart(8, '0')).join('');
+  };
+
   // Local Zero-Upload SHA-256 file hashing
   const processLocalFile = async (file: File) => {
     try {
       setIsHashing(true);
       setError(null);
       const buffer = await file.arrayBuffer();
-      const digestBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
-      const hashArray = Array.from(new Uint8Array(digestBuffer));
-      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      const hashHex = await computeSha256(buffer);
 
       setHashedFile({
         name: file.name,
@@ -266,33 +341,33 @@ function PublicVerifierTerminal() {
       {/* ------------------------------------------------------------------ */}
       {/* TOP SOVEREIGN HEADER BAR */}
       {/* ------------------------------------------------------------------ */}
-      <header className="border-b border-[#E2E8F0] bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between">
+      <header className="border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md sticky top-0 z-40 shadow-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-18 flex items-center justify-between gap-2">
           {/* Logo & Sovereign Crest */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-[#CBD5E1] p-1.5 flex items-center justify-center shadow-xs group-hover:border-[#1E3A8A] transition-colors">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 group min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-[#CBD5E1] p-1 flex items-center justify-center shadow-xs group-hover:border-[#1E3A8A] transition-colors shrink-0">
               <img
                 src="/nirman-logo.png"
                 alt="NIRMAN DMS National Sovereign Repository"
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 leading-tight">
-                <span className="text-lg font-extrabold text-[#0B1C30] tracking-tight">NIRMAN</span>
-                <span className="text-lg font-black text-[#F37021]">DMS</span>
-                <span className="ml-1.5 px-2 py-0.5 text-[9px] uppercase tracking-widest font-black rounded-md bg-[#0B1C30] text-white">
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1 sm:gap-1.5 leading-tight">
+                <span className="text-base sm:text-lg font-extrabold text-[#0B1C30] tracking-tight">NIRMAN</span>
+                <span className="text-base sm:text-lg font-black text-[#F37021]">DMS</span>
+                <span className="ml-1 px-1.5 py-0.5 text-[8.5px] sm:text-[9px] uppercase tracking-wider font-black rounded bg-[#0B1C30] text-white shrink-0">
                   VERIFIER
                 </span>
               </div>
-              <span className="text-[9.5px] font-extrabold text-[#10B981] tracking-wider uppercase">
+              <span className="text-[8.5px] sm:text-[9.5px] font-extrabold text-[#10B981] tracking-wider uppercase hidden sm:block truncate">
                 Organise • Secure • Progress
               </span>
             </div>
           </Link>
 
           {/* Network Telemetry Badge & Quick Nav */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#EFF4FF] border border-[#BFDBFE] text-[#1E3A8A] text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
               <span>Hyperledger Fabric 2.5 Active</span>
@@ -303,10 +378,11 @@ function PublicVerifierTerminal() {
 
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#0B1C30] hover:text-white bg-white hover:bg-[#0B1C30] border border-[#CBD5E1] hover:border-[#0B1C30] rounded-xl transition-all shadow-xs"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#0B1C30] hover:text-white bg-white hover:bg-[#0B1C30] border border-[#CBD5E1] hover:border-[#0B1C30] rounded-xl transition-all shadow-xs whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-              <span>Officer Login</span>
+              <span className="hidden xs:inline">Officer Login</span>
+              <span className="xs:hidden">Login</span>
             </Link>
           </div>
         </div>
@@ -334,53 +410,51 @@ function PublicVerifierTerminal() {
         {/* ------------------------------------------------------------------ */}
         {/* INTERACTIVE VERIFICATION CARD WITH 3-WAY TABS */}
         {/* ------------------------------------------------------------------ */}
-        <div className="bg-white rounded-2xl border border-[#CBD5E1] shadow-xl shadow-slate-200/50 overflow-hidden mb-8">
-          {/* Tab Selection Bar */}
-          <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 sm:px-6 pt-3 flex items-center gap-2 sm:gap-4 overflow-x-auto">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#CBD5E1] shadow-xl shadow-slate-200/50 overflow-hidden mb-8">
+          {/* Tab Selection Bar (Touch-Optimized for Phones) */}
+          <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] p-1.5 sm:p-2 grid grid-cols-3 gap-1.5 sm:gap-2 select-none relative z-20">
             <button
               type="button"
               onClick={() => setActiveTab('DIRECT')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+              className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 activeTab === 'DIRECT'
-                  ? 'border-[#0B1C30] text-[#0B1C30]'
-                  : 'border-transparent text-[#64748B] hover:text-[#0B1C30]'
+                  ? 'bg-[#0B1C30] text-white shadow-md'
+                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">key</span>
-              <span>Transaction ID / Hash</span>
+              <span className="material-symbols-outlined text-[20px] pointer-events-none">key</span>
+              <span className="leading-tight pointer-events-none">TX / Hash</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('FILE')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+              className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 activeTab === 'FILE'
-                  ? 'border-[#0B1C30] text-[#0B1C30]'
-                  : 'border-transparent text-[#64748B] hover:text-[#0B1C30]'
+                  ? 'bg-[#0B1C30] text-white shadow-md'
+                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              <span>Live File Attestation</span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-[#10B981]/15 text-[#047857]">
-                Zero Upload
-              </span>
+              <span className="material-symbols-outlined text-[20px] pointer-events-none">upload_file</span>
+              <span className="leading-tight pointer-events-none">File Verify</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('QR')}
-              className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+              className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center relative touch-manipulation active:scale-95 ${
                 activeTab === 'QR'
-                  ? 'border-[#0B1C30] text-[#0B1C30]'
-                  : 'border-transparent text-[#64748B] hover:text-[#0B1C30]'
+                  ? 'bg-[#0B1C30] text-white shadow-md'
+                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
-              <span>Docket QR Scanner</span>
+              <span className="material-symbols-outlined text-[20px] text-emerald-400 pointer-events-none">qr_code_scanner</span>
+              <span className="leading-tight pointer-events-none">Scan QR</span>
+              <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-none"></span>
             </button>
           </div>
 
-          <div className="p-5 sm:p-7">
+          <div className="p-4 sm:p-6 md:p-8">
             {/* TAB 1: DIRECT SEARCH */}
             {activeTab === 'DIRECT' && (
               <div>
@@ -392,7 +466,7 @@ function PublicVerifierTerminal() {
                   className="space-y-4"
                 >
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#475569]">
-                    Enter Blockchain Transaction ID, Docket Number, or SHA-256 Payload Hash:
+                    Enter Transaction ID, Docket Number, or SHA-256 Hash:
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
@@ -403,14 +477,14 @@ function PublicVerifierTerminal() {
                         type="text"
                         value={inputKey}
                         onChange={(e) => setInputKey(e.target.value)}
-                        placeholder="Paste TX ID (e.g. f8a42b10...) or Docket No (e.g. DOC-2026-LEG-001)..."
-                        className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-xs sm:text-sm text-[#0F172A] placeholder-[#94A3B8] font-mono focus:outline-none focus:ring-2 focus:ring-[#0B1C30] focus:border-[#0B1C30] transition-all"
+                        placeholder="Paste TX ID or Docket Number..."
+                        className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-base sm:text-sm text-[#0F172A] placeholder-[#94A3B8] font-mono focus:outline-none focus:ring-2 focus:ring-[#0B1C30] focus:border-[#0B1C30] transition-all"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading || !inputKey.trim()}
-                      className="px-6 py-3 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                      className="w-full sm:w-auto px-6 py-3.5 sm:py-3 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
                     >
                       {loading ? (
                         <>
@@ -437,7 +511,7 @@ function PublicVerifierTerminal() {
                       setInputKey(genesisTx);
                       executeVerification(genesisTx);
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1E3A8A] border border-[#BFDBFE] font-mono text-[11px] transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1E3A8A] border border-[#BFDBFE] font-mono text-[11px] transition-colors cursor-pointer"
                   >
                     🏛️ Genesis Anchor
                   </button>
@@ -451,7 +525,7 @@ function PublicVerifierTerminal() {
                           setInputKey(s.transactionId);
                           executeVerification(s.transactionId);
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#334155] border border-[#CBD5E1] font-mono text-[11px] transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#334155] border border-[#CBD5E1] font-mono text-[11px] transition-colors cursor-pointer"
                       >
                         📄 {s.documentNumber}
                       </button>
@@ -464,9 +538,9 @@ function PublicVerifierTerminal() {
                       setInputKey(tampered);
                       executeVerification(tampered);
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#BE123C] border border-[#FECDD3] font-mono text-[11px] transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#BE123C] border border-[#FECDD3] font-mono text-[11px] transition-colors cursor-pointer"
                   >
-                    ⚠️ Tampered Hash Test
+                    ⚠️ Tampered Hash
                   </button>
                 </div>
               </div>
@@ -481,7 +555,7 @@ function PublicVerifierTerminal() {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  className={`p-6 sm:p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                     dragActive
                       ? 'border-[#2563EB] bg-[#EFF6FF]'
                       : 'border-[#CBD5E1] hover:border-[#1E3A8A] bg-[#F8FAFC]'
@@ -497,23 +571,21 @@ function PublicVerifierTerminal() {
                     <span className="material-symbols-outlined text-[28px]">description</span>
                   </div>
                   <p className="text-sm font-bold text-[#0B1C30]">
-                    Drop official evidentiary file here, or{' '}
-                    <span className="text-[#2563EB] underline">browse</span>
+                    Drop file here or <span className="text-[#2563EB] underline">tap to browse phone files</span>
                   </p>
                   <p className="text-xs text-[#64748B] mt-1 max-w-md">
-                    Accepts PDF dockets, scanned images, court orders, or case files. Client-side
-                    computation calculates the SHA-256 fingerprint in milliseconds.
+                    PDFs, scanned images, court memos, or case dockets. SHA-256 is computed 100% locally on your device.
                   </p>
 
-                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] text-[11px] font-bold">
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] text-[10px] sm:text-[11px] font-bold">
                     <span className="material-symbols-outlined text-[14px]">shield</span>
-                    <span>100% Client-Side Privacy: File contents never leave your device</span>
+                    <span>Zero Upload Privacy: File never leaves your phone</span>
                   </div>
                 </div>
 
                 {isHashing && (
                   <div className="p-4 rounded-xl bg-[#EFF4FF] border border-[#BFDBFE] flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-[#1E3A8A] border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-[#1E3A8A] border-t-transparent rounded-full animate-spin shrink-0"></div>
                     <span className="text-xs font-bold text-[#1E3A8A]">
                       Computing SHA-256 cryptographic digest via WebCrypto API...
                     </span>
@@ -521,11 +593,11 @@ function PublicVerifierTerminal() {
                 )}
 
                 {hashedFile && !isHashing && (
-                  <div className="p-4 rounded-xl bg-white border border-[#CBD5E1] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div>
-                      <span className="font-bold text-[#0B1C30] block">{hashedFile.name}</span>
+                  <div className="p-4 rounded-xl bg-white border border-[#CBD5E1] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                    <div className="min-w-0">
+                      <span className="font-bold text-[#0B1C30] block truncate">{hashedFile.name}</span>
                       <span className="text-[#64748B] text-[11px] font-mono">
-                        {formatBytes(hashedFile.size)} • Calculated SHA-256:
+                        {formatBytes(hashedFile.size)} • SHA-256:
                       </span>
                       <p className="font-mono text-[#0B1C30] font-semibold break-all text-[11px] mt-0.5">
                         {hashedFile.hash}
@@ -534,7 +606,7 @@ function PublicVerifierTerminal() {
                     <button
                       type="button"
                       onClick={() => executeVerification(hashedFile.hash)}
-                      className="px-4 py-2 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white font-bold rounded-lg text-xs transition-colors shrink-0 cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white font-bold rounded-lg text-xs transition-colors shrink-0 cursor-pointer text-center"
                     >
                       Re-verify Hash
                     </button>
@@ -543,41 +615,18 @@ function PublicVerifierTerminal() {
               </div>
             )}
 
-            {/* TAB 3: QR CODE SCANNER */}
+            {/* TAB 3: LIVE MOBILE QR CODE CAMERA SCANNER */}
             {activeTab === 'QR' && (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#F1F5F9] border border-[#CBD5E1] flex items-center justify-center mx-auto text-[#0B1C30]">
-                  <span className="material-symbols-outlined text-[32px]">qr_code_scanner</span>
-                </div>
-                <div className="max-w-md mx-auto">
-                  <h3 className="text-sm font-bold text-[#0B1C30]">
-                    Scan or Upload Section 65B Certificate QR Code
-                  </h3>
-                  <p className="text-xs text-[#64748B] mt-1">
-                    Upload the QR code image from the physical certificate footer to instantly verify
-                    the document&apos;s cryptographic provenance.
-                  </p>
-                </div>
-
-                <div className="flex justify-center gap-3 pt-2">
-                  <label className="px-5 py-2.5 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">add_photo_alternate</span>
-                    <span>Upload QR Image</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          // Quick fallback demo key from qr
-                          const demoKey = 'f8a42b109e8f49c0d3a771b9c45e68310022f18ab93c40192e8fa10b904423a1';
-                          setInputKey(demoKey);
-                          executeVerification(demoKey);
-                        }
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+              <div className="py-2">
+                <MobileQrScanner
+                  onScanSuccess={(extractedKey) => {
+                    setInputKey(extractedKey);
+                    executeVerification(extractedKey);
+                  }}
+                  onError={(err) => {
+                    setError(err);
+                  }}
+                />
               </div>
             )}
           </div>

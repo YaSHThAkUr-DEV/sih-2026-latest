@@ -295,32 +295,6 @@ export default function BlockchainLedgerView({
           </div>
         </div>
 
-        {/* Network Topology & Authority Status Bar */}
-        <div className="p-3.5 rounded-[18px] bg-white border border-[#D8DEEA]/60 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">dns</span>
-              <span className="text-[#6B7280]">Network Authority:</span>
-              <span className="font-semibold text-[#10141A]">Org1MSP (X.509 Sovereign)</span>
-            </div>
-            <span className="text-[#D8DEEA]">•</span>
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#9CA3AF] text-[16px]">device_hub</span>
-              <span className="font-mono text-[#6B7280]">Smart Contract: {status?.chaincodeName || 'dms_audit_cc'}</span>
-            </div>
-            <span className="text-[#D8DEEA]">•</span>
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#9CA3AF] text-[16px]">storage</span>
-              <span className="font-mono text-[#6B7280]">State DB: CouchDB Immutable Trie</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1.5 text-emerald-700 font-mono text-[11px] font-medium bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/50">
-            <span className="material-symbols-outlined text-[14px]">lock</span>
-            <span>RAFT CONSENSUS: ACTIVE &amp; IMMUTABLE</span>
-          </div>
-        </div>
-
         {/* --------------------------------------------------------------------- */}
         {/* 2. KPI Metrics Grid (4 Equal Columns) */}
         {/* --------------------------------------------------------------------- */}

@@ -441,18 +441,6 @@ export default function EvidenceIngestionView({
       {/* 1. Top Header & Mode Toggle Section */}
       <section className="w-full bg-white/85 backdrop-blur-xl rounded-[26px] p-6 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30 rounded-full font-semibold">
-              Evidence Ingestion Studio
-            </span>
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full font-medium">
-              Clearance Level {userMaxLevel} Max
-            </span>
-            <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Full Security Pipeline Active
-            </span>
-          </div>
           <h1 className="text-xl font-bold text-[#151c27] tracking-tight">
             {ingestionMode === 'SINGLE' ? 'Upload & Classify Single Document' : 'Mass Bulk Evidence Ingestion'}
           </h1>
@@ -515,49 +503,6 @@ export default function EvidenceIngestionView({
           </button>
         </div>
       </section>
-
-      {/* Security Pipeline Badge Banner */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 border border-[#D8DEEA] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200">
-            <span className="material-symbols-outlined text-[17px]">lock</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-mono text-[#606368] font-bold">Encryption</span>
-            <span className="text-xs font-bold text-[#151c27]">AES-256-GCM / DEK</span>
-          </div>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 border border-[#D8DEEA] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-200">
-            <span className="material-symbols-outlined text-[17px]">document_scanner</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-mono text-[#606368] font-bold">OCR Pipeline</span>
-            <span className="text-xs font-bold text-[#151c27]">Auto GIN Vector Index</span>
-          </div>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 border border-[#D8DEEA] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
-            <span className="material-symbols-outlined text-[17px]">bolt</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-mono text-[#606368] font-bold">Redis Queues</span>
-            <span className="text-xs font-bold text-[#151c27]">Async Workers</span>
-          </div>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 border border-[#D8DEEA] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
-            <span className="material-symbols-outlined text-[17px]">link</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-mono text-[#606368] font-bold">Integrity</span>
-            <span className="text-xs font-bold text-[#151c27]">Hyperledger Chained</span>
-          </div>
-        </div>
-      </div>
 
       {uploadError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-[20px] text-xs text-red-800 flex items-start gap-2.5 shadow-xs">

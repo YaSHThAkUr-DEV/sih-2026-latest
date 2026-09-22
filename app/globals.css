@@ -436,4 +436,57 @@ mark {
   }
 }
 
+/* ========================================================================== */
+/* PRINT ISOLATION RULES (Section 65B Certificate & Document PDF Export)     */
+/* ========================================================================== */
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print\:hidden,
+  .print-hidden {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
+
+/* ========================================================================== */
+/* MOBILE QR CODE SCANNER ANIMATION                                           */
+/* ========================================================================== */
+@keyframes scan-laser {
+  0% {
+    top: 6%;
+    opacity: 0.7;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 6%;
+    opacity: 0.7;
+  }
+}
+
+.animate-scan-pulse {
+  position: absolute;
+  animation: scan-laser 2.4s ease-in-out infinite;
+}
+
+
+
+
 

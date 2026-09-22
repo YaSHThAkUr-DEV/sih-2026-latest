@@ -830,13 +830,10 @@ export default function DashboardPage() {
               aria-label="Global Search"
               onClick={() => setGlobalSearchOpen(true)}
               className="h-9 px-3 sm:px-3.5 rounded-full bg-white sm:bg-[#f0f3ff] text-[#45474b] hover:bg-white hover:text-[#151c27] border border-[#D8DEEA] hover:border-[#3f5e93]/50 flex items-center gap-2 transition-all shadow-2xs group cursor-pointer"
-              title="Quick search records across vault and OCR index (Press ⌘K or Ctrl+K)"
+              title="Quick search records across vault and OCR index"
             >
               <span className="material-symbols-outlined text-[18px] text-[#3f5e93] group-hover:scale-110 transition-transform">search</span>
               <span className="hidden sm:inline text-xs font-medium text-[#45474b] group-hover:text-[#151c27]">Quick search...</span>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[#f0f3ff] group-hover:bg-[#e2e8f8] border border-[#D8DEEA]/60 text-[10px] font-mono font-bold text-[#6B7280]">
-                <span>⌘</span><span>K</span>
-              </kbd>
             </button>
 
             <button

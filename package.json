@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "tunnel": "npx -y cloudflared tunnel --url http://localhost:3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -19,6 +20,7 @@
     "bcryptjs": "^3.0.3",
     "ioredis": "^6.0.0",
     "jose": "^6.2.12",
+    "jsqr": "^1.4.0",
     "next": "16.3.4",
     "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
