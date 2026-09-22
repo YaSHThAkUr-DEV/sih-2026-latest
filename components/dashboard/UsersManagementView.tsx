@@ -43,12 +43,12 @@ interface UsersManagementViewProps {
   onNotify?: (message: string) => void;
 }
 
-const SECURITY_LEVEL_LABELS: Record<number, { name: string; color: string; bg: string; border: string }> = {
-  1: { name: 'Level 1: Public', color: 'text-slate-700', bg: 'bg-slate-100', border: 'border-slate-200' },
-  2: { name: 'Level 2: Internal', color: 'text-blue-800', bg: 'bg-blue-50', border: 'border-blue-200' },
-  3: { name: 'Level 3: Confidential', color: 'text-[#3f5e93]', bg: 'bg-[rgba(131,162,219,0.14)]', border: 'border-[#83A2DB]/30' },
-  4: { name: 'Level 4: Sensitive', color: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200' },
-  5: { name: 'Level 5: Top Secret', color: 'text-rose-800', bg: 'bg-rose-50', border: 'border-rose-200' },
+const SECURITY_LEVEL_LABELS: Record<number, { name: string; color: string; bg: string; border: string; dot: string }> = {
+  1: { name: 'Level 1 · Public', color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', dot: 'bg-slate-400' },
+  2: { name: 'Level 2 · Internal', color: 'text-blue-700', bg: 'bg-blue-50/80', border: 'border-blue-200/80', dot: 'bg-blue-500' },
+  3: { name: 'Level 3 · Confidential', color: 'text-[#3f5e93]', bg: 'bg-[rgba(131,162,219,0.12)]', border: 'border-[#83A2DB]/40', dot: 'bg-[#3f5e93]' },
+  4: { name: 'Level 4 · Sensitive', color: 'text-amber-800', bg: 'bg-amber-50/80', border: 'border-amber-200/80', dot: 'bg-amber-500' },
+  5: { name: 'Level 5 · Top Secret', color: 'text-rose-700', bg: 'bg-rose-50/80', border: 'border-rose-200/80', dot: 'bg-rose-500' },
 };
 
 export default function UsersManagementView({
@@ -71,6 +71,9 @@ export default function UsersManagementView({
   // Modals & Feedback
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserRecord | null>(null);
+  const [deletePermanent, setDeletePermanent] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -251,6 +254,33 @@ export default function UsersManagementView({
       setEditModalOpen(false);
       setSelectedUser(null);
       resetForm();
+      loadData();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openDeleteModal = (u: UserRecord) => {
+    setUserToDelete(u);
+    setDeletePermanent(false);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}?permanent=${deletePermanent}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete user');
+
+      showToast(data.message || (deletePermanent ? 'User permanently deleted' : 'User deactivated'));
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
       loadData();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -482,13 +512,13 @@ export default function UsersManagementView({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#f0f3ff]/60 text-[#6B7280] text-[10px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
                     <tr>
-                      <th className="py-3 px-4">User / Official</th>
-                      <th className="py-3 px-3">Clearance</th>
-                      <th className="py-3 px-3">Department</th>
-                      <th className="py-3 px-3">Roles</th>
-                      <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-3">Last Login</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">User / Official</th>
+                      <th className="py-3.5 px-3 min-w-[140px] whitespace-nowrap">Clearance</th>
+                      <th className="py-3.5 px-3 min-w-[240px] whitespace-nowrap">Department</th>
+                      <th className="py-3.5 px-3 min-w-[200px] whitespace-nowrap">Roles</th>
+                      <th className="py-3.5 px-3 min-w-[90px] whitespace-nowrap">Status</th>
+                      <th className="py-3.5 px-3 min-w-[100px] whitespace-nowrap">Last Login</th>
+                      <th className="py-3.5 px-4 text-right min-w-[110px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
@@ -519,7 +549,7 @@ export default function UsersManagementView({
 
                         return (
                           <tr key={u.id} className="hover:bg-[#f0f3ff]/40 transition">
-                            <td className="py-3 px-4">
+                            <td className="py-3.5 px-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-[#10141A] text-white flex items-center justify-center font-bold text-xs shrink-0">
                                   {initials}
@@ -535,63 +565,78 @@ export default function UsersManagementView({
                               </div>
                             </td>
 
-                            <td className="py-3 px-3">
+                            <td className="py-3.5 px-3 whitespace-nowrap">
                               <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${secInfo.bg} ${secInfo.color} ${secInfo.border}`}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border whitespace-nowrap leading-none ${secInfo.bg} ${secInfo.color} ${secInfo.border}`}
                               >
-                                <span className="material-symbols-outlined text-[12px]">verified_user</span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${secInfo.dot}`}></span>
                                 <span>{secInfo.name}</span>
                               </span>
                             </td>
 
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-[#10141A]">{u.department_name || 'Unassigned'}</div>
-                              <div className="text-[10px] text-[#6B7280]">{u.designation || 'Staff'}</div>
+                            <td className="py-3.5 px-3">
+                              <div className="font-medium text-[#10141A] text-xs whitespace-nowrap">{u.department_name || 'Unassigned'}</div>
+                              <div className="text-[10px] text-[#6B7280] whitespace-nowrap">{u.designation || 'Staff'}</div>
                             </td>
 
-                            <td className="py-3 px-3">
-                              <div className="flex flex-wrap gap-1">
+                            <td className="py-3.5 px-3">
+                              <div className="flex flex-wrap gap-1.5 items-center">
                                 {(u.roles && u.roles.length > 0) ? (
                                   u.roles.map((r) => (
                                     <span
                                       key={r.id}
-                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#f0f3ff] text-[#3f5e93] border border-[#D8DEEA]"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-medium bg-[#f0f3ff] text-[#3f5e93] border border-[#D8DEEA] whitespace-nowrap leading-tight shadow-2xs"
                                     >
                                       {r.name}
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="text-[10px] text-[#9CA3AF] italic">No roles</span>
+                                  <span className="text-[10px] text-[#9CA3AF] italic whitespace-nowrap">No roles</span>
                                 )}
                               </div>
                             </td>
 
-                            <td className="py-3 px-3">
+                            <td className="py-3.5 px-3 whitespace-nowrap">
                               <span
-                                className={`inline-flex items-center gap-1 text-[10px] font-medium px-2.5 py-0.5 rounded-full ${
+                                className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap leading-tight ${
                                   u.status === 'ACTIVE'
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
                                     : 'bg-rose-50 text-rose-700 border border-rose-200/50'
                                 }`}
                               >
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                {u.status}
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                <span>{u.status}</span>
                               </span>
                             </td>
 
-                            <td className="py-3 px-3 text-[11px] text-[#6B7280]">
+                            <td className="py-3.5 px-3 text-[11px] text-[#6B7280] whitespace-nowrap font-mono">
                               {u.last_login_at
                                 ? new Date(u.last_login_at).toLocaleDateString()
                                 : 'Never'}
                             </td>
 
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => openEditModal(u)}
-                                className="px-3 py-1 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-medium border border-[#D8DEEA] transition"
-                              >
-                                Edit
-                              </button>
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => openEditModal(u)}
+                                  className="px-3 py-1 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] text-xs font-medium border border-[#D8DEEA] transition cursor-pointer"
+                                  title="Edit Profile"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => openDeleteModal(u)}
+                                  disabled={u.id === currentUserId}
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer ${
+                                    u.id === currentUserId
+                                      ? 'text-slate-300 bg-slate-100 cursor-not-allowed'
+                                      : 'text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/60'
+                                  }`}
+                                  title={u.id === currentUserId ? 'Cannot delete active session' : 'Delete / Deactivate User'}
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -937,23 +982,191 @@ export default function UsersManagementView({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+              <div className="flex items-center justify-between pt-3 border-t border-[#D8DEEA]/60">
                 <button
                   type="button"
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] font-medium text-xs rounded-full transition"
+                  disabled={selectedUser?.id === currentUserId}
+                  onClick={() => {
+                    const target = selectedUser;
+                    setEditModalOpen(false);
+                    if (target) openDeleteModal(target);
+                  }}
+                  className={`inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full transition cursor-pointer ${
+                    selectedUser?.id === currentUserId
+                      ? 'text-slate-400 cursor-not-allowed opacity-60'
+                      : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/60'
+                  }`}
                 >
-                  Cancel
+                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                  <span>Delete User</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-[#000000] hover:bg-[#181c22] text-white font-medium text-xs rounded-full transition shadow-[0_6px_18px_rgba(16,20,26,0.22)] disabled:opacity-50"
-                >
-                  <span>{submitting ? 'Saving...' : 'Save Changes'}</span>
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditModalOpen(false)}
+                    className="px-4 py-2 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] font-medium text-xs rounded-full transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-[#000000] hover:bg-[#181c22] text-white font-medium text-xs rounded-full transition shadow-[0_6px_18px_rgba(16,20,26,0.22)] disabled:opacity-50 cursor-pointer"
+                  >
+                    <span>{submitting ? 'Saving...' : 'Save Changes'}</span>
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete / Deactivate User */}
+      {deleteModalOpen && userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.22)] border border-[#D8DEEA]/80 flex flex-col gap-4 animate-scale-up">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2.5 text-[#10141A]">
+                <div className="w-9 h-9 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-200">
+                  <span className="material-symbols-outlined text-[20px]">person_remove</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#10141A]">Delete or Deactivate User</h3>
+                  <p className="text-[11px] text-[#6B7280]">Manage account access &amp; lifecycle</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setUserToDelete(null);
+                }}
+                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {/* Target User Summary Box */}
+            <div className="p-3.5 rounded-2xl bg-[#f0f3ff]/60 border border-[#D8DEEA]/60 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#10141A] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                {(userToDelete.full_name || 'U').split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-semibold text-[#10141A] truncate">{userToDelete.full_name}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-[#D8DEEA] text-[#45474b]">
+                    @{userToDelete.username}
+                  </span>
+                </div>
+                <span className="text-[11px] text-[#6B7280] truncate">{userToDelete.email}</span>
+                <div className="flex items-center gap-2 mt-1 text-[10px] text-[#3f5e93]">
+                  <span>{userToDelete.department_name || 'General Dept'}</span>
+                  <span>•</span>
+                  <span>{userToDelete.designation || 'Staff'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Deletion Mode Selector */}
+            <div className="space-y-2">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#45474b]">
+                Select Action Type:
+              </label>
+              
+              <div className="grid grid-cols-1 gap-2">
+                {/* Option 1: Soft Deactivate */}
+                <label
+                  onClick={() => setDeletePermanent(false)}
+                  className={`flex items-start gap-3 p-3 rounded-2xl border transition cursor-pointer ${
+                    !deletePermanent
+                      ? 'bg-amber-50/70 border-amber-300 ring-1 ring-amber-300'
+                      : 'bg-white border-[#D8DEEA] hover:bg-[#f0f3ff]/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    checked={!deletePermanent}
+                    onChange={() => setDeletePermanent(false)}
+                    className="mt-0.5 text-[#3f5e93]"
+                  />
+                  <div className="flex flex-col text-xs">
+                    <span className="font-semibold text-[#10141A] flex items-center gap-1.5">
+                      <span>Deactivate Account (Recommended)</span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">Compliance Safe</span>
+                    </span>
+                    <span className="text-[11px] text-[#6B7280] mt-0.5">
+                      Instantly revokes login access and token authorization. Preserves all cryptographic audit trails and historical documents.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Option 2: Hard Permanent Delete */}
+                <label
+                  onClick={() => setDeletePermanent(true)}
+                  className={`flex items-start gap-3 p-3 rounded-2xl border transition cursor-pointer ${
+                    deletePermanent
+                      ? 'bg-rose-50 border-rose-300 ring-1 ring-rose-300'
+                      : 'bg-white border-[#D8DEEA] hover:bg-[#f0f3ff]/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    checked={deletePermanent}
+                    onChange={() => setDeletePermanent(true)}
+                    className="mt-0.5 text-rose-600"
+                  />
+                  <div className="flex flex-col text-xs">
+                    <span className="font-semibold text-rose-700 flex items-center gap-1.5">
+                      <span>Permanently Delete from Database</span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-rose-100 text-rose-800">Irreversible</span>
+                    </span>
+                    <span className="text-[11px] text-[#6B7280] mt-0.5">
+                      Completely removes the user record and assigned role credentials from PostgreSQL.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8DEEA]/60">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setUserToDelete(null);
+                }}
+                className="px-4 py-2 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] font-medium text-xs rounded-full transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleDeleteUser}
+                className={`px-5 py-2 text-white font-medium text-xs rounded-full transition shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer ${
+                  deletePermanent
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                    : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[15px]">
+                  {deletePermanent ? 'delete_forever' : 'block'}
+                </span>
+                <span>
+                  {submitting
+                    ? 'Processing...'
+                    : deletePermanent
+                    ? 'Permanently Delete'
+                    : 'Deactivate Account'}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}

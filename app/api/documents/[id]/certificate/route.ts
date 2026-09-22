@@ -103,8 +103,8 @@ export async function GET(
     // 5. Statutory Legal Text Formatter
     const statutoryDeclaration = `I, ${doc.officer_name}, holding the position of ${doc.officer_designation} in the ${doc.department_name}, ${doc.organization_name}, do hereby solemnly state and affirm as under:
 
-1. That I have lawful control over the server repository, cryptographic custody, and management of the secure digital record identified as Docket Number ${doc.document_number}.
-2. That the said digital evidence, titled "${doc.title}" (Original File: ${doc.file_name}, Size: ${(doc.file_size / 1024).toFixed(1)} KB), was produced by the centralized computer system and stored in the encrypted object vault during the ordinary course of legitimate official activities.
+1. That I have lawful control over the server repository, cryptographic custody, and management of the secure digital record identified as File / Reference Number ${doc.document_number}.
+2. That the said digital record, titled "${doc.title}" (Original File: ${doc.file_name}, Size: ${(doc.file_size / 1024).toFixed(1)} KB), was produced by the centralized computer system and stored in the encrypted object vault during the ordinary course of legitimate official activities.
 3. That throughout the material period, the computer system and digital repository (Secure Storage Node: DMS-SEC-NODE-01) operated under continuous cryptographic attestation, and the integrity of the electronic record was safeguarded using AES-256-GCM envelope encryption and FIPS-140-3 validated key management.
 4. That the bit-exact cryptographic SHA-256 digest of the electronic document is verified as:
    ${doc.sha256_hash}

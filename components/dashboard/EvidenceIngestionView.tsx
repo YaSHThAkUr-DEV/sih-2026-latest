@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 interface EvidenceIngestionProps {
   onSuccess: () => void;
@@ -30,6 +30,26 @@ interface TaxonomySecurityLevel {
   rank: number;
   isAccessible: boolean;
   approval_required: boolean;
+}
+
+interface IngestionPolicy {
+  id: string;
+  department_id: string;
+  department_code: string;
+  document_type_id: string;
+  document_type_code: string;
+  security_level_id: string;
+  security_level_code: string;
+  security_level_name: string;
+  security_level_rank: number;
+  retention_policy_id: string;
+  retention_policy_name: string;
+  retention_schedule_code: string;
+  retention_days: number | null;
+  retention_permanent: boolean;
+  approval_required: boolean;
+  ocr_required: boolean;
+  download_allowed: boolean;
 }
 
 // Bulk Upload Item Interface
@@ -90,7 +110,22 @@ export default function EvidenceIngestionView({
   const [docTypes, setDocTypes] = useState<TaxonomyDocType[]>([]);
   const [departments, setDepartments] = useState<TaxonomyDepartment[]>([]);
   const [securityLevels, setSecurityLevels] = useState<TaxonomySecurityLevel[]>([]);
+  const [governancePolicies, setGovernancePolicies] = useState<IngestionPolicy[]>([]);
   const [userMaxLevel, setUserMaxLevel] = useState<number>(3);
+
+  // Active policy matching current selection
+  const activeMatchedPolicy = useMemo(() => {
+    return governancePolicies.find(
+      (p) => p.department_code === deptCode && p.document_type_code === docType
+    );
+  }, [governancePolicies, deptCode, docType]);
+
+  // When activeMatchedPolicy changes, auto-set secTier to mandated level
+  useEffect(() => {
+    if (activeMatchedPolicy) {
+      setSecTier(activeMatchedPolicy.security_level_code);
+    }
+  }, [activeMatchedPolicy]);
 
   // --- SUBMISSION & PROGRESS STATE ---
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,6 +159,9 @@ export default function EvidenceIngestionView({
             if (accessible.length > 0) {
               setSecTier(accessible[Math.min(1, accessible.length - 1)].code);
             }
+          }
+          if (data.policies && Array.isArray(data.policies)) {
+            setGovernancePolicies(data.policies);
           }
           if (data.userMaxSecurityLevel !== undefined) {
             setUserMaxLevel(data.userMaxSecurityLevel);
@@ -309,9 +347,12 @@ export default function EvidenceIngestionView({
 
       setProgressPercent(100);
       setProgressLabel('Sealed & Registered Successfully!');
-      setProgressSubtext('Tamper-proof audit chained • OCR background worker queued • Blockchain anchor enqueued.');
+      setProgressSubtext('Tamper-proof audit chained • OCR text extraction in progress • Blockchain anchor committed.');
 
       setUploadReceipt(data.document);
+
+      // Trigger instant background queue runner across OCR and Blockchain workers
+      fetch('/api/jobs/run?drain=true', { method: 'POST' }).catch(() => {});
     } catch (err: any) {
       setUploadError(err.message || 'An error occurred during document upload.');
     } finally {
@@ -408,6 +449,9 @@ export default function EvidenceIngestionView({
     setProgressSubtext('All successful documents encrypted with KMS DEK, OCR extracted, and anchored into ledger.');
     setBulkReceipts(completedReceipts);
     setIsSubmitting(false);
+
+    // Trigger instant background queue runner across OCR and Blockchain workers
+    fetch('/api/jobs/run?drain=true', { method: 'POST' }).catch(() => {});
   };
 
   const handleCopyManifest = () => {
@@ -705,7 +749,7 @@ export default function EvidenceIngestionView({
                   <div>
                     <h2 className="text-sm font-bold text-[#151c27]">Document Classification &amp; Metadata</h2>
                     <span className="text-xs text-[#9CA3AF]">
-                      Select official taxonomy, clearance tier, and record identifiers.
+                      Select official document type, clearance tier, and record identifiers.
                     </span>
                   </div>
                   <span className="text-[10px] font-mono font-semibold px-2.5 py-1 bg-[#f0f3ff] text-[#151c27] rounded-full border border-[#D8DEEA]">
@@ -822,6 +866,53 @@ export default function EvidenceIngestionView({
                     </select>
                   </div>
                 </div>
+
+                {/* Active Governance Policy Badge / Alert */}
+                {activeMatchedPolicy ? (
+                  <div className="p-3.5 rounded-[18px] bg-[#f0f3ff] border border-[#83A2DB]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">policy</span>
+                      <div>
+                        <div className="text-xs font-semibold text-[#10141A] flex items-center gap-2">
+                          <span>Governed by Institutional Matrix</span>
+                          <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#3f5e93] text-white">
+                            L{activeMatchedPolicy.security_level_rank} — {activeMatchedPolicy.security_level_name}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6B7280]">
+                          Retention: <strong className="text-[#10141A]">{activeMatchedPolicy.retention_policy_name}</strong>
+                          {activeMatchedPolicy.retention_days ? ` (${activeMatchedPolicy.retention_days} Days)` : ' (Permanent Archive)'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${
+                          activeMatchedPolicy.approval_required
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        {activeMatchedPolicy.approval_required ? '⚖️ Dual Approval Required' : '✓ Standard Release'}
+                      </span>
+                      {activeMatchedPolicy.ocr_required && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                          OCR Mandatory
+                        </span>
+                      )}
+                      {!activeMatchedPolicy.download_allowed && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                          View Only (No Export)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-[16px] bg-[#f0f3ff]/40 border border-[#D8DEEA]/60 flex items-center gap-2 text-[#6B7280] text-xs">
+                    <span className="material-symbols-outlined text-[16px] text-[#9CA3AF]">info</span>
+                    <span>No specific departmental policy mapped. Applying baseline organizational security.</span>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-[#45474b]">Summary &amp; Case Notes</label>
@@ -956,10 +1047,6 @@ export default function EvidenceIngestionView({
                   or <span className="text-[#3f5e93] font-semibold underline underline-offset-2">select multiple files simultaneously</span>
                 </p>
               </div>
-              <div className="inline-flex items-center gap-2 bg-white border border-[#D8DEEA] px-4 py-1.5 rounded-full text-[11px] text-[#45474b]">
-                <span className="material-symbols-outlined text-[15px] text-[#3f5e93]">verified_user</span>
-                <span>Each file automatically triggers Envelope Encryption, OCR Pipeline &amp; Blockchain Anchoring</span>
-              </div>
             </div>
 
             {/* Staged File Queue Table */}
@@ -1081,7 +1168,7 @@ export default function EvidenceIngestionView({
                 </span>
               </div>
               <span className="text-[10px] font-mono font-semibold px-2.5 py-1 bg-[#f0f3ff] text-[#151c27] rounded-full border border-[#D8DEEA]">
-                BATCH TAXONOMY
+                BATCH CLASSIFICATION
               </span>
             </div>
 
@@ -1157,6 +1244,53 @@ export default function EvidenceIngestionView({
                 </select>
               </div>
             </div>
+
+            {/* Active Governance Policy Badge / Alert */}
+            {activeMatchedPolicy ? (
+              <div className="p-3.5 rounded-[18px] bg-[#f0f3ff] border border-[#83A2DB]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">policy</span>
+                  <div>
+                    <div className="text-xs font-semibold text-[#10141A] flex items-center gap-2">
+                      <span>Governed by Institutional Matrix</span>
+                      <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#3f5e93] text-white">
+                        L{activeMatchedPolicy.security_level_rank} — {activeMatchedPolicy.security_level_name}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#6B7280]">
+                      Retention: <strong className="text-[#10141A]">{activeMatchedPolicy.retention_policy_name}</strong>
+                      {activeMatchedPolicy.retention_days ? ` (${activeMatchedPolicy.retention_days} Days)` : ' (Permanent Archive)'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${
+                      activeMatchedPolicy.approval_required
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    }`}
+                  >
+                    {activeMatchedPolicy.approval_required ? '⚖️ Dual Approval Required' : '✓ Standard Release'}
+                  </span>
+                  {activeMatchedPolicy.ocr_required && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                      OCR Mandatory
+                    </span>
+                  )}
+                  {!activeMatchedPolicy.download_allowed && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                      View Only (No Export)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-[16px] bg-[#f0f3ff]/40 border border-[#D8DEEA]/60 flex items-center gap-2 text-[#6B7280] text-xs">
+                <span className="material-symbols-outlined text-[16px] text-[#9CA3AF]">info</span>
+                <span>No specific departmental policy mapped. Applying baseline organizational security.</span>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[#45474b]">Batch Ingestion Notes / Audit Tag</label>

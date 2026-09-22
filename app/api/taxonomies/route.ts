@@ -62,6 +62,35 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 5. Fetch Active Department Governance Policies
+    const policies = await query<any>(
+      `SELECT 
+         dtp.id,
+         dtp.department_id,
+         d.code as department_code,
+         dtp.document_type_id,
+         dt.code as document_type_code,
+         dtp.security_level_id,
+         sl.code as security_level_code,
+         sl.name as security_level_name,
+         sl.rank as security_level_rank,
+         dtp.retention_policy_id,
+         rp.name as retention_policy_name,
+         rp.schedule_code as retention_schedule_code,
+         rp.retention_days,
+         rp.permanent as retention_permanent,
+         dtp.approval_required,
+         dtp.ocr_required,
+         dtp.download_allowed
+       FROM document_type_policies dtp
+       JOIN departments d ON dtp.department_id = d.id
+       JOIN document_types dt ON dtp.document_type_id = dt.id
+       JOIN security_levels sl ON dtp.security_level_id = sl.id
+       JOIN retention_policies rp ON dtp.retention_policy_id = rp.id
+       WHERE dtp.organization_id = $1 AND dtp.active = true`,
+      [orgId]
+    );
+
     return NextResponse.json({
       success: true,
       userMaxSecurityLevel: userMaxLevel,
@@ -79,6 +108,7 @@ export async function GET(req: NextRequest) {
       })),
       securityLevels: mappedSecLevels,
       roles,
+      policies,
     });
   } catch (error: any) {
     console.error('[TAXONOMIES_API_ERROR]', error);

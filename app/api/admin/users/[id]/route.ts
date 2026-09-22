@@ -261,22 +261,24 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await verifyAdminSession();
+  const auth = await verifyAdminSession(req);
   if (auth.errorResponse) return auth.errorResponse;
   const session = auth.session;
   const { id: targetUserId } = await params;
+  const { searchParams } = new URL(req.url);
+  const permanent = searchParams.get('permanent') === 'true';
 
   try {
     if (targetUserId === session.userId) {
       return NextResponse.json(
-        { error: 'Action Blocked: You cannot delete or suspend your own active administrator credential.' },
+        { error: 'Action Blocked: You cannot delete or suspend your own active administrator account.' },
         { status: 400 }
       );
     }
 
     // Verify user existence and role
     const existing = await query(
-      `SELECT u.id, u.username,
+      `SELECT u.id, u.username, u.full_name, u.email,
               COALESCE(array_agg(r.code) FILTER (WHERE r.code IS NOT NULL), '{}') as current_role_codes
        FROM users u
        LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -302,40 +304,85 @@ export async function DELETE(
 
       if (parseInt(activeSuperAdmins[0]?.count || '0', 10) <= 1) {
         return NextResponse.json(
-          { error: 'Action Blocked: Cannot disable or delete the sole active Super Administrator.' },
+          { error: 'Action Blocked: Cannot delete or disable the sole active Super Administrator.' },
           { status: 400 }
         );
       }
     }
 
-    // Soft delete / disable
-    await query(
-      `UPDATE users SET status = 'DISABLED', updated_at = NOW() WHERE id = $1 AND organization_id = $2`,
-      [targetUserId, session.organizationId]
-    );
+    if (permanent) {
+      // 1. Remove assigned user roles & permissions
+      await query(`DELETE FROM user_roles WHERE user_id = $1`, [targetUserId]);
+      await query(`DELETE FROM document_permissions WHERE user_id = $1`, [targetUserId]);
+      await query(`DELETE FROM notifications WHERE user_id = $1`, [targetUserId]);
 
-    await logAuditEvent({
-      organizationId: session.organizationId,
-      eventType: 'ADMIN_USER_DISABLED',
-      actorId: session.userId,
-      resourceType: 'USER',
-      resourceId: targetUserId,
-      result: 'SUCCESS',
-      metadata: {
-        targetUserId,
-        username: existing[0].username,
-        action: 'Account set to DISABLED status',
-      },
-    });
+      // 2. Safely reassign/nullify historical activity references so foreign key constraints pass
+      await query(`UPDATE audit_events SET actor_id = NULL WHERE actor_id = $1`, [targetUserId]);
+      await query(`UPDATE documents SET owner_id = $2 WHERE owner_id = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE documents SET created_by = $2 WHERE created_by = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE documents SET updated_by = $2 WHERE updated_by = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE document_versions SET created_by = $2 WHERE created_by = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE change_requests SET requested_by = $2 WHERE requested_by = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE change_requests SET assigned_approver_id = NULL WHERE assigned_approver_id = $1`, [targetUserId]);
+      await query(`UPDATE approval_actions SET approver_id = $2 WHERE approver_id = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE deletion_requests SET requested_by = $2 WHERE requested_by = $1`, [targetUserId, session.userId]);
+      await query(`UPDATE deletion_requests SET approved_by = NULL WHERE approved_by = $1`, [targetUserId]);
+      await query(`UPDATE retention_records SET legal_hold_by = NULL WHERE legal_hold_by = $1`, [targetUserId]);
+      await query(`UPDATE system_settings SET updated_by = $2 WHERE updated_by = $1`, [targetUserId, session.userId]);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Institutional user credential has been disabled.',
-    });
+      // 3. Delete user row permanently
+      await query(`DELETE FROM users WHERE id = $1 AND organization_id = $2`, [targetUserId, session.organizationId]);
+
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        eventType: 'ADMIN_USER_DELETED',
+        actorId: session.userId,
+        resourceType: 'USER',
+        resourceId: targetUserId,
+        result: 'SUCCESS',
+        metadata: {
+          targetUserId,
+          username: existing[0].username,
+          fullName: existing[0].full_name,
+          email: existing[0].email,
+          action: 'User permanently deleted from database',
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `User ${existing[0].full_name} (${existing[0].username}) has been permanently deleted.`,
+      });
+    } else {
+      // Soft disable
+      await query(
+        `UPDATE users SET status = 'DISABLED', updated_at = NOW() WHERE id = $1 AND organization_id = $2`,
+        [targetUserId, session.organizationId]
+      );
+
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        eventType: 'ADMIN_USER_DISABLED',
+        actorId: session.userId,
+        resourceType: 'USER',
+        resourceId: targetUserId,
+        result: 'SUCCESS',
+        metadata: {
+          targetUserId,
+          username: existing[0].username,
+          action: 'Account set to DISABLED status',
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `User ${existing[0].full_name} (${existing[0].username}) has been deactivated.`,
+      });
+    }
   } catch (err: any) {
     console.error('[ADMIN_DELETE_USER_ERROR]', err);
     return NextResponse.json(
-      { error: 'Failed to disable user account.', details: err.message },
+      { error: 'Failed to process user deletion.', details: err.message },
       { status: 500 }
     );
   }

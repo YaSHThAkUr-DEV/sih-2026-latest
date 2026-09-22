@@ -121,7 +121,6 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument, on
         setNotifications(data.notifications || []);
         if (data.stats) {
           setStats(data.stats);
-          if (onUnreadCountChange) onUnreadCountChange(data.stats.unreadNotices || 0);
         }
 
         // Select first alert by default if none selected or not in current list
@@ -142,6 +141,13 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument, on
     loadNotifications();
   }, [activeCategory, sortOption]);
 
+  // Sync unread count to parent safely via post-render effect
+  useEffect(() => {
+    if (onUnreadCountChange && typeof stats.unreadNotices === 'number') {
+      onUnreadCountChange(stats.unreadNotices);
+    }
+  }, [stats.unreadNotices, onUnreadCountChange]);
+
   // Mark all as read with instant optimistic UI update
   const handleMarkAllRead = async () => {
     // 1. Optimistic update
@@ -156,9 +162,6 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument, on
       setSelectedAlert((prev) =>
         prev ? { ...prev, isUnread: false, readAt: prev.readAt || new Date().toISOString() } : null
       );
-    }
-    if (onUnreadCountChange) {
-      onUnreadCountChange(0);
     }
     showToast('✓ All operational notices marked as read.');
 
@@ -181,11 +184,10 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument, on
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, isUnread: false, readAt: new Date().toISOString() } : n))
       );
-      setStats((prev) => {
-        const nextCount = Math.max(0, prev.unreadNotices - 1);
-        if (onUnreadCountChange) onUnreadCountChange(nextCount);
-        return { ...prev, unreadNotices: nextCount };
-      });
+      setStats((prev) => ({
+        ...prev,
+        unreadNotices: Math.max(0, prev.unreadNotices - 1),
+      }));
       fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -535,7 +537,7 @@ export default function NotificationsView({ onNavigateTab, onInspectDocument, on
                             ? 'View Schedule'
                             : item.type === 'BLOCKCHAIN_ANCHOR'
                             ? 'Inspect in Ledger'
-                            : 'Inspect Dossier'}
+                            : 'Inspect Details'}
                         </button>
                       </div>
                     </div>

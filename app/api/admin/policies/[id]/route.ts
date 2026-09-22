@@ -91,3 +91,54 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await verifyAdminSession(req);
+  if (auth.errorResponse) return auth.errorResponse;
+  const session = auth.session;
+  const { id: policyId } = await params;
+
+  try {
+    const existing = await query(
+      `SELECT id, department_id, document_type_id FROM document_type_policies WHERE id = $1 AND organization_id = $2`,
+      [policyId, session.organizationId]
+    );
+    if (existing.length === 0) {
+      return NextResponse.json({ error: 'Policy record not found.' }, { status: 404 });
+    }
+
+    await query(
+      `DELETE FROM document_type_policies WHERE id = $1 AND organization_id = $2`,
+      [policyId, session.organizationId]
+    );
+
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      eventType: 'ADMIN_DEPARTMENT_POLICY_DELETED',
+      actorId: session.userId,
+      resourceType: 'DEPARTMENT_POLICY',
+      resourceId: policyId,
+      result: 'SUCCESS',
+      metadata: {
+        policyId,
+        departmentId: existing[0].department_id,
+        documentTypeId: existing[0].document_type_id,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Policy configuration deleted successfully.',
+    });
+  } catch (err: any) {
+    console.error('[ADMIN_DELETE_POLICY_ERROR]', err);
+    return NextResponse.json(
+      { error: 'Failed to delete policy.', details: err.message },
+      { status: 500 }
+    );
+  }
+}
+

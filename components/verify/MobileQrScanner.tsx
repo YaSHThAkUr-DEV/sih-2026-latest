@@ -711,42 +711,6 @@ export function MobileQrScanner({ onScanSuccess, onError }: MobileQrScannerProps
             <span className="text-[11px] leading-tight">Pick from Gallery</span>
           </button>
         </div>
-
-        {/* Quick Demo Test Buttons */}
-        <div className="pt-2 border-t border-[#E2E8F0]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block mb-1.5">
-            ⚡ Instant Mobile Test Demo (Tap to Verify):
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleSuccessfulScan(JSON.stringify({
-                cert: "SEC65B-GENESIS-001",
-                docket: "OFFICIAL-DOC-GENESIS",
-                sha256: "d0ebd1167c197da4e6a84baf70183426c18a35c036c2867e6880dae720e37bd3",
-                txId: "4964a0d25b7422a5fe34826711f54fb0fde6815c589320274d8f99b5d9874ac4"
-              }))}
-              className="px-2.5 py-1.5 rounded-lg bg-[#F1F5F9] hover:bg-[#0B1C30] hover:text-white border border-[#CBD5E1] text-[#0B1C30] text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer touch-manipulation active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[13px] text-emerald-500">verified</span>
-              <span>Test Genesis Ledger QR</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSuccessfulScan(JSON.stringify({
-                cert: "SEC65B-COURT-882",
-                docket: "OFFICIAL-DOC-GENESIS",
-                sha256: "64cc34aea860452b32bc0c8cc50d7f3230f53248cedf2f6cc956b3bc11e94a4f",
-                txId: "f189bde35de5672bc0782a775e7207694cae1febc7bab48f7bd3a6f14b79c7f5"
-              }))}
-              className="px-2.5 py-1.5 rounded-lg bg-[#F1F5F9] hover:bg-[#0B1C30] hover:text-white border border-[#CBD5E1] text-[#0B1C30] text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer touch-manipulation active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[13px] text-blue-500">verified</span>
-              <span>Test Court Docket QR</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

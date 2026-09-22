@@ -111,21 +111,19 @@ function PublicVerifierTerminal() {
   const [isHashing, setIsHashing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Telemetry & Samples state
+  // Telemetry state
   const [telemetry, setTelemetry] = useState<NetworkTelemetry | null>(null);
-  const [sampleDockets, setSampleDockets] = useState<any[]>([]);
 
   // Section 65B Modal state
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [activeCertificateDocId, setActiveCertificateDocId] = useState<string | null>(null);
 
-  // Fetch telemetry & samples on mount
+  // Fetch telemetry on mount
   useEffect(() => {
     fetch('/api/blockchain/public-status')
       .then((res) => res.json())
       .then((data) => {
         if (data.network) setTelemetry(data.network);
-        if (data.samples) setSampleDockets(data.samples);
       })
       .catch((err) => console.error('Failed to load telemetry:', err));
   }, []);
@@ -466,7 +464,7 @@ function PublicVerifierTerminal() {
                   className="space-y-4"
                 >
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#475569]">
-                    Enter Transaction ID, Docket Number, or SHA-256 Hash:
+                    Enter Transaction ID, Document Reference No., or SHA-256 Hash:
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
@@ -477,7 +475,7 @@ function PublicVerifierTerminal() {
                         type="text"
                         value={inputKey}
                         onChange={(e) => setInputKey(e.target.value)}
-                        placeholder="Paste TX ID or Docket Number..."
+                        placeholder="Paste TX ID, Document / File No., or Hash..."
                         className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-base sm:text-sm text-[#0F172A] placeholder-[#94A3B8] font-mono focus:outline-none focus:ring-2 focus:ring-[#0B1C30] focus:border-[#0B1C30] transition-all"
                       />
                     </div>
@@ -500,49 +498,6 @@ function PublicVerifierTerminal() {
                     </button>
                   </div>
                 </form>
-
-                {/* Preset Chips */}
-                <div className="mt-4 pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center gap-2 text-xs text-[#64748B]">
-                  <span className="font-semibold text-[#475569]">Quick Test Anchors:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const genesisTx = 'f8a42b109e8f49c0d3a771b9c45e68310022f18ab93c40192e8fa10b904423a1';
-                      setInputKey(genesisTx);
-                      executeVerification(genesisTx);
-                    }}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1E3A8A] border border-[#BFDBFE] font-mono text-[11px] transition-colors cursor-pointer"
-                  >
-                    🏛️ Genesis Anchor
-                  </button>
-
-                  {sampleDockets.length > 0 &&
-                    sampleDockets.slice(0, 2).map((s, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setInputKey(s.transactionId);
-                          executeVerification(s.transactionId);
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#334155] border border-[#CBD5E1] font-mono text-[11px] transition-colors cursor-pointer"
-                      >
-                        📄 {s.documentNumber}
-                      </button>
-                    ))}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tampered = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-                      setInputKey(tampered);
-                      executeVerification(tampered);
-                    }}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#BE123C] border border-[#FECDD3] font-mono text-[11px] transition-colors cursor-pointer"
-                  >
-                    ⚠️ Tampered Hash
-                  </button>
-                </div>
               </div>
             )}
 
@@ -708,7 +663,7 @@ function PublicVerifierTerminal() {
               </div>
             </div>
 
-            {/* 2. Official Docket Information (If Document is Bound) */}
+            {/* 2. Official Document Information (If Document is Bound) */}
             {result.document && (
               <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 sm:p-7 shadow-xs">
                 <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3.5 mb-4">
@@ -717,7 +672,7 @@ function PublicVerifierTerminal() {
                       account_balance
                     </span>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1C30]">
-                      Associated Sovereign Institutional Docket
+                      Associated Government Document & Record Details
                     </h3>
                   </div>
 
@@ -734,7 +689,7 @@ function PublicVerifierTerminal() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
                   <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                     <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Official Docket Number:
+                      Document / File Reference No:
                     </span>
                     <span className="font-mono font-bold text-[#0B1C30] text-sm mt-0.5 block">
                       {result.document.documentNumber}
@@ -743,7 +698,7 @@ function PublicVerifierTerminal() {
 
                   <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                     <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Docket Title:
+                      Subject / Title:
                     </span>
                     <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block truncate">
                       {result.document.title}
@@ -797,7 +752,7 @@ function PublicVerifierTerminal() {
                 {result.document.description && (
                   <div className="mt-3 p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs">
                     <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Docket Description & Case Summary:
+                      Document Description & Case Summary:
                     </span>
                     <p className="text-[#334155] mt-0.5 leading-relaxed">
                       {result.document.description}

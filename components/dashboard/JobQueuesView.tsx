@@ -34,6 +34,7 @@ interface JobsResponse {
   queueStats: {
     queues: {
       'ocr-queue': QueueMetrics;
+      'blockchain-queue': QueueMetrics;
       'notification-queue': QueueMetrics;
       'retention-queue': QueueMetrics;
       'cleanup-queue': QueueMetrics;
@@ -56,6 +57,8 @@ export default function JobQueuesView() {
   const [draining, setDraining] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobRecord | null>(null);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [selectedTestQueue, setSelectedTestQueue] = useState<string>('ALL');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'>('ALL');
@@ -79,13 +82,13 @@ export default function JobQueuesView() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 4000);
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const handleTriggerTick = async () => {
     setExecutingTick(true);
-    setActionFeedback('Executing worker tick across all queues...');
+    setActionFeedback('Executing worker tick across all 5 queues...');
     try {
       const res = await fetch('/api/jobs/run', { method: 'POST' });
       const json = await res.json();
@@ -121,7 +124,11 @@ export default function JobQueuesView() {
       const res = await fetch('/api/jobs/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'RETENTION_AUDIT', payload: { dryRun: false } }),
+        body: JSON.stringify({
+          queue: 'retention-queue',
+          type: 'RETENTION_AUDIT',
+          payload: { auditScope: 'SCHEDULE_ALL' },
+        }),
       });
       const json = await res.json();
       setActionFeedback(json.message || 'Retention audit enqueued');
@@ -133,27 +140,56 @@ export default function JobQueuesView() {
     }
   };
 
-  const handleEnqueueTestJob = async () => {
-    setActionFeedback('Enqueuing test worker job...');
+  const handleDispatchTestJobs = async (targetQueue: string) => {
+    setShowTestModal(false);
+    setActionFeedback(`Enqueuing benchmark test job into ${targetQueue === 'ALL' ? 'all 5 queues' : targetQueue}...`);
+
     try {
-      const res = await fetch('/api/jobs/enqueue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'TEST_JOB', payload: { message: 'Manual test dispatch' } }),
-      });
-      const json = await res.json();
-      setActionFeedback(json.message || 'Test job enqueued');
+      if (targetQueue === 'ALL') {
+        const queuesToTest = [
+          { queue: 'ocr-queue', type: 'TEST_JOB', payload: { benchmark: 'Tesseract/PDF OCR', samplePages: 1 } },
+          { queue: 'blockchain-queue', type: 'TEST_JOB', payload: { benchmark: 'Hyperledger Fabric Anchor', channel: 'dms-channel' } },
+          { queue: 'notification-queue', type: 'TEST_JOB', payload: { benchmark: 'Fanout Notification', scope: 'BROADCAST' } },
+          { queue: 'retention-queue', type: 'TEST_JOB', payload: { benchmark: 'BNSS Retention Audit', scope: 'ALL_SCHEDULES' } },
+          { queue: 'cleanup-queue', type: 'TEST_JOB', payload: { benchmark: 'Crypto-Shred Zeroization', scope: 'KEY_AUDIT' } },
+        ];
+
+        for (const item of queuesToTest) {
+          await fetch('/api/jobs/enqueue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+        }
+        setActionFeedback('Successfully enqueued 5 test jobs across all active queues. Auto-runner will process them.');
+      } else {
+        const res = await fetch('/api/jobs/enqueue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            queue: targetQueue,
+            type: 'TEST_JOB',
+            payload: { message: `Manual test dispatch for ${targetQueue}` },
+          }),
+        });
+        const json = await res.json();
+        setActionFeedback(json.message || `Test job enqueued into ${targetQueue}`);
+      }
       await fetchData();
     } catch (err: any) {
       setActionFeedback(`Error: ${err.message}`);
     } finally {
-      setTimeout(() => setActionFeedback(null), 4000);
+      setTimeout(() => setActionFeedback(null), 4500);
     }
   };
 
   const handleRetryJob = async (jobId: string) => {
     try {
-      const res = await fetch(`/api/jobs/${jobId}/retry`, { method: 'POST' });
+      const res = await fetch('/api/jobs/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId }),
+      });
       const json = await res.json();
       setActionFeedback(json.message || 'Job re-queued');
       await fetchData();
@@ -192,6 +228,7 @@ export default function JobQueuesView() {
   const totals = data?.queueStats?.totals || { waiting: 0, active: 0, completed: 0, failed: 0 };
   const queues = data?.queueStats?.queues || {
     'ocr-queue': { waiting: 0, active: 0, completed: 0, failed: 0 },
+    'blockchain-queue': { waiting: 0, active: 0, completed: 0, failed: 0 },
     'notification-queue': { waiting: 0, active: 0, completed: 0, failed: 0 },
     'retention-queue': { waiting: 0, active: 0, completed: 0, failed: 0 },
     'cleanup-queue': { waiting: 0, active: 0, completed: 0, failed: 0 },
@@ -209,11 +246,11 @@ export default function JobQueuesView() {
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-[#151c27] tracking-tight">Background Job Queues &amp; Asynchronous Workers</h2>
               <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30">
-                DISPATCH ENGINE ACTIVE
+                AUTO-DISPATCH ENGINE ACTIVE
               </span>
             </div>
             <p className="text-xs text-[#45474b] mt-0.5">
-              Task queues, asynchronous OCR workers, statutory retention scheduler, and cryptographic zeroization.
+              Live Redis queues, asynchronous OCR text extraction, Hyperledger Fabric ledger anchoring, BNSS retention scheduler, and cryptographic zeroization.
             </p>
           </div>
         </div>
@@ -224,7 +261,7 @@ export default function JobQueuesView() {
             onClick={handleTriggerTick}
             disabled={executingTick || draining}
             className="h-10 px-4 flex items-center gap-1.5 bg-[#000000] hover:bg-[#181c22] text-white rounded-full text-xs font-semibold shadow-xs transition disabled:opacity-50 cursor-pointer"
-            title="Execute one worker pass across all queues"
+            title="Execute one worker pass across all 5 queues"
           >
             <span className={`material-symbols-outlined text-[16px] ${executingTick ? 'animate-spin' : ''}`}>
               play_circle
@@ -253,7 +290,7 @@ export default function JobQueuesView() {
           </button>
 
           <button
-            onClick={handleEnqueueTestJob}
+            onClick={() => setShowTestModal(true)}
             className="h-10 px-4 flex items-center gap-1.5 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] rounded-full text-xs font-semibold shadow-xs transition cursor-pointer"
           >
             <span className="material-symbols-outlined text-[16px] text-[#9CA3AF]">add_task</span>
@@ -279,10 +316,10 @@ export default function JobQueuesView() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-[#151c27]">4</span>
+            <span className="text-2xl font-bold font-mono text-[#151c27]">5</span>
             <span className="text-[11px] font-mono text-emerald-600 font-semibold">ALL ONLINE</span>
           </div>
-          <span className="text-[11px] text-[#9CA3AF] mt-1">OCR, Notif, Retention, Cleanup</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1 truncate">OCR, Blockchain, Notif, Retention, Cleanup</span>
         </div>
 
         {/* Queued Waiting */}
@@ -295,7 +332,7 @@ export default function JobQueuesView() {
             <span className="text-2xl font-bold font-mono text-[#151c27]">{totals.waiting}</span>
             <span className="text-[11px] text-[#9CA3AF]">pending</span>
           </div>
-          <span className="text-[11px] text-[#9CA3AF] mt-1">Across active queues</span>
+          <span className="text-[11px] text-[#9CA3AF] mt-1">Across 5 active queues</span>
         </div>
 
         {/* Active Processing */}
@@ -340,165 +377,205 @@ export default function JobQueuesView() {
         </div>
       </div>
 
-      {/* 3. Four Dedicated Queue Breakdown Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3. Five Dedicated Queue Breakdown Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
         {/* Card 1: OCR Extraction Queue */}
-        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-4.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
+            <div className="flex items-start justify-between pb-2.5 border-b border-[#D8DEEA]/50 gap-1">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold shrink-0">
                   <span className="material-symbols-outlined text-[18px]">document_scanner</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-[#151c27]">OCR Extraction</h3>
-                  <span className="text-[10px] font-mono text-[#9CA3AF]">ocr-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27] whitespace-nowrap leading-tight">OCR Engine</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF] block leading-tight">ocr-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93]">
-                Tesseract/PDF
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] shrink-0 whitespace-nowrap">
+                Tesseract
               </span>
             </div>
             
-            <p className="text-[11px] text-[#45474b] my-3">
-              Asynchronous text extraction pipeline for scanned PDF dockets and image evidence. Populates GIN index.
+            <p className="text-[11px] text-[#45474b] my-2.5 leading-relaxed">
+              Asynchronous text extraction pipeline for scanned PDF dockets. Populates GIN search vector.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
-                <div className="font-bold text-[#151c27]">{queues['ocr-queue'].waiting}</div>
+                <div className="font-bold text-[#151c27]">{queues['ocr-queue']?.waiting ?? 0}</div>
               </div>
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
-                <div className="font-bold text-[#3f5e93]">{queues['ocr-queue'].active}</div>
+                <div className="font-bold text-[#3f5e93]">{queues['ocr-queue']?.active ?? 0}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
-            <span className="text-[#45474b] font-mono">Done: {queues['ocr-queue'].completed}</span>
-            <span className="text-[#9CA3AF] font-mono">Fails: {queues['ocr-queue'].failed}</span>
+          <div className="pt-2.5 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono text-[10px]">Done: {queues['ocr-queue']?.completed ?? 0}</span>
+            <span className="text-[#9CA3AF] font-mono text-[10px]">Fails: {queues['ocr-queue']?.failed ?? 0}</span>
           </div>
         </div>
 
-        {/* Card 2: Notification Queue */}
-        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
+        {/* Card 2: Blockchain Ledger Anchoring Queue */}
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-4.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
+            <div className="flex items-start justify-between pb-2.5 border-b border-[#D8DEEA]/50 gap-1">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">hub</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-xs text-[#151c27] whitespace-nowrap leading-tight">Fabric Ledger</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF] block leading-tight">blockchain-queue</span>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0 whitespace-nowrap">
+                Fabric
+              </span>
+            </div>
+            
+            <p className="text-[11px] text-[#45474b] my-2.5 leading-relaxed">
+              Commits SHA-256 evidence hashes and tamper-evident audit logs directly to Fabric ledger blocks.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
+                <div className="font-bold text-[#151c27]">{queues['blockchain-queue']?.waiting ?? 0}</div>
+              </div>
+              <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
+                <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
+                <div className="font-bold text-indigo-600">{queues['blockchain-queue']?.active ?? 0}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2.5 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono text-[10px]">Done: {queues['blockchain-queue']?.completed ?? 0}</span>
+            <span className="text-[#9CA3AF] font-mono text-[10px]">Fails: {queues['blockchain-queue']?.failed ?? 0}</span>
+          </div>
+        </div>
+
+        {/* Card 3: Notification Queue */}
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-4.5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-start justify-between pb-2.5 border-b border-[#D8DEEA]/50 gap-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center font-bold shrink-0">
                   <span className="material-symbols-outlined text-[18px]">notifications_active</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-[#151c27]">Notifications</h3>
-                  <span className="text-[10px] font-mono text-[#9CA3AF]">notification-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27] whitespace-nowrap leading-tight">Notifications</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF] block leading-tight">notification-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                Fanout Dispatch
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 shrink-0 whitespace-nowrap">
+                Fanout
               </span>
             </div>
             
-            <p className="text-[11px] text-[#45474b] my-3">
-              Evidentiary alert push dispatcher for Maker-Checker quarantine notices, legal holds, and high-priority alarms.
+            <p className="text-[11px] text-[#45474b] my-2.5 leading-relaxed">
+              Evidentiary alert push dispatcher for Maker-Checker quarantine notices and security alarms.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
-                <div className="font-bold text-[#151c27]">{queues['notification-queue'].waiting}</div>
+                <div className="font-bold text-[#151c27]">{queues['notification-queue']?.waiting ?? 0}</div>
               </div>
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
-                <div className="font-bold text-amber-600">{queues['notification-queue'].active}</div>
+                <div className="font-bold text-amber-600">{queues['notification-queue']?.active ?? 0}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
-            <span className="text-[#45474b] font-mono">Done: {queues['notification-queue'].completed}</span>
-            <span className="text-[#9CA3AF] font-mono">Fails: {queues['notification-queue'].failed}</span>
+          <div className="pt-2.5 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono text-[10px]">Done: {queues['notification-queue']?.completed ?? 0}</span>
+            <span className="text-[#9CA3AF] font-mono text-[10px]">Fails: {queues['notification-queue']?.failed ?? 0}</span>
           </div>
         </div>
 
-        {/* Card 3: BNSS Retention Scheduler */}
-        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
+        {/* Card 4: BNSS Retention Scheduler */}
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-4.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
+            <div className="flex items-start justify-between pb-2.5 border-b border-[#D8DEEA]/50 gap-1">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] flex items-center justify-center font-bold shrink-0">
                   <span className="material-symbols-outlined text-[18px]">policy</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-[#151c27]">Retention Engine</h3>
-                  <span className="text-[10px] font-mono text-[#9CA3AF]">retention-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27] whitespace-nowrap leading-tight">Retention Engine</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF] block leading-tight">retention-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93]">
-                Policy Enforced
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-[rgba(131,162,219,0.14)] text-[#3f5e93] shrink-0 whitespace-nowrap">
+                Policy
               </span>
             </div>
             
-            <p className="text-[11px] text-[#45474b] my-3">
-              Evaluates statutory expiry dates against department schedules. Respects judicial legal hold immunity locks.
+            <p className="text-[11px] text-[#45474b] my-2.5 leading-relaxed">
+              Evaluates statutory expiry dates against department schedules. Respects legal hold immunity.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
-                <div className="font-bold text-[#151c27]">{queues['retention-queue'].waiting}</div>
+                <div className="font-bold text-[#151c27]">{queues['retention-queue']?.waiting ?? 0}</div>
               </div>
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
-                <div className="font-bold text-[#3f5e93]">{queues['retention-queue'].active}</div>
+                <div className="font-bold text-[#3f5e93]">{queues['retention-queue']?.active ?? 0}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
-            <span className="text-[#45474b] font-mono">Done: {queues['retention-queue'].completed}</span>
-            <span className="text-[#9CA3AF] font-mono">Fails: {queues['retention-queue'].failed}</span>
+          <div className="pt-2.5 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono text-[10px]">Done: {queues['retention-queue']?.completed ?? 0}</span>
+            <span className="text-[#9CA3AF] font-mono text-[10px]">Fails: {queues['retention-queue']?.failed ?? 0}</span>
           </div>
         </div>
 
-        {/* Card 4: Crypto-Shred Cleanup */}
-        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-5 shadow-xs flex flex-col justify-between">
+        {/* Card 5: Crypto-Shred Cleanup */}
+        <div className="bg-white rounded-[20px] border border-[#D8DEEA]/80 p-4.5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/50">
+            <div className="flex items-start justify-between pb-2.5 border-b border-[#D8DEEA]/50 gap-1">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666] flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666] flex items-center justify-center font-bold shrink-0">
                   <span className="material-symbols-outlined text-[18px]">delete_forever</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-[#151c27]">Crypto-Shredding</h3>
-                  <span className="text-[10px] font-mono text-[#9CA3AF]">cleanup-queue</span>
+                  <h3 className="font-bold text-xs text-[#151c27] whitespace-nowrap leading-tight">Crypto-Shred</h3>
+                  <span className="text-[10px] font-mono text-[#9CA3AF] block leading-tight">cleanup-queue</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666]">
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-[rgba(206,105,105,0.14)] text-[#ca6666] shrink-0 whitespace-nowrap">
                 Zeroization
               </span>
             </div>
             
-            <p className="text-[11px] text-[#45474b] my-3">
-              Dual-custody cryptographic key zeroization engine. Purges Transit DEKs and zeroizes encrypted storage streams.
+            <p className="text-[11px] text-[#45474b] my-2.5 leading-relaxed">
+              Dual-custody cryptographic key zeroization engine. Purges Transit DEKs and zeroizes storage streams.
             </p>
 
             <div className="grid grid-cols-2 gap-2 my-2 text-xs font-mono">
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">WAITING</div>
-                <div className="font-bold text-[#151c27]">{queues['cleanup-queue'].waiting}</div>
+                <div className="font-bold text-[#151c27]">{queues['cleanup-queue']?.waiting ?? 0}</div>
               </div>
               <div className="bg-[#f0f3ff]/60 p-2 rounded-xl border border-[#D8DEEA]/60">
                 <div className="text-[10px] text-[#9CA3AF]">ACTIVE</div>
-                <div className="font-bold text-[#ca6666]">{queues['cleanup-queue'].active}</div>
+                <div className="font-bold text-[#ca6666]">{queues['cleanup-queue']?.active ?? 0}</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
-            <span className="text-[#45474b] font-mono">Done: {queues['cleanup-queue'].completed}</span>
-            <span className="text-[#9CA3AF] font-mono">Fails: {queues['cleanup-queue'].failed}</span>
+          <div className="pt-2.5 border-t border-[#D8DEEA]/50 flex items-center justify-between text-[11px]">
+            <span className="text-[#45474b] font-mono text-[10px]">Done: {queues['cleanup-queue']?.completed ?? 0}</span>
+            <span className="text-[#9CA3AF] font-mono text-[10px]">Fails: {queues['cleanup-queue']?.failed ?? 0}</span>
           </div>
         </div>
       </div>
@@ -537,6 +614,7 @@ export default function JobQueuesView() {
             >
               <option value="ALL">All Job Types</option>
               <option value="OCR_EXTRACTION">OCR Extraction</option>
+              <option value="BLOCKCHAIN_ANCHOR">Blockchain Anchor</option>
               <option value="NOTIFICATION_DISPATCH">Notification Dispatch</option>
               <option value="RETENTION_AUDIT">Retention Audit</option>
               <option value="CRYPTO_SHRED_CLEANUP">Crypto Shred</option>
@@ -589,9 +667,37 @@ export default function JobQueuesView() {
                     </td>
 
                     <td className="py-3 px-4">
-                      <span className="font-semibold text-[#151c27] text-[11px]">
-                        {j.type.replace(/_/g, ' ')}
-                      </span>
+                      {j.type === 'BLOCKCHAIN_ANCHOR' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">hub</span>
+                          BLOCKCHAIN ANCHOR
+                        </span>
+                      ) : j.type === 'OCR_EXTRACTION' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#3f5e93] bg-[rgba(131,162,219,0.14)] border border-[#83A2DB]/30 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">document_scanner</span>
+                          OCR EXTRACTION
+                        </span>
+                      ) : j.type === 'NOTIFICATION_DISPATCH' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">notifications</span>
+                          NOTIFICATION DISPATCH
+                        </span>
+                      ) : j.type === 'RETENTION_AUDIT' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#3f5e93] bg-[rgba(131,162,219,0.14)] border border-[#83A2DB]/30 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">policy</span>
+                          RETENTION AUDIT
+                        </span>
+                      ) : j.type === 'CRYPTO_SHRED_CLEANUP' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#ca6666] bg-[rgba(206,105,105,0.14)] border border-[#CE6969]/30 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">delete_forever</span>
+                          CRYPTO SHRED
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                          <span className="material-symbols-outlined text-[12px]">science</span>
+                          {j.type.replace(/_/g, ' ')}
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3 px-4">
@@ -620,7 +726,7 @@ export default function JobQueuesView() {
                       )}
                       {j.status === 'QUEUED' && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                           QUEUED
                         </span>
                       )}
@@ -674,14 +780,70 @@ export default function JobQueuesView() {
         </div>
       </div>
 
-      {/* 5. Job Inspector Modal */}
+      {/* 5. Test Job Dispatcher Modal */}
+      {showTestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10141A]/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-[26px] border border-[#D8DEEA] shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/60">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-xl">science</span>
+                <h3 className="font-bold text-sm text-[#151c27]">Enqueue Worker Test Job</h3>
+              </div>
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="text-[#9CA3AF] hover:text-[#151c27] p-1 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-[#45474b]">
+              Choose a specific queue or trigger a comprehensive test across all 5 workers to benchmark dispatch latency and ledger recording.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-[#151c27]">Target Worker Queue</label>
+              <select
+                value={selectedTestQueue}
+                onChange={(e) => setSelectedTestQueue(e.target.value)}
+                className="text-xs font-semibold bg-[#f0f3ff]/60 border border-[#D8DEEA] rounded-xl px-3 py-2.5 text-[#151c27] focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">⚡ Test All 5 Queues Concurrently</option>
+                <option value="ocr-queue">📄 OCR Extraction Queue (ocr-queue)</option>
+                <option value="blockchain-queue">⛓️ Hyperledger Fabric Queue (blockchain-queue)</option>
+                <option value="notification-queue">🔔 Notification Fanout Queue (notification-queue)</option>
+                <option value="retention-queue">⚖️ BNSS Retention Audit Queue (retention-queue)</option>
+                <option value="cleanup-queue">🗑️ Crypto-Shred Zeroization Queue (cleanup-queue)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8DEEA]/60">
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="h-9 px-4 bg-[#f0f3ff] hover:bg-[#e2e8f8] text-[#151c27] rounded-full text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDispatchTestJobs(selectedTestQueue)}
+                className="h-9 px-5 bg-[#000000] hover:bg-[#181c22] text-white rounded-full text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">send</span>
+                <span>Dispatch Test</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Job Inspector Modal */}
       {selectedJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10141A]/50 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-white rounded-[26px] border border-[#D8DEEA] shadow-2xl max-w-lg w-full p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/60">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#3f5e93] text-xl">terminal</span>
-                <h3 className="font-bold text-sm text-[#151c27]">Background Job Execution Dossier</h3>
+                <h3 className="font-bold text-sm text-[#151c27]">Background Job Execution Details</h3>
               </div>
               <button
                 onClick={() => setSelectedJob(null)}

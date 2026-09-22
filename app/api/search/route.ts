@@ -34,7 +34,10 @@ export async function GET(req: NextRequest) {
       params.push(q);
       const qIdx = `$${paramIndex++}`;
       conditions.push(`(
-        (ocr.search_vector IS NOT NULL AND ocr.search_vector @@ plainto_tsquery('simple', ${qIdx}))
+        (ocr.search_vector IS NOT NULL AND (
+          ocr.search_vector @@ plainto_tsquery('english', ${qIdx})
+          OR ocr.search_vector @@ plainto_tsquery('simple', ${qIdx})
+        ))
         OR (ocr.extracted_text IS NOT NULL AND ocr.extracted_text ILIKE ('%' || ${qIdx} || '%'))
         OR d.title ILIKE ('%' || ${qIdx} || '%')
         OR dv.file_name ILIKE ('%' || ${qIdx} || '%')
@@ -63,11 +66,11 @@ export async function GET(req: NextRequest) {
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     const headlineSelect = hasQuery
-      ? `ts_headline('simple', coalesce(ocr.extracted_text, d.description, d.title), 
-          plainto_tsquery('simple', $3), 
+      ? `ts_headline('english', coalesce(ocr.extracted_text, d.description, d.title), 
+          plainto_tsquery('english', $3), 
           'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15'
         ) as matched_snippet,
-        ts_rank(coalesce(ocr.search_vector, to_tsvector('simple', '')), plainto_tsquery('simple', $3)) as rank_score,`
+        ts_rank(coalesce(ocr.search_vector, to_tsvector('english', '')), plainto_tsquery('english', $3)) as rank_score,`
       : `coalesce(d.description, 'Case record registered in secure document vault.') as matched_snippet,
         0 as rank_score,`;
 

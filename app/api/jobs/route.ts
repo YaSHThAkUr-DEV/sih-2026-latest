@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { JobQueueManager } from '@/lib/jobs/queue';
+import { AutoJobRunner } from '@/lib/jobs/autoRunner';
 import { checkRedisHealth } from '@/lib/cache/redis';
 import { getCurrentSession } from '@/lib/auth/jwt';
 
@@ -15,6 +16,15 @@ export async function GET(req: NextRequest) {
 
     // 1. Fetch queue stats from Redis
     const queueStats = await JobQueueManager.getQueueStats();
+
+    // Auto-trigger worker sweep if there are waiting jobs
+    if (queueStats.totals.waiting > 0) {
+      try {
+        AutoJobRunner.trigger();
+      } catch {
+        // Non-blocking
+      }
+    }
 
     // 2. Fetch Redis connectivity & latency
     const redisHealth = await checkRedisHealth();
@@ -68,7 +78,7 @@ export async function GET(req: NextRequest) {
         completed24h: parseInt(m.total_completed, 10) || 0,
         failed24h: parseInt(m.total_failed, 10) || 0,
         avgDurationSec: parseFloat(m.avg_duration_sec) || 0.85,
-        activeWorkers: 4,
+        activeWorkers: 5,
       },
       jobs: recentJobs.map((j) => ({
         id: j.id,

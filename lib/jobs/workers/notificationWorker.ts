@@ -22,7 +22,17 @@ export class NotificationWorker {
     }
 
     try {
-      const p = job.payload;
+      if (job.type === 'TEST_JOB') {
+        console.log(`[NOTIFICATION_WORKER] Processing TEST_JOB (${job.id})...`);
+        await JobQueueManager.completeJob('notification-queue', job.id, {
+          deliveredAt: new Date().toISOString(),
+          synthetic: true,
+          mode: 'test',
+        });
+        return { processed: true, jobId: job.id };
+      }
+
+      const p = job.payload || {};
       const mode = p.mode || (p.targetRole ? 'role' : p.userId ? 'user' : 'broadcast');
 
       if (mode === 'role' && p.targetRole) {

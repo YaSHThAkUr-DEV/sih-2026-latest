@@ -13,6 +13,7 @@ interface AuditorStats {
   };
   activeOfficersCount: number;
   departments: string[];
+  departmentList?: Array<{ name: string; code: string }>;
   securityAlertsCount: number;
   epochProgression: Array<{ label: string; count: number }>;
   inspector: {
@@ -287,8 +288,8 @@ export default function Auditor360View({
               onClick={() => setPersonnelModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] text-xs font-medium transition-all shadow-sm"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">badge</span>
-              <span>Personnel Dossiers</span>
+              <span className="material-symbols-outlined text-[16px] text-[#3f5e93]">group</span>
+              <span>User Activity</span>
             </button>
             <button
               onClick={handleExportManifest}
@@ -348,7 +349,7 @@ export default function Auditor360View({
             </div>
             <div className="mt-3">
               <div className="text-2xl font-bold text-[#10141A]">
-                {(stats?.totalAuditEvents || totalRecords || 1428).toLocaleString()}
+                {(stats?.totalAuditEvents ?? totalRecords).toLocaleString()}
               </div>
               <div className="text-[11px] text-[#3f5e93] mt-0.5 flex items-center gap-1 font-mono">
                 <span className="material-symbols-outlined text-[13px]">link</span>
@@ -369,7 +370,7 @@ export default function Auditor360View({
                 {stats?.cryptographicHealth?.status || '100% Attested'}
               </div>
               <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono">
-                0 Violations / {stats?.cryptographicHealth?.epochsCount || 42} Epochs
+                {(stats?.cryptographicHealth?.violations ?? 0)} Violations / {(stats?.cryptographicHealth?.epochsCount ?? 1)} Epochs
               </div>
             </div>
           </div>
@@ -383,10 +384,10 @@ export default function Auditor360View({
             </div>
             <div className="mt-3">
               <div className="text-2xl font-bold text-[#10141A]">
-                {stats?.activeOfficersCount || 18} Officers
+                {stats?.activeOfficersCount ?? 0} Personnel
               </div>
               <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono truncate">
-                CCDF, ACD, SCU, LPW, ADMIN
+                {stats?.departments?.length ? stats.departments.slice(0, 3).join(', ') : 'Central Operations'}
               </div>
             </div>
           </div>
@@ -394,16 +395,26 @@ export default function Auditor360View({
           <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <span className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wider">Security Flags</span>
-              <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
-                <span className="material-symbols-outlined text-[18px]">warning</span>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${
+                (stats?.securityAlertsCount ?? 0) > 0 
+                  ? 'bg-rose-50 text-rose-600 border-rose-100' 
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+              }`}>
+                <span className="material-symbols-outlined text-[18px]">
+                  {(stats?.securityAlertsCount ?? 0) > 0 ? 'warning' : 'verified'}
+                </span>
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-bold text-rose-600">
-                {stats?.securityAlertsCount || 2} Flags
+              <div className={`text-2xl font-bold ${
+                (stats?.securityAlertsCount ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-700'
+              }`}>
+                {(stats?.securityAlertsCount ?? 0)} Flags
               </div>
               <div className="text-[11px] text-[#6B7280] mt-0.5 font-mono truncate">
-                Off-hour unwrap & challenges
+                {(stats?.securityAlertsCount ?? 0) === 0 
+                  ? 'Zero anomalies detected' 
+                  : `${stats?.securityAlertsCount} security challenges logged`}
               </div>
             </div>
           </div>
@@ -446,11 +457,11 @@ export default function Auditor360View({
                   className="bg-transparent font-medium text-[#10141A] outline-none cursor-pointer"
                 >
                   <option value="all">All Units</option>
-                  <option value="CCDF">Cyber Forensics (CCDF)</option>
-                  <option value="ACD">Anti-Corruption (ACD)</option>
-                  <option value="SCU">Special Crimes (SCU)</option>
-                  <option value="LPW">Legal Prosecution (LPW)</option>
-                  <option value="GENADMIN">Administration</option>
+                  {(stats?.departmentList || []).map((dep) => (
+                    <option key={dep.code || dep.name} value={dep.code || dep.name}>
+                      {dep.name} {dep.code ? `(${dep.code})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -480,7 +491,7 @@ export default function Auditor360View({
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider mr-1">Risk Filter:</span>
               {[
-                { id: 'all', label: `All Activities (${totalRecords || 1428})`, color: 'bg-[#3f5e93]' },
+                { id: 'all', label: `All Activities (${totalRecords})`, color: 'bg-[#3f5e93]' },
                 { id: 'LOW', label: 'Standard', color: 'bg-emerald-500' },
                 { id: 'MEDIUM', label: 'Medium (Unwraps)', color: 'bg-amber-500' },
                 { id: 'FLAGGED', label: 'Flagged Anomalies', color: 'bg-rose-500' },
@@ -702,15 +713,15 @@ export default function Auditor360View({
           {/* Right Officer Dossier Inspector (4 Cols) */}
           <div className="xl:col-span-4 space-y-4 sticky top-24">
             
-            {/* Dossier Card */}
+            {/* Officer Activity Card */}
             <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03),0_8px_24px_rgba(16,20,26,0.06)] border border-[#D8DEEA]/60 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#D8DEEA]/60">
                 <div className="flex items-center gap-1.5 text-[#10141A]">
-                  <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">badge</span>
-                  <span className="text-xs font-semibold uppercase tracking-wider">Custodian Dossier</span>
+                  <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">account_circle</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Officer Profile & Activity</span>
                 </div>
                 <span className="rounded-full text-[10px] font-medium px-2 py-0.5 bg-[rgba(131,162,219,0.14)] text-[#3f5e93] border border-[#83A2DB]/30">
-                  Live Telemetry
+                  Live Feed
                 </span>
               </div>
 
@@ -743,21 +754,21 @@ export default function Auditor360View({
                 <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
                   <span className="text-[10px] font-medium text-[#6B7280] uppercase">Ingested Files</span>
                   <span className="text-sm font-bold text-[#10141A] mt-0.5">
-                    {officerDossier?.stats?.ingestedFiles || 38} Docs
+                    {officerDossier?.stats?.ingestedFiles ?? 0} Docs
                   </span>
                   <span className="font-mono text-[10px] text-[#9CA3AF]">100% SHA-256</span>
                 </div>
                 <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
                   <span className="text-[10px] font-medium text-[#6B7280] uppercase">DEK Unwraps</span>
                   <span className="text-sm font-bold text-[#10141A] mt-0.5">
-                    {officerDossier?.stats?.dekUnwraps || 94} Streams
+                    {officerDossier?.stats?.dekUnwraps ?? 0} Streams
                   </span>
                   <span className="font-mono text-[10px] text-[#9CA3AF]">HSM Key</span>
                 </div>
                 <div className="p-3 bg-[#f0f3ff]/40 border border-[#D8DEEA]/40 rounded-[14px] flex flex-col">
                   <span className="text-[10px] font-medium text-[#6B7280] uppercase">Approvals</span>
                   <span className="text-sm font-bold text-[#10141A] mt-0.5">
-                    {officerDossier?.stats?.approvalsGiven || 14} Decisions
+                    {officerDossier?.stats?.approvalsGiven ?? 0} Decisions
                   </span>
                   <span className="font-mono text-[10px] text-[#9CA3AF]">Dual-Control</span>
                 </div>
@@ -772,7 +783,7 @@ export default function Auditor360View({
                 </div>
               </div>
 
-              {/* Dossier Modal Trigger */}
+              {/* Activity History Modal Trigger */}
               <button
                 onClick={() => {
                   if (officerDossier?.id && officerDossier.id !== 'sys') {
@@ -781,16 +792,16 @@ export default function Auditor360View({
                     showToast('Select an audit event row to inspect that officer', 'warning');
                   }
                 }}
-                className="w-full py-2 px-4 rounded-full bg-[#000000] text-white font-medium text-xs hover:bg-[#181c22] transition flex items-center justify-center gap-1.5 shadow-[0_6px_18px_rgba(16,20,26,0.22)]"
+                className="w-full py-2 px-4 rounded-full bg-[#000000] text-white font-medium text-xs hover:bg-[#181c22] transition flex items-center justify-center gap-1.5 shadow-[0_6px_18px_rgba(16,20,26,0.22)] cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">manage_search</span>
-                <span>Open Full User Dossier</span>
+                <span className="material-symbols-outlined text-[16px]">history</span>
+                <span>View Full Activity History</span>
               </button>
 
-              {/* Provenance Timeline */}
+              {/* Recent Activity Timeline */}
               <div className="space-y-2 pt-2 border-t border-[#D8DEEA]/60">
                 <span className="text-[10px] font-medium text-[#6B7280] uppercase tracking-wider">
-                  Recent Provenance Nodes
+                  Recent Actions
                 </span>
                 <div className="space-y-2 text-xs">
                   {(officerDossier?.timeline || []).slice(0, 3).map((node, idx) => (
@@ -816,7 +827,7 @@ export default function Auditor360View({
                 </div>
                 <div className="font-mono text-[10px] text-[#D8DEEA] space-y-0.5">
                   <div>ROOT: <span className="text-emerald-400">{merkleRoot.substring(0, 16)}...</span></div>
-                  <div>SEAL: <span className="text-amber-300">WORM-LGR-#89110</span></div>
+                  <div>SEAL: <span className="text-emerald-300">WORM-ACTIVE-CHAINED</span></div>
                 </div>
               </div>
             </div>
@@ -834,13 +845,13 @@ export default function Auditor360View({
                   <span className="material-symbols-outlined text-[20px]">group</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-[#10141A]">Personnel Activity Directory</h3>
-                  <p className="text-[11px] text-[#6B7280]">Select an employee to inspect their audit record</p>
+                  <h3 className="text-sm font-semibold text-[#10141A]">User Activity Directory</h3>
+                  <p className="text-[11px] text-[#6B7280]">Select an employee to inspect their audit activity history</p>
                 </div>
               </div>
               <button
                 onClick={() => setPersonnelModalOpen(false)}
-                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition"
+                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
@@ -895,10 +906,10 @@ export default function Auditor360View({
                         setPersonnelModalOpen(false);
                         setSelectedDossierUserId(person.id);
                       }}
-                      className="px-3 py-1.5 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-medium rounded-full flex items-center gap-1 shadow-xs transition"
+                      className="px-3 py-1.5 bg-[#000000] hover:bg-[#181c22] text-white text-xs font-medium rounded-full flex items-center gap-1 shadow-xs transition cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[15px]">visibility</span>
-                      <span>Inspect Dossier</span>
+                      <span className="material-symbols-outlined text-[15px]">history</span>
+                      <span>View Activity</span>
                     </button>
                   </div>
                 ))

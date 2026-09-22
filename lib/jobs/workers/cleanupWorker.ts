@@ -17,6 +17,16 @@ export class CleanupWorker {
     try {
       console.log(`[CLEANUP_WORKER] Executing cleanup/crypto-shred job ${job.id}...`);
 
+      if (job.type === 'TEST_JOB') {
+        const summary = {
+          shreddedCount: 0,
+          synthetic: true,
+          executedAt: new Date().toISOString(),
+        };
+        await JobQueueManager.completeJob('cleanup-queue', job.id, summary);
+        return { processed: true, jobId: job.id, details: summary };
+      }
+
       // 1. Fetch approved deletion requests awaiting execution
       const pendingShreds = await query<any>(
         `SELECT 

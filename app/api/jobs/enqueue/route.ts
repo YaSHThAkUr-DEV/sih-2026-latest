@@ -12,11 +12,29 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { queue = 'ocr-queue', type = 'TEST_JOB', payload = {}, documentVersionId = null } = body;
+    let { queue, type = 'TEST_JOB', payload = {}, documentVersionId = null } = body;
 
-    const validQueues: QueueName[] = ['ocr-queue', 'notification-queue', 'retention-queue', 'cleanup-queue'];
+    // Smart default queue resolution based on job type
+    if (!queue) {
+      if (type === 'RETENTION_AUDIT') queue = 'retention-queue';
+      else if (type === 'BLOCKCHAIN_ANCHOR') queue = 'blockchain-queue';
+      else if (type === 'NOTIFICATION_DISPATCH') queue = 'notification-queue';
+      else if (type === 'CRYPTO_SHRED_CLEANUP') queue = 'cleanup-queue';
+      else queue = 'ocr-queue';
+    }
+
+    const validQueues: QueueName[] = [
+      'ocr-queue',
+      'notification-queue',
+      'retention-queue',
+      'cleanup-queue',
+      'blockchain-queue',
+    ];
     if (!validQueues.includes(queue)) {
-      return NextResponse.json({ error: `Invalid queue name. Must be one of: ${validQueues.join(', ')}` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Invalid queue name. Must be one of: ${validQueues.join(', ')}` },
+        { status: 400 }
+      );
     }
 
     const job = await JobQueueManager.enqueue(

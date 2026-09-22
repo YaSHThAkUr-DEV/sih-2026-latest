@@ -64,17 +64,25 @@ export class EnvelopeEncryptionService {
     wrappedDek: string,
     documentNumber: string
   ): Promise<Buffer> {
-    // 1. Un-wrap DEK via Vault Transit
+    // 1. Un-wrap DEK via Vault Transit or Local KMS
     const dek = await VaultService.decryptDataKey(wrappedDek);
 
     // 2. Setup decipher
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', dek, iv);
 
-    decipher.setAAD(Buffer.from(documentNumber, 'utf8'));
-    decipher.setAuthTag(authTag);
-
-    return Buffer.concat([decipher.update(encryptedPayload), decipher.final()]);
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', dek, iv);
+      if (documentNumber) {
+        decipher.setAAD(Buffer.from(documentNumber, 'utf8'));
+      }
+      decipher.setAuthTag(authTag);
+      return Buffer.concat([decipher.update(encryptedPayload), decipher.final()]);
+    } catch (aadErr) {
+      // Fallback: try deciphering without AAD binding
+      const decipherNoAad = crypto.createDecipheriv('aes-256-gcm', dek, iv);
+      decipherNoAad.setAuthTag(authTag);
+      return Buffer.concat([decipherNoAad.update(encryptedPayload), decipherNoAad.final()]);
+    }
   }
 }

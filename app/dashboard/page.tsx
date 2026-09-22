@@ -1257,7 +1257,7 @@ export default function DashboardPage() {
           )}
 
           {/* 11. USERS & ACCESS */}
-          {activeView === 'users' && <UsersManagementView onNotify={showToast} />}
+          {activeView === 'users' && <UsersManagementView currentUserId={user?.id} onNotify={showToast} />}
 
           {/* 12. DEPARTMENTS */}
           {activeView === 'departments' && (

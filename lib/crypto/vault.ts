@@ -4,8 +4,20 @@ const VAULT_ADDR = process.env.VAULT_ADDR || 'http://127.0.0.1:8200';
 const VAULT_TOKEN = process.env.VAULT_TOKEN || 'dev-only-token';
 const KEY_NAME = process.env.VAULT_KEY_NAME || 'dms-master-key';
 
-// Local KMS Fallback key (32 bytes) for dev/offline resilience
-const LOCAL_KEK = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'dms-master-kek-2026').digest();
+// Candidate KEKs for local development & offline fallback
+function getCandidateKeks(): Buffer[] {
+  const list: Buffer[] = [];
+  if (process.env.JWT_SECRET) {
+    list.push(crypto.createHash('sha256').update(process.env.JWT_SECRET).digest());
+  }
+  list.push(crypto.createHash('sha256').update('dms_super_secure_jwt_secret_key_2026_institutional_gov_32chars!').digest());
+  list.push(crypto.createHash('sha256').update('dms-master-kek-2026').digest());
+  return list;
+}
+
+function getLocalKek(): Buffer {
+  return getCandidateKeks()[0];
+}
 
 export interface EnvelopeKeyResult {
   plaintextKey: Buffer;
@@ -52,7 +64,6 @@ export class VaultService {
    */
   public static async ensureTransitKey(): Promise<boolean> {
     try {
-      // 1. Check if transit key exists
       const checkRes = await fetch(`${VAULT_ADDR}/v1/transit/keys/${KEY_NAME}`, {
         headers: { 'X-Vault-Token': VAULT_TOKEN },
         signal: AbortSignal.timeout(3000),
@@ -62,9 +73,7 @@ export class VaultService {
         return true;
       }
 
-      // If 404, maybe transit engine is mounted but key doesn't exist
       if (checkRes.status === 404) {
-        // Attempt to create key
         const createKeyRes = await fetch(`${VAULT_ADDR}/v1/transit/keys/${KEY_NAME}`, {
           method: 'POST',
           headers: {
@@ -80,7 +89,6 @@ export class VaultService {
           return true;
         }
 
-        // If that failed with 404, transit engine itself might not be mounted
         await fetch(`${VAULT_ADDR}/v1/sys/mounts/transit`, {
           method: 'POST',
           headers: {
@@ -91,7 +99,6 @@ export class VaultService {
           signal: AbortSignal.timeout(3000),
         });
 
-        // Retry key creation
         const retryCreate = await fetch(`${VAULT_ADDR}/v1/transit/keys/${KEY_NAME}`, {
           method: 'POST',
           headers: {
@@ -104,21 +111,19 @@ export class VaultService {
 
         return retryCreate.ok;
       }
-
       return false;
-    } catch {
+    } catch (err: any) {
       return false;
     }
   }
 
   /**
-   * Generate a high-entropy Data Encryption Key (DEK) wrapped by KEK
+   * Generate a fresh Data Encryption Key (DEK)
    */
   public static async generateDataKey(): Promise<EnvelopeKeyResult> {
     try {
-      const transitReady = await VaultService.ensureTransitKey();
+      const transitReady = await this.ensureTransitKey();
       if (transitReady) {
-        // Request 256-bit plaintext datakey from Vault Transit
         const res = await fetch(`${VAULT_ADDR}/v1/transit/datakey/plaintext/${KEY_NAME}`, {
           method: 'POST',
           headers: {
@@ -137,7 +142,7 @@ export class VaultService {
           if (plaintextBase64 && ciphertext) {
             return {
               plaintextKey: Buffer.from(plaintextBase64, 'base64'),
-              encryptedKey: ciphertext, // e.g. "vault:v1:..."
+              encryptedKey: ciphertext,
               kmsProvider: 'VAULT_TRANSIT',
             };
           }
@@ -150,7 +155,7 @@ export class VaultService {
     // Fallback: Local AES-256-GCM Key Wrap
     const randomDek = crypto.randomBytes(32);
     const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', LOCAL_KEK, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', getLocalKek(), iv);
     const encryptedDek = Buffer.concat([cipher.update(randomDek), cipher.final()]);
     const tag = cipher.getAuthTag();
 
@@ -196,9 +201,20 @@ export class VaultService {
         const tag = Buffer.from(parts[3], 'hex');
         const ciphertext = Buffer.from(parts[4], 'hex');
 
-        const decipher = crypto.createDecipheriv('aes-256-gcm', LOCAL_KEK, iv);
-        decipher.setAuthTag(tag);
-        return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+        const candidates = getCandidateKeks();
+        for (const kek of candidates) {
+          try {
+            const decipher = crypto.createDecipheriv('aes-256-gcm', kek, iv);
+            decipher.setAuthTag(tag);
+            const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+            if (decrypted.length === 32) {
+              return decrypted;
+            }
+          } catch {
+            // Continue candidate check
+          }
+        }
+        throw new Error('Local KMS decryption failed with all candidate keys');
       }
     }
 

@@ -1,6 +1,7 @@
 import { RedisClientManager } from '@/lib/cache/redis';
 import { query } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { AutoJobRunner } from './autoRunner';
 
 export type QueueName = 'ocr-queue' | 'notification-queue' | 'retention-queue' | 'cleanup-queue' | 'blockchain-queue';
 
@@ -84,6 +85,13 @@ export class JobQueueManager {
       await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
     } catch (redisErr: any) {
       console.error('[QUEUE_REDIS_ERROR] Failed pushing job to Redis:', redisErr.message);
+    }
+
+    // 3. Trigger immediate non-blocking auto-runner sweep
+    try {
+      AutoJobRunner.trigger();
+    } catch {
+      // Non-blocking
     }
 
     return jobData;
@@ -281,6 +289,7 @@ export class JobQueueManager {
         if (row.job_type === 'NOTIFICATION_DISPATCH') queueName = 'notification-queue';
         else if (row.job_type === 'RETENTION_AUDIT') queueName = 'retention-queue';
         else if (row.job_type === 'CRYPTO_SHRED_CLEANUP') queueName = 'cleanup-queue';
+        else if (row.job_type === 'BLOCKCHAIN_ANCHOR') queueName = 'blockchain-queue';
 
         await r.lpush(`${this.prefix}:${queueName}:waiting`, jobId);
       }
@@ -291,6 +300,12 @@ export class JobQueueManager {
          WHERE id = $1;`,
         [jobId]
       );
+
+      try {
+        AutoJobRunner.trigger();
+      } catch {
+        // Non-blocking
+      }
 
       return true;
     } catch (err: any) {

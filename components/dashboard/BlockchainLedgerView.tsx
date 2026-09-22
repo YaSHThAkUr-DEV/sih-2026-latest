@@ -519,7 +519,7 @@ export default function BlockchainLedgerView({
                 type="text"
                 value={anchorDocNumber}
                 onChange={(e) => setAnchorDocNumber(e.target.value)}
-                placeholder="Reference Docket # (Optional)"
+                placeholder="File / Document Ref No. (Optional)"
                 className="w-full h-10 px-3.5 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-mono"
               />
             </div>
@@ -630,7 +630,7 @@ export default function BlockchainLedgerView({
                     setSearchQuery(e.target.value);
                     fetchRecords(1, statusFilter, e.target.value);
                   }}
-                  placeholder="Search TxID, Hash, Docket..."
+                  placeholder="Search TxID, Hash, Document No..."
                   className="w-48 sm:w-60 h-9 pl-8 pr-3 bg-white border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-mono"
                 />
               </div>
@@ -644,7 +644,7 @@ export default function BlockchainLedgerView({
                 <tr>
                   <th className="py-3 px-4">Transaction ID</th>
                   <th className="py-3 px-4">Payload Hash (SHA-256)</th>
-                  <th className="py-3 px-4">Docket Context</th>
+                  <th className="py-3 px-4">Document / File Ref</th>
                   <th className="py-3 px-4">Event Type</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Committed Timestamp</th>

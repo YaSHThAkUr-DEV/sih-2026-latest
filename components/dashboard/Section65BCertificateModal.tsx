@@ -292,11 +292,11 @@ export function Section65BCertificateModal({
                 <table className="w-full text-xs border-collapse border border-slate-300">
                   <tbody className="divide-y divide-slate-200">
                     <tr className="bg-slate-50">
-                      <td className="p-2 font-bold w-1/3 border-r border-slate-300">Document / Docket ID</td>
+                      <td className="p-2 font-bold w-1/3 border-r border-slate-300">File / Document Reference No.</td>
                       <td className="p-2 font-bold text-[#3f5e93]">{data.document.documentNumber}</td>
                     </tr>
                     <tr>
-                      <td className="p-2 font-bold border-r border-slate-300">Evidence Title &amp; Summary</td>
+                      <td className="p-2 font-bold border-r border-slate-300">Subject / Title of Record</td>
                       <td className="p-2">{data.document.title} — {data.document.description}</td>
                     </tr>
                     <tr className="bg-slate-50">

@@ -189,8 +189,10 @@ export default function AdministrationView({
   const [rolePermissionsState, setRolePermissionsState] = useState<string[]>([]);
   const [savingPermissions, setSavingPermissions] = useState(false);
 
-  // Policy Selected Department
-  const [policyDeptFilter, setPolicyDeptFilter] = useState<string>('');
+  // Policy Selected Department & Search
+  const [policyDeptFilter, setPolicyDeptFilter] = useState<string>('ALL');
+  const [policySearch, setPolicySearch] = useState<string>('');
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
 
   // Modals state
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
@@ -292,9 +294,6 @@ export default function AdministrationView({
       if (usersRes.users) setUsers(usersRes.users);
       if (deptsRes.departments) {
         setDepartments(deptsRes.departments);
-        if (deptsRes.departments.length > 0 && !policyDeptFilter) {
-          setPolicyDeptFilter(deptsRes.departments[0].id);
-        }
       }
       if (teamsRes.teams) setTeams(teamsRes.teams);
       if (rolesRes.roles) {
@@ -355,6 +354,104 @@ export default function AdministrationView({
       setActionFeedback({ type: 'error', message: e.message || 'Error updating modules' });
     } finally {
       setSavingFeatures(false);
+    }
+  };
+
+  // --- GOVERNANCE POLICY HANDLERS ---
+  const handleOpenCreatePolicy = () => {
+    setEditingPolicyId(null);
+    setPolicyAssignForm({
+      departmentId: departments[0]?.id || '',
+      documentTypeId: documentTypes[0]?.id || '',
+      securityLevelId: securityLevels[0]?.id || '',
+      retentionPolicyId: retentionSchedules[0]?.id || '',
+      approvalRequired: false,
+      ocrRequired: true,
+      downloadAllowed: true,
+    });
+    setCreatePolicyModalOpen(true);
+  };
+
+  const handleOpenEditPolicy = (pol: DepartmentPolicyItem) => {
+    setEditingPolicyId(pol.id);
+    setPolicyAssignForm({
+      departmentId: pol.department_id,
+      documentTypeId: pol.document_type_id,
+      securityLevelId: pol.security_level_id,
+      retentionPolicyId: pol.retention_policy_id,
+      approvalRequired: pol.approval_required,
+      ocrRequired: pol.ocr_required !== false,
+      downloadAllowed: pol.download_allowed !== false,
+    });
+    setCreatePolicyModalOpen(true);
+  };
+
+  const handleSavePolicySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!policyAssignForm.departmentId || !policyAssignForm.documentTypeId || !policyAssignForm.securityLevelId || !policyAssignForm.retentionPolicyId) {
+      setActionFeedback({ type: 'error', message: 'Please select Department, Document Type, Security Tier, and Retention Schedule.' });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/policies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...policyAssignForm,
+          active: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to save governance policy.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: 'Institutional governance policy configured and operational.' });
+      setCreatePolicyModalOpen(false);
+      setEditingPolicyId(null);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving policy' });
+    }
+  };
+
+  const handleTogglePolicyStatus = async (pol: DepartmentPolicyItem) => {
+    try {
+      const res = await fetch(`/api/admin/policies/${pol.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !pol.active }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to update policy status.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: `Policy ${pol.active ? 'deactivated' : 'activated'} successfully.` });
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message });
+    }
+  };
+
+  const handleDeletePolicy = async (pol: DepartmentPolicyItem) => {
+    if (!confirm(`Are you sure you want to delete the governance policy for "${pol.department_name} — ${pol.document_type_name}"?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/policies/${pol.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to delete policy.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: 'Governance policy deleted successfully.' });
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message });
     }
   };
 
@@ -537,7 +634,7 @@ export default function AdministrationView({
               </span>
             </div>
             <p className="text-xs text-[#6B7280]">
-              Unified registry for user credentials, organizational taxonomy, dynamic RBAC, retention policies, and service modular features.
+              Unified registry for user credentials, document types & security tiers, dynamic RBAC, retention policies, and service modular features.
             </p>
           </div>
 
@@ -563,7 +660,7 @@ export default function AdministrationView({
               { id: 'users', label: 'User Registry', icon: 'manage_accounts', count: users.length },
               { id: 'hierarchy', label: 'Departments & Teams', icon: 'corporate_fare', count: departments.length },
               { id: 'rbac', label: 'Roles & RBAC', icon: 'shield', count: roles.length },
-              { id: 'types_tiers', label: 'Taxonomy & Tiers', icon: 'category', count: documentTypes.length },
+              { id: 'types_tiers', label: 'Doc Types & Tiers', icon: 'category', count: documentTypes.length },
               { id: 'policies', label: 'Governance Policies', icon: 'policy', count: policies.length },
               { id: 'modules', label: 'Service Modules', icon: 'toggle_on' },
               { id: 'system', label: 'System Telemetry', icon: 'tune' },
@@ -659,9 +756,9 @@ export default function AdministrationView({
                             <div className="text-[10px] text-[#6B7280]">{u.designation || 'Staff'}</div>
                           </td>
                           <td className="py-3 px-3">
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5 items-center">
                               {u.roles.map((r) => (
-                                <span key={r.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#f0f3ff] text-[#3f5e93] border border-[#D8DEEA]">
+                                <span key={r.id} className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-[#f0f3ff] text-[#3f5e93] border border-[#D8DEEA] whitespace-nowrap leading-tight shadow-2xs">
                                   {r.name}
                                 </span>
                               ))}
@@ -912,14 +1009,45 @@ export default function AdministrationView({
         {/* TAB 5: POLICIES */}
         {activeTab === 'policies' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-[#10141A] uppercase tracking-wider">Departmental Governance Matrix</h2>
-              <button
-                onClick={() => setCreatePolicyModalOpen(true)}
-                className="px-3.5 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs"
-              >
-                + Assign Policy
-              </button>
+            <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 flex-1 max-w-xl">
+                <div className="relative flex-1">
+                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[16px]">search</span>
+                  <input
+                    type="text"
+                    placeholder="Search policies by department, document type..."
+                    value={policySearch}
+                    onChange={(e) => setPolicySearch(e.target.value)}
+                    className="w-full h-8 pl-9 pr-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                  />
+                </div>
+
+                <select
+                  value={policyDeptFilter}
+                  onChange={(e) => setPolicyDeptFilter(e.target.value)}
+                  className="h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                >
+                  <option value="ALL">All Departments</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[#6B7280] font-mono">
+                  {policies.filter((p) => p.active).length} Active Rules
+                </span>
+                <button
+                  onClick={handleOpenCreatePolicy}
+                  className="px-4 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add_moderator</span>
+                  <span>Assign Policy</span>
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-[20px] shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 overflow-hidden">
@@ -929,31 +1057,141 @@ export default function AdministrationView({
                     <tr>
                       <th className="py-3 px-4">Department</th>
                       <th className="py-3 px-3">Document Class</th>
-                      <th className="py-3 px-3">Security Tier</th>
+                      <th className="py-3 px-3">Security Clearance</th>
                       <th className="py-3 px-3">Retention Schedule</th>
-                      <th className="py-3 px-3">Dual Approval</th>
+                      <th className="py-3 px-3">Enforcement Flags</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
-                    {policies.length === 0 ? (
+                    {policies
+                      .filter((pol) => {
+                        if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
+                        if (policySearch.trim()) {
+                          const q = policySearch.toLowerCase();
+                          return (
+                            pol.department_name?.toLowerCase().includes(q) ||
+                            pol.document_type_name?.toLowerCase().includes(q) ||
+                            pol.security_level_name?.toLowerCase().includes(q) ||
+                            pol.retention_policy_name?.toLowerCase().includes(q)
+                          );
+                        }
+                        return true;
+                      })
+                      .length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-[#6B7280]">No governance policies assigned</td>
+                        <td colSpan={7} className="py-12 text-center text-[#6B7280]">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="material-symbols-outlined text-[28px] text-[#9CA3AF]">policy</span>
+                            <span className="font-medium text-xs text-[#10141A]">No governance policies found</span>
+                            <span className="text-[11px] text-[#9CA3AF]">Click &quot;Assign Policy&quot; to define a new department rule.</span>
+                          </div>
+                        </td>
                       </tr>
                     ) : (
-                      policies.map((pol) => (
-                        <tr key={pol.id} className="hover:bg-[#f0f3ff]/40">
-                          <td className="py-3 px-4 font-semibold text-[#10141A]">{pol.department_name}</td>
-                          <td className="py-3 px-3 font-medium text-[#3f5e93]">{pol.document_type_name}</td>
-                          <td className="py-3 px-3">{pol.security_level_name}</td>
-                          <td className="py-3 px-3 text-[#6B7280]">{pol.retention_policy_name || 'Standard Retention'}</td>
-                          <td className="py-3 px-3">
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${pol.approval_required ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                              {pol.approval_required ? 'Required' : 'Standard'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
+                      policies
+                        .filter((pol) => {
+                          if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
+                          if (policySearch.trim()) {
+                            const q = policySearch.toLowerCase();
+                            return (
+                              pol.department_name?.toLowerCase().includes(q) ||
+                              pol.document_type_name?.toLowerCase().includes(q) ||
+                              pol.security_level_name?.toLowerCase().includes(q) ||
+                              pol.retention_policy_name?.toLowerCase().includes(q)
+                            );
+                          }
+                          return true;
+                        })
+                        .map((pol) => (
+                          <tr key={pol.id} className="hover:bg-[#f0f3ff]/40 transition">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-[#10141A]">{pol.department_name}</div>
+                              <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.department_code}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-medium text-[#3f5e93]">{pol.document_type_name}</div>
+                              <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.document_type_code}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="inline-flex items-center gap-1 font-medium text-xs text-[#10141A]">
+                                <span className="px-1.5 py-0.2 rounded-md bg-[#f0f3ff] text-[#3f5e93] border border-[#83A2DB]/30 font-mono text-[10px] font-bold">
+                                  L{pol.security_level_rank}
+                                </span>
+                                <span>{pol.security_level_name}</span>
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-medium text-[#10141A]">{pol.retention_policy_name || 'Standard Statutory'}</div>
+                              {pol.retention_schedule_code && (
+                                <span className="text-[10px] font-mono text-[#6B7280]">{pol.retention_schedule_code}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    pol.approval_required
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold'
+                                      : 'bg-[#f0f3ff] text-[#6B7280]'
+                                  }`}
+                                  title={pol.approval_required ? 'Dual Maker-Checker sign-off required' : 'Standard single officer workflow'}
+                                >
+                                  {pol.approval_required ? 'Dual Approval' : 'Single Sign'}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    pol.ocr_required !== false
+                                      ? 'bg-blue-50 text-blue-700'
+                                      : 'bg-slate-100 text-slate-500'
+                                  }`}
+                                >
+                                  {pol.ocr_required !== false ? 'OCR On' : 'OCR Off'}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    pol.download_allowed !== false
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : 'bg-rose-50 text-rose-700 font-semibold'
+                                  }`}
+                                >
+                                  {pol.download_allowed !== false ? 'Export OK' : 'View Only'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <button
+                                onClick={() => handleTogglePolicyStatus(pol)}
+                                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition cursor-pointer ${
+                                  pol.active
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                                    : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                                }`}
+                              >
+                                {pol.active ? 'ACTIVE' : 'INACTIVE'}
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditPolicy(pol)}
+                                  className="p-1 rounded-lg text-[#6B7280] hover:text-[#10141A] hover:bg-[#f0f3ff] transition"
+                                  title="Edit Policy"
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePolicy(pol)}
+                                  className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition"
+                                  title="Delete Policy"
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                     )}
                   </tbody>
                 </table>
@@ -1227,6 +1465,185 @@ export default function AdministrationView({
                   className="px-4 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign / Edit Governance Policy Modal */}
+      {createPolicyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-xl w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">policy</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">
+                  {editingPolicyId ? 'Edit Governance Policy' : 'Assign Departmental Governance Policy'}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setCreatePolicyModalOpen(false);
+                  setEditingPolicyId(null);
+                }}
+                className="text-[#6B7280] hover:text-[#10141A]"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePolicySubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">
+                    Department *
+                  </label>
+                  <select
+                    disabled={!!editingPolicyId}
+                    required
+                    value={policyAssignForm.departmentId}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, departmentId: e.target.value })}
+                    className="w-full h-9 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                  >
+                    <option value="" disabled>Select Department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">
+                    Document Classification *
+                  </label>
+                  <select
+                    disabled={!!editingPolicyId}
+                    required
+                    value={policyAssignForm.documentTypeId}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, documentTypeId: e.target.value })}
+                    className="w-full h-9 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                  >
+                    <option value="" disabled>Select Document Classification</option>
+                    {documentTypes.map((dt) => (
+                      <option key={dt.id} value={dt.id}>
+                        {dt.name} ({dt.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">
+                    Mandated Security Tier *
+                  </label>
+                  <select
+                    required
+                    value={policyAssignForm.securityLevelId}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, securityLevelId: e.target.value })}
+                    className="w-full h-9 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                  >
+                    <option value="" disabled>Select Security Tier</option>
+                    {securityLevels.map((sl) => (
+                      <option key={sl.id} value={sl.id}>
+                        Level {sl.rank} — {sl.name} ({sl.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">
+                    Retention Schedule *
+                  </label>
+                  <select
+                    required
+                    value={policyAssignForm.retentionPolicyId}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, retentionPolicyId: e.target.value })}
+                    className="w-full h-9 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                  >
+                    <option value="" disabled>Select Statutory Retention</option>
+                    {retentionSchedules.map((rp) => (
+                      <option key={rp.id} value={rp.id}>
+                        {rp.name} ({rp.permanent ? 'Permanent' : `${rp.retention_days} Days`})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-[#f0f3ff]/70 rounded-[20px] p-4 border border-[#D8DEEA]/70 space-y-3">
+                <span className="text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+                  Automated Enforcement & Governance Rules
+                </span>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={policyAssignForm.approvalRequired}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, approvalRequired: e.target.checked })}
+                    className="w-4 h-4 text-[#3f5e93] rounded"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#10141A] text-xs">Dual Approval (Maker-Checker Workflow)</span>
+                    <p className="text-[11px] text-[#6B7280]">
+                      Requires a Section Head or Department Approver to review & sign off before the record is officially released.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={policyAssignForm.ocrRequired}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, ocrRequired: e.target.checked })}
+                    className="w-4 h-4 text-[#3f5e93] rounded"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#10141A] text-xs">Mandatory OCR Text Indexing</span>
+                    <p className="text-[11px] text-[#6B7280]">
+                      Extracts and indexes full-text search vector for uploaded documents of this classification.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={policyAssignForm.downloadAllowed}
+                    onChange={(e) => setPolicyAssignForm({ ...policyAssignForm, downloadAllowed: e.target.checked })}
+                    className="w-4 h-4 text-[#3f5e93] rounded"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#10141A] text-xs">Allow Offline Export & Download</span>
+                    <p className="text-[11px] text-[#6B7280]">
+                      When unchecked, officers can only view documents in the in-app secure viewer without saving locally.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatePolicyModalOpen(false);
+                    setEditingPolicyId(null);
+                  }}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] hover:bg-[#181c22] text-white rounded-full text-xs font-medium shadow-xs transition"
+                >
+                  {editingPolicyId ? 'Update Policy' : 'Save & Enforce Policy'}
                 </button>
               </div>
             </form>

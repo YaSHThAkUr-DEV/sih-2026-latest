@@ -39,16 +39,9 @@ export async function GET() {
     );
     const anomalyCount = parseInt(anomaliesRes[0]?.count || '0', 10);
 
-    // 4. Breakdown by department
-    const deptBreakdown = await query<{ department_name: string; event_count: string }>(
-      `SELECT coalesce(dept.name, 'System Central') as department_name, count(ae.id) as event_count
-       FROM audit_events ae
-       LEFT JOIN users u ON ae.actor_id = u.id
-       LEFT JOIN departments dept ON u.department_id = dept.id
-       WHERE ae.organization_id = $1
-       GROUP BY dept.name
-       ORDER BY event_count DESC
-       LIMIT 5;`,
+    // 4. All departments in organization
+    const allDepts = await query<{ name: string; code: string }>(
+      `SELECT name, code FROM departments WHERE organization_id = $1 ORDER BY name ASC;`,
       [orgId]
     );
 
@@ -63,19 +56,27 @@ export async function GET() {
       [orgId]
     );
 
+    // Total active users
+    const userCountRes = await query<{ count: string }>(
+      `SELECT count(*) as count FROM users WHERE organization_id = $1 AND status = 'ACTIVE';`,
+      [orgId]
+    );
+    const activeUsersTotal = parseInt(userCountRes[0]?.count || '1', 10);
+
     return NextResponse.json({
       success: true,
       stats: {
         totalAuditEvents: totalEvents,
         cryptographicHealth: {
-          status: '100% Attested',
-          violations: 0,
-          epochsCount: 42,
+          status: anomalyCount === 0 ? '100% Attested' : `${anomalyCount} Anomalies Detected`,
+          violations: anomalyCount,
+          epochsCount: Math.max(epochBlocks.length, 1),
           sealedState: 'WORM IMMUTABLE STORAGE SEAL: ACTIVE',
         },
-        activeOfficersCount: Math.max(totalOfficers, 4),
-        departments: deptBreakdown.map((d) => d.department_name),
-        securityAlertsCount: Math.max(anomalyCount, 1),
+        activeOfficersCount: totalOfficers > 0 ? totalOfficers : activeUsersTotal,
+        departments: allDepts.map((d) => d.name),
+        departmentList: allDepts,
+        securityAlertsCount: anomalyCount,
         epochProgression: epochBlocks.reverse().map((b) => ({
           label: b.hour_bucket,
           count: parseInt(b.count, 10),
