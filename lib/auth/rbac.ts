@@ -79,8 +79,8 @@ export function isSuperAdmin(session: UserSessionPayload): boolean {
 export function isAdmin(session: UserSessionPayload): boolean {
   if (!session) return false;
   if (isSuperAdmin(session)) return true;
-  // Any user with PERMISSION_MANAGE or USER_MANAGE is considered an admin
-  return hasAnyPermission(session, ['PERMISSION_MANAGE', 'USER_MANAGE', 'DEPARTMENT_MANAGE']);
+  // Any user with administrative permissions
+  return hasAnyPermission(session, ['PERMISSION_MANAGE', 'USER_MANAGE', 'DEPARTMENT_MANAGE', 'RETENTION_MANAGE']);
 }
 
 // ---------------------------------------------------------------------------

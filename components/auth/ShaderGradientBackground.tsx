@@ -20,14 +20,14 @@ if (typeof window !== 'undefined') {
 
 export default function ShaderGradientBackground() {
   return (
-    <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none -z-10">
       <ShaderGradientCanvas
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          width: '100vw',
+          height: '100vh',
         }}
         lazyLoad={false}
         fov={45}

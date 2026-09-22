@@ -91,6 +91,15 @@ export async function GET(req: NextRequest) {
       [orgId]
     );
 
+    // 6. Fetch Active Retention Policies for Organization
+    const retentionPolicies = await query<any>(
+      `SELECT id, name, schedule_code, retention_days, permanent, deletion_requires_approval, action_on_expiry, statutory_framework, description
+       FROM retention_policies
+       WHERE organization_id = $1
+       ORDER BY permanent DESC, retention_days DESC`,
+      [orgId]
+    );
+
     return NextResponse.json({
       success: true,
       userMaxSecurityLevel: userMaxLevel,
@@ -107,6 +116,15 @@ export async function GET(req: NextRequest) {
         code: d.code,
       })),
       securityLevels: mappedSecLevels,
+      retentionPolicies: retentionPolicies.map((rp: any) => ({
+        id: rp.id,
+        name: rp.name,
+        scheduleCode: rp.schedule_code,
+        retentionDays: rp.retention_days,
+        permanent: rp.permanent,
+        actionOnExpiry: rp.action_on_expiry,
+        statutoryFramework: rp.statutory_framework,
+      })),
       roles,
       policies,
     });

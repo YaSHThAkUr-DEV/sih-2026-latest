@@ -213,3 +213,108 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+/**
+ * PATCH /api/retention/records
+ * Assigns or rebinds a Statutory Retention Schedule to a document.
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { documentId, recordId, retentionPolicyId } = body;
+
+    if (!retentionPolicyId) {
+      return NextResponse.json({ error: 'Statutory retention policy ID is required.' }, { status: 400 });
+    }
+
+    let finalDocId = documentId;
+
+    if (!finalDocId && recordId) {
+      const rec = await query<{ document_id: string }>(
+        'SELECT document_id FROM retention_records WHERE id = $1',
+        [recordId]
+      );
+      if (rec.length > 0) {
+        finalDocId = rec[0].document_id;
+      }
+    }
+
+    if (!finalDocId) {
+      return NextResponse.json({ error: 'Target document ID is required.' }, { status: 400 });
+    }
+
+    // Verify retention policy belongs to organization
+    const polRes = await query<{
+      id: string;
+      name: string;
+      schedule_code: string;
+      retention_days: number | null;
+      permanent: boolean;
+    }>(
+      'SELECT id, name, schedule_code, retention_days, permanent FROM retention_policies WHERE id = $1 AND organization_id = $2',
+      [retentionPolicyId, session.organizationId]
+    );
+
+    if (polRes.length === 0) {
+      return NextResponse.json({ error: 'Retention policy not found in this organization.' }, { status: 404 });
+    }
+
+    const policy = polRes[0];
+    const isPermanent = !!policy.permanent;
+    const days = policy.retention_days;
+
+    // Check if retention record exists for this document
+    const existingRec = await query<{ id: string; retention_start_at: string }>(
+      'SELECT id, retention_start_at FROM retention_records WHERE document_id = $1',
+      [finalDocId]
+    );
+
+    if (existingRec.length > 0) {
+      if (isPermanent) {
+        await query(
+          `UPDATE retention_records 
+           SET retention_policy_id = $1, retention_end_at = NULL
+           WHERE document_id = $2`,
+          [policy.id, finalDocId]
+        );
+      } else {
+        await query(
+          `UPDATE retention_records 
+           SET retention_policy_id = $1, retention_end_at = retention_start_at + ($2 || ' days')::INTERVAL
+           WHERE document_id = $3`,
+          [policy.id, days || 2555, finalDocId]
+        );
+      }
+    } else {
+      if (isPermanent) {
+        await query(
+          `INSERT INTO retention_records 
+           (document_id, retention_policy_id, retention_start_at, retention_end_at, legal_hold, status, created_at)
+           VALUES ($1, $2, NOW(), NULL, false, 'ACTIVE', NOW())`,
+          [finalDocId, policy.id]
+        );
+      } else {
+        await query(
+          `INSERT INTO retention_records 
+           (document_id, retention_policy_id, retention_start_at, retention_end_at, legal_hold, status, created_at)
+           VALUES ($1, $2, NOW(), NOW() + ($3 || ' days')::INTERVAL, false, 'ACTIVE', NOW())`,
+          [finalDocId, policy.id, days || 2555]
+        );
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Statutory schedule "${policy.name}" (${policy.schedule_code}) attached to document.`,
+      schedule: policy,
+    });
+  } catch (error: any) {
+    console.error('Error attaching retention policy:', error);
+    return NextResponse.json({ error: error.message || 'Failed to attach retention policy.' }, { status: 500 });
+  }
+}

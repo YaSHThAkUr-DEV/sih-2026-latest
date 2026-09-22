@@ -100,7 +100,13 @@ export async function GET(req: NextRequest) {
         dv.file_size,
         dv.sha256_hash,
         dv.encryption_algorithm,
-        dv.checksum_verified
+        dv.checksum_verified,
+        rr.id as retention_record_id,
+        rp.id as retention_policy_id,
+        rp.name as retention_policy_name,
+        rp.schedule_code as retention_schedule_code,
+        COALESCE(rr.legal_hold, false) as is_legal_hold,
+        rr.retention_end_at
       FROM documents d
       JOIN document_types dt ON d.document_type_id = dt.id
       JOIN security_levels sl ON d.security_level_id = sl.id
@@ -108,6 +114,8 @@ export async function GET(req: NextRequest) {
       JOIN users u ON d.owner_id = u.id
       LEFT JOIN document_versions dv ON d.current_version_id = dv.id
       LEFT JOIN ocr_results ocr ON dv.id = ocr.document_version_id
+      LEFT JOIN retention_records rr ON d.id = rr.document_id
+      LEFT JOIN retention_policies rp ON rr.retention_policy_id = rp.id
       WHERE ${whereSql}
       ORDER BY d.created_at DESC
       LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}

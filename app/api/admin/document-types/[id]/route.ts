@@ -120,3 +120,61 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await verifyAdminSession(req);
+  if (auth.errorResponse) return auth.errorResponse;
+  const session = auth.session;
+  const { id: docTypeId } = await params;
+
+  try {
+    // Check if any documents are actively classified under this type
+    const activeDocs = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM documents WHERE document_type_id = $1 AND status != 'DELETED'`,
+      [docTypeId]
+    );
+
+    if (parseInt(activeDocs[0]?.count || '0', 10) > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete document type: ${activeDocs[0].count} documents are currently assigned to this classification.` },
+        { status: 409 }
+      );
+    }
+
+    // Delete mappings in department policies first
+    await query(`DELETE FROM document_type_policies WHERE document_type_id = $1 AND organization_id = $2`, [
+      docTypeId,
+      session.organizationId,
+    ]);
+
+    await query(`DELETE FROM document_types WHERE id = $1 AND organization_id = $2`, [
+      docTypeId,
+      session.organizationId,
+    ]);
+
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      eventType: 'ADMIN_DOCUMENT_TYPE_DELETED',
+      actorId: session.userId,
+      resourceType: 'DOCUMENT_TYPE',
+      resourceId: docTypeId,
+      result: 'SUCCESS',
+      metadata: { docTypeId },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Document classification type deleted successfully.',
+    });
+  } catch (err: any) {
+    console.error('[ADMIN_DELETE_DOC_TYPE_ERROR]', err);
+    return NextResponse.json(
+      { error: 'Failed to delete document type.', details: err.message },
+      { status: 500 }
+    );
+  }
+}
+

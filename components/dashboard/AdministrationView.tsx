@@ -190,9 +190,12 @@ export default function AdministrationView({
   const [savingPermissions, setSavingPermissions] = useState(false);
 
   // Policy Selected Department & Search
+  const [policySubTab, setPolicySubTab] = useState<'routing' | 'schedules'>('routing');
   const [policyDeptFilter, setPolicyDeptFilter] = useState<string>('ALL');
   const [policySearch, setPolicySearch] = useState<string>('');
+  const [scheduleSearch, setScheduleSearch] = useState<string>('');
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
 
   // Modals state
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
@@ -231,10 +234,12 @@ export default function AdministrationView({
     roleIds: [] as string[],
   });
 
+  const [editingDocTypeId, setEditingDocTypeId] = useState<string | null>(null);
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [deptForm, setDeptForm] = useState({ name: '', code: '', parentDepartmentId: '' });
   const [teamForm, setTeamForm] = useState({ departmentId: '', name: '', code: '' });
   const [roleForm, setRoleForm] = useState({ name: '', code: '', description: '' });
-  const [docTypeForm, setDocTypeForm] = useState({ name: '', code: '', description: '' });
+  const [docTypeForm, setDocTypeForm] = useState({ name: '', code: '', description: '', active: true });
   const [scheduleForm, setScheduleForm] = useState({
     name: '',
     scheduleCode: '',
@@ -455,6 +460,294 @@ export default function AdministrationView({
     }
   };
 
+  // --- STATUTORY RETENTION SCHEDULE HANDLERS ---
+  const handleOpenCreateSchedule = () => {
+    setEditingScheduleId(null);
+    setScheduleForm({
+      name: '',
+      scheduleCode: '',
+      retentionDays: 1095,
+      permanent: false,
+      deletionRequiresApproval: true,
+      actionOnExpiry: 'Maker-Checker Review & Cryptographic Zeroization',
+      statutoryFramework: 'Public Records & Archives Directives 2026',
+      description: '',
+    });
+    setCreateScheduleModalOpen(true);
+  };
+
+  const handleOpenEditSchedule = (sch: RetentionScheduleItem) => {
+    setEditingScheduleId(sch.id);
+    setScheduleForm({
+      name: sch.name,
+      scheduleCode: sch.schedule_code,
+      retentionDays: sch.permanent ? 1095 : (sch.retention_days || 365),
+      permanent: !!sch.permanent,
+      deletionRequiresApproval: sch.deletion_requires_approval !== false,
+      actionOnExpiry: sch.action_on_expiry || 'Maker-Checker Review & Cryptographic Zeroization',
+      statutoryFramework: sch.statutory_framework || 'Public Records & Archives Directives 2026',
+      description: sch.description || '',
+    });
+    setCreateScheduleModalOpen(true);
+  };
+
+  const handleSaveScheduleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleForm.name.trim() || !scheduleForm.scheduleCode.trim()) {
+      setActionFeedback({ type: 'error', message: 'Schedule Name and Code are required.' });
+      return;
+    }
+    try {
+      const url = editingScheduleId
+        ? `/api/admin/retention-policies/${editingScheduleId}`
+        : '/api/admin/retention-policies';
+      const method = editingScheduleId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: scheduleForm.name.trim(),
+          scheduleCode: scheduleForm.scheduleCode.trim(),
+          retentionDays: scheduleForm.permanent ? null : Number(scheduleForm.retentionDays),
+          permanent: scheduleForm.permanent,
+          deletionRequiresApproval: scheduleForm.deletionRequiresApproval,
+          actionOnExpiry: scheduleForm.actionOnExpiry,
+          statutoryFramework: scheduleForm.statutoryFramework,
+          description: scheduleForm.description,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to save retention schedule.' });
+        return;
+      }
+      setActionFeedback({
+        type: 'success',
+        message: editingScheduleId
+          ? `Schedule "${scheduleForm.name}" updated successfully.`
+          : `Schedule "${scheduleForm.name}" created successfully.`,
+      });
+      setCreateScheduleModalOpen(false);
+      setEditingScheduleId(null);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving schedule' });
+    }
+  };
+
+  const handleDeleteSchedule = async (sch: RetentionScheduleItem) => {
+    if (Number(sch.document_count) > 0) {
+      alert(`Cannot delete "${sch.name}". There are ${sch.document_count} active documents governed by this statutory schedule.`);
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete the statutory retention schedule "${sch.name}" (${sch.schedule_code})?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/retention-policies/${sch.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to delete retention schedule.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: 'Retention schedule deleted successfully.' });
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error deleting schedule' });
+    }
+  };
+
+  // --- DOCUMENT CLASSIFICATION TYPE HANDLERS ---
+  const handleOpenCreateDocType = () => {
+    setEditingDocTypeId(null);
+    setDocTypeForm({ name: '', code: '', description: '', active: true });
+    setCreateDocTypeModalOpen(true);
+  };
+
+  const handleOpenEditDocType = (dt: DocumentTypeItem) => {
+    setEditingDocTypeId(dt.id);
+    setDocTypeForm({
+      name: dt.name,
+      code: dt.code,
+      description: dt.description || '',
+      active: dt.active !== false,
+    });
+    setCreateDocTypeModalOpen(true);
+  };
+
+  const handleSaveDocTypeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docTypeForm.name.trim() || !docTypeForm.code.trim()) {
+      setActionFeedback({ type: 'error', message: 'Document classification name and unique code are required.' });
+      return;
+    }
+    try {
+      const url = editingDocTypeId
+        ? `/api/admin/document-types/${editingDocTypeId}`
+        : '/api/admin/document-types';
+      const method = editingDocTypeId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: docTypeForm.name.trim(),
+          code: docTypeForm.code.trim().toUpperCase(),
+          description: docTypeForm.description.trim() || null,
+          active: docTypeForm.active,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to save document type.' });
+        return;
+      }
+      setActionFeedback({
+        type: 'success',
+        message: editingDocTypeId
+          ? `Document classification "${docTypeForm.name}" updated successfully.`
+          : `Document classification "${docTypeForm.name}" created successfully.`,
+      });
+      setCreateDocTypeModalOpen(false);
+      setEditingDocTypeId(null);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving document type' });
+    }
+  };
+
+  const handleDeleteDocType = async (dt: DocumentTypeItem) => {
+    if (Number(dt.document_count) > 0) {
+      alert(`Cannot delete "${dt.name}". There are ${dt.document_count} active documents classified under this type.`);
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete the document classification "${dt.name}" (${dt.code})?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/document-types/${dt.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to delete document type.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: `Document classification "${dt.name}" deleted successfully.` });
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error deleting document type' });
+    }
+  };
+
+  // --- DEPARTMENT & TEAM HANDLERS ---
+  const handleOpenCreateDept = () => {
+    setEditingDeptId(null);
+    setDeptForm({ name: '', code: '', parentDepartmentId: '' });
+    setCreateDeptModalOpen(true);
+  };
+
+  const handleSaveDeptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deptForm.name.trim() || !deptForm.code.trim()) {
+      setActionFeedback({ type: 'error', message: 'Department name and code are required.' });
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/departments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: deptForm.name.trim(),
+          code: deptForm.code.trim().toUpperCase(),
+          parentDepartmentId: deptForm.parentDepartmentId || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to create department.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: `Department "${deptForm.name}" created successfully.` });
+      setCreateDeptModalOpen(false);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving department' });
+    }
+  };
+
+  const handleOpenCreateTeam = () => {
+    setTeamForm({ departmentId: departments[0]?.id || '', name: '', code: '' });
+    setCreateTeamModalOpen(true);
+  };
+
+  const handleSaveTeamSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamForm.name.trim() || !teamForm.code.trim() || !teamForm.departmentId) {
+      setActionFeedback({ type: 'error', message: 'Department, team name, and code are required.' });
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          departmentId: teamForm.departmentId,
+          name: teamForm.name.trim(),
+          code: teamForm.code.trim().toUpperCase(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to create team.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: `Team "${teamForm.name}" created successfully.` });
+      setCreateTeamModalOpen(false);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving team' });
+    }
+  };
+
+  // --- ROLE HANDLERS ---
+  const handleOpenCreateRole = () => {
+    setRoleForm({ name: '', code: '', description: '' });
+    setCreateRoleModalOpen(true);
+  };
+
+  const handleSaveRoleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleForm.name.trim() || !roleForm.code.trim()) {
+      setActionFeedback({ type: 'error', message: 'Role name and unique code are required.' });
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: roleForm.name.trim(),
+          code: roleForm.code.trim().toUpperCase(),
+          description: roleForm.description.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to create role.' });
+        return;
+      }
+      setActionFeedback({ type: 'success', message: `Role "${roleForm.name}" created successfully.` });
+      setCreateRoleModalOpen(false);
+      loadAllData();
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err.message || 'Error saving role' });
+    }
+  };
+
   useEffect(() => {
     loadAllData();
     loadOfficeFeatures();
@@ -661,7 +954,7 @@ export default function AdministrationView({
               { id: 'hierarchy', label: 'Departments & Teams', icon: 'corporate_fare', count: departments.length },
               { id: 'rbac', label: 'Roles & RBAC', icon: 'shield', count: roles.length },
               { id: 'types_tiers', label: 'Doc Types & Tiers', icon: 'category', count: documentTypes.length },
-              { id: 'policies', label: 'Governance Policies', icon: 'policy', count: policies.length },
+              { id: 'policies', label: 'Governance Policies', icon: 'policy', count: policies.length + retentionSchedules.length },
               { id: 'modules', label: 'Service Modules', icon: 'toggle_on' },
               { id: 'system', label: 'System Telemetry', icon: 'tune' },
             ].map((tab) => (
@@ -958,25 +1251,53 @@ export default function AdministrationView({
           <div className="space-y-6">
             {/* Document Types */}
             <div className="bg-white rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[#D8DEEA]/60">
-                <span className="text-xs font-semibold text-[#10141A] uppercase tracking-wider">Document Classifications</span>
+              <div className="flex items-center justify-between pb-2 border-b border-[#D8DEEA]/60 flex-wrap gap-2">
+                <div>
+                  <span className="text-xs font-semibold text-[#10141A] uppercase tracking-wider">Document Classifications</span>
+                  <p className="text-[11px] text-[#6B7280]">Official record categories recognized across all departments and workflows.</p>
+                </div>
                 <button
-                  onClick={() => setCreateDocTypeModalOpen(true)}
-                  className="px-3 py-1 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22]"
+                  onClick={handleOpenCreateDocType}
+                  className="px-3.5 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  + Add Document Type
+                  <span className="material-symbols-outlined text-[15px]">add</span>
+                  <span>+ Add Document Type</span>
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {documentTypes.map((dt) => (
-                  <div key={dt.id} className="p-3.5 rounded-[16px] bg-[#f0f3ff]/40 border border-[#D8DEEA]/60 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-[#3f5e93]">{dt.code}</span>
-                      <span className="text-[10px] text-[#6B7280]">{dt.document_count} Files</span>
+                  <div key={dt.id} className="p-4 rounded-[18px] bg-[#f0f3ff]/50 border border-[#D8DEEA]/70 space-y-2 hover:bg-[#f0f3ff] transition flex flex-col justify-between group">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-white text-[#3f5e93] border border-[#83A2DB]/30">{dt.code}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-[#6B7280] font-medium mr-1">{dt.document_count || 0} Files</span>
+                          <button
+                            onClick={() => handleOpenEditDocType(dt)}
+                            className="p-1 rounded-md text-[#6B7280] hover:text-[#10141A] hover:bg-white transition cursor-pointer"
+                            title="Edit Document Type"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDocType(dt)}
+                            className="p-1 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
+                            title="Delete Document Type"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-[#10141A]">{dt.name}</div>
+                      <div className="text-[11px] text-[#6B7280] line-clamp-2">{dt.description || 'Standard Document Class'}</div>
                     </div>
-                    <div className="text-xs font-semibold text-[#10141A]">{dt.name}</div>
-                    <div className="text-[11px] text-[#6B7280] truncate">{dt.description || 'Standard Document Class'}</div>
+                    <div className="pt-2 border-t border-[#D8DEEA]/40 flex items-center justify-between text-[10px] text-[#6B7280]">
+                      <span>Status: <strong className={dt.active !== false ? 'text-emerald-700' : 'text-slate-500'}>{dt.active !== false ? 'ACTIVE' : 'INACTIVE'}</strong></span>
+                      {dt.assigned_departments_count !== undefined && (
+                        <span>{dt.assigned_departments_count} Dept Rules</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1004,199 +1325,388 @@ export default function AdministrationView({
               </div>
             </div>
           </div>
-        )}
-
-        {/* TAB 5: POLICIES */}
+        )}        {/* TAB 5: POLICIES */}
         {activeTab === 'policies' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 flex-1 max-w-xl">
-                <div className="relative flex-1">
-                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[16px]">search</span>
-                  <input
-                    type="text"
-                    placeholder="Search policies by department, document type..."
-                    value={policySearch}
-                    onChange={(e) => setPolicySearch(e.target.value)}
-                    className="w-full h-8 pl-9 pr-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
-                  />
-                </div>
-
-                <select
-                  value={policyDeptFilter}
-                  onChange={(e) => setPolicyDeptFilter(e.target.value)}
-                  className="h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
-                >
-                  <option value="ALL">All Departments</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#6B7280] font-mono">
-                  {policies.filter((p) => p.active).length} Active Rules
+            {/* Sub-tab Navigation */}
+            <div className="flex items-center gap-2 border-b border-[#D8DEEA]/60 pb-3">
+              <button
+                onClick={() => setPolicySubTab('routing')}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-2 ${
+                  policySubTab === 'routing'
+                    ? 'bg-[#000000] text-white shadow-xs'
+                    : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">alt_route</span>
+                <span>Department Routing Rules</span>
+                <span className={`px-2 py-0.2 text-[10px] rounded-full font-mono font-bold ${policySubTab === 'routing' ? 'bg-white/25 text-white' : 'bg-[#E9ECF4] text-[#6B7280]'}`}>
+                  {policies.length}
                 </span>
-                <button
-                  onClick={handleOpenCreatePolicy}
-                  className="px-4 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-[16px]">add_moderator</span>
-                  <span>Assign Policy</span>
-                </button>
-              </div>
+              </button>
+
+              <button
+                onClick={() => setPolicySubTab('schedules')}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-2 ${
+                  policySubTab === 'schedules'
+                    ? 'bg-[#000000] text-white shadow-xs'
+                    : 'bg-white text-[#45474b] border border-[#D8DEEA] hover:bg-[#f0f3ff]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">schedule</span>
+                <span>Statutory Retention Schedules</span>
+                <span className={`px-2 py-0.2 text-[10px] rounded-full font-mono font-bold ${policySubTab === 'schedules' ? 'bg-white/25 text-white' : 'bg-[#E9ECF4] text-[#6B7280]'}`}>
+                  {retentionSchedules.length}
+                </span>
+              </button>
             </div>
 
-            <div className="bg-white rounded-[20px] shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#f0f3ff]/60 text-[#6B7280] text-[10px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
-                    <tr>
-                      <th className="py-3 px-4">Department</th>
-                      <th className="py-3 px-3">Document Class</th>
-                      <th className="py-3 px-3">Security Clearance</th>
-                      <th className="py-3 px-3">Retention Schedule</th>
-                      <th className="py-3 px-3">Enforcement Flags</th>
-                      <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
-                    {policies
-                      .filter((pol) => {
-                        if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
-                        if (policySearch.trim()) {
-                          const q = policySearch.toLowerCase();
-                          return (
-                            pol.department_name?.toLowerCase().includes(q) ||
-                            pol.document_type_name?.toLowerCase().includes(q) ||
-                            pol.security_level_name?.toLowerCase().includes(q) ||
-                            pol.retention_policy_name?.toLowerCase().includes(q)
-                          );
-                        }
-                        return true;
-                      })
-                      .length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-[#6B7280]">
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="material-symbols-outlined text-[28px] text-[#9CA3AF]">policy</span>
-                            <span className="font-medium text-xs text-[#10141A]">No governance policies found</span>
-                            <span className="text-[11px] text-[#9CA3AF]">Click &quot;Assign Policy&quot; to define a new department rule.</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      policies
-                        .filter((pol) => {
-                          if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
-                          if (policySearch.trim()) {
-                            const q = policySearch.toLowerCase();
-                            return (
-                              pol.department_name?.toLowerCase().includes(q) ||
-                              pol.document_type_name?.toLowerCase().includes(q) ||
-                              pol.security_level_name?.toLowerCase().includes(q) ||
-                              pol.retention_policy_name?.toLowerCase().includes(q)
-                            );
-                          }
-                          return true;
-                        })
-                        .map((pol) => (
-                          <tr key={pol.id} className="hover:bg-[#f0f3ff]/40 transition">
-                            <td className="py-3 px-4">
-                              <div className="font-semibold text-[#10141A]">{pol.department_name}</div>
-                              <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.department_code}</span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-[#3f5e93]">{pol.document_type_name}</div>
-                              <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.document_type_code}</span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className="inline-flex items-center gap-1 font-medium text-xs text-[#10141A]">
-                                <span className="px-1.5 py-0.2 rounded-md bg-[#f0f3ff] text-[#3f5e93] border border-[#83A2DB]/30 font-mono text-[10px] font-bold">
-                                  L{pol.security_level_rank}
-                                </span>
-                                <span>{pol.security_level_name}</span>
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-[#10141A]">{pol.retention_policy_name || 'Standard Statutory'}</div>
-                              {pol.retention_schedule_code && (
-                                <span className="text-[10px] font-mono text-[#6B7280]">{pol.retention_schedule_code}</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span
-                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                    pol.approval_required
-                                      ? 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold'
-                                      : 'bg-[#f0f3ff] text-[#6B7280]'
-                                  }`}
-                                  title={pol.approval_required ? 'Dual Maker-Checker sign-off required' : 'Standard single officer workflow'}
-                                >
-                                  {pol.approval_required ? 'Dual Approval' : 'Single Sign'}
-                                </span>
-                                <span
-                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                    pol.ocr_required !== false
-                                      ? 'bg-blue-50 text-blue-700'
-                                      : 'bg-slate-100 text-slate-500'
-                                  }`}
-                                >
-                                  {pol.ocr_required !== false ? 'OCR On' : 'OCR Off'}
-                                </span>
-                                <span
-                                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                    pol.download_allowed !== false
-                                      ? 'bg-emerald-50 text-emerald-700'
-                                      : 'bg-rose-50 text-rose-700 font-semibold'
-                                  }`}
-                                >
-                                  {pol.download_allowed !== false ? 'Export OK' : 'View Only'}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <button
-                                onClick={() => handleTogglePolicyStatus(pol)}
-                                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition cursor-pointer ${
-                                  pol.active
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
-                                    : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
-                                }`}
-                              >
-                                {pol.active ? 'ACTIVE' : 'INACTIVE'}
-                              </button>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleOpenEditPolicy(pol)}
-                                  className="p-1 rounded-lg text-[#6B7280] hover:text-[#10141A] hover:bg-[#f0f3ff] transition"
-                                  title="Edit Policy"
-                                >
-                                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePolicy(pol)}
-                                  className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition"
-                                  title="Delete Policy"
-                                >
-                                  <span className="material-symbols-outlined text-[16px]">delete</span>
-                                </button>
+            {/* Sub-tab 1: Department Routing Rules */}
+            {policySubTab === 'routing' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 flex-1 max-w-xl">
+                    <div className="relative flex-1">
+                      <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[16px]">search</span>
+                      <input
+                        type="text"
+                        placeholder="Search policies by department, document type..."
+                        value={policySearch}
+                        onChange={(e) => setPolicySearch(e.target.value)}
+                        className="w-full h-8 pl-9 pr-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                      />
+                    </div>
+
+                    <select
+                      value={policyDeptFilter}
+                      onChange={(e) => setPolicyDeptFilter(e.target.value)}
+                      className="h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                    >
+                      <option value="ALL">All Departments</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#6B7280] font-mono">
+                      {policies.filter((p) => p.active).length} Active Rules
+                    </span>
+                    <button
+                      onClick={handleOpenCreatePolicy}
+                      className="px-4 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add_moderator</span>
+                      <span>Assign Policy</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[20px] shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#f0f3ff]/60 text-[#6B7280] text-[10px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
+                        <tr>
+                          <th className="py-3 px-4">Department</th>
+                          <th className="py-3 px-3">Document Class</th>
+                          <th className="py-3 px-3">Security Clearance</th>
+                          <th className="py-3 px-3">Retention Schedule</th>
+                          <th className="py-3 px-3">Enforcement Flags</th>
+                          <th className="py-3 px-3">Status</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
+                        {policies
+                          .filter((pol) => {
+                            if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
+                            if (policySearch.trim()) {
+                              const q = policySearch.toLowerCase();
+                              return (
+                                pol.department_name?.toLowerCase().includes(q) ||
+                                pol.document_type_name?.toLowerCase().includes(q) ||
+                                pol.security_level_name?.toLowerCase().includes(q) ||
+                                pol.retention_policy_name?.toLowerCase().includes(q)
+                              );
+                            }
+                            return true;
+                          })
+                          .length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-12 text-center text-[#6B7280]">
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <span className="material-symbols-outlined text-[28px] text-[#9CA3AF]">policy</span>
+                                <span className="font-medium text-xs text-[#10141A]">No governance policies found</span>
+                                <span className="text-[11px] text-[#9CA3AF]">Click &quot;Assign Policy&quot; to define a new department rule.</span>
                               </div>
                             </td>
                           </tr>
-                        ))
-                    )}
-                  </tbody>
-                </table>
+                        ) : (
+                          policies
+                            .filter((pol) => {
+                              if (policyDeptFilter !== 'ALL' && pol.department_id !== policyDeptFilter) return false;
+                              if (policySearch.trim()) {
+                                const q = policySearch.toLowerCase();
+                                return (
+                                  pol.department_name?.toLowerCase().includes(q) ||
+                                  pol.document_type_name?.toLowerCase().includes(q) ||
+                                  pol.security_level_name?.toLowerCase().includes(q) ||
+                                  pol.retention_policy_name?.toLowerCase().includes(q)
+                                );
+                              }
+                              return true;
+                            })
+                            .map((pol) => (
+                              <tr key={pol.id} className="hover:bg-[#f0f3ff]/40 transition">
+                                <td className="py-3 px-4">
+                                  <div className="font-semibold text-[#10141A]">{pol.department_name}</div>
+                                  <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.department_code}</span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="font-medium text-[#3f5e93]">{pol.document_type_name}</div>
+                                  <span className="text-[10px] font-mono text-[#9CA3AF]">{pol.document_type_code}</span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className="inline-flex items-center gap-1 font-medium text-xs text-[#10141A]">
+                                    <span className="px-1.5 py-0.2 rounded-md bg-[#f0f3ff] text-[#3f5e93] border border-[#83A2DB]/30 font-mono text-[10px] font-bold">
+                                      L{pol.security_level_rank}
+                                    </span>
+                                    <span>{pol.security_level_name}</span>
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="font-medium text-[#10141A]">{pol.retention_policy_name || 'Standard Statutory'}</div>
+                                  {pol.retention_schedule_code && (
+                                    <span className="text-[10px] font-mono text-[#6B7280]">{pol.retention_schedule_code}</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span
+                                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                        pol.approval_required
+                                          ? 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold'
+                                          : 'bg-[#f0f3ff] text-[#6B7280]'
+                                      }`}
+                                      title={pol.approval_required ? 'Dual Maker-Checker sign-off required' : 'Standard single officer workflow'}
+                                    >
+                                      {pol.approval_required ? 'Dual Approval' : 'Single Sign'}
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                        pol.ocr_required !== false
+                                          ? 'bg-blue-50 text-blue-700'
+                                          : 'bg-slate-100 text-slate-500'
+                                      }`}
+                                    >
+                                      {pol.ocr_required !== false ? 'OCR On' : 'OCR Off'}
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                        pol.download_allowed !== false
+                                          ? 'bg-emerald-50 text-emerald-700'
+                                          : 'bg-rose-50 text-rose-700 font-semibold'
+                                      }`}
+                                    >
+                                      {pol.download_allowed !== false ? 'Export OK' : 'View Only'}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <button
+                                    onClick={() => handleTogglePolicyStatus(pol)}
+                                    className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition cursor-pointer ${
+                                      pol.active
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                                        : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                                    }`}
+                                  >
+                                    {pol.active ? 'ACTIVE' : 'INACTIVE'}
+                                  </button>
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleOpenEditPolicy(pol)}
+                                      className="p-1 rounded-lg text-[#6B7280] hover:text-[#10141A] hover:bg-[#f0f3ff] transition cursor-pointer"
+                                      title="Edit Policy"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeletePolicy(pol)}
+                                      className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
+                                      title="Delete Policy"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Sub-tab 2: Statutory Retention Schedules */}
+            {policySubTab === 'schedules' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#9CA3AF] text-[16px]">search</span>
+                    <input
+                      type="text"
+                      placeholder="Search retention schedules, legislation, codes..."
+                      value={scheduleSearch}
+                      onChange={(e) => setScheduleSearch(e.target.value)}
+                      className="w-full h-8 pl-9 pr-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs text-[#151c27] placeholder:text-[#9CA3AF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#6B7280] font-mono">
+                      {retentionSchedules.length} Statutory Schedules
+                    </span>
+                    <button
+                      onClick={handleOpenCreateSchedule}
+                      className="px-4 py-1.5 bg-[#000000] text-white rounded-full text-xs font-medium hover:bg-[#181c22] transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                      <span>+ New Retention Schedule</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[20px] shadow-[0_2px_8px_rgba(16,20,26,0.03)] border border-[#D8DEEA]/60 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#f0f3ff]/60 text-[#6B7280] text-[10px] font-semibold uppercase tracking-wider border-b border-[#D8DEEA]/60">
+                        <tr>
+                          <th className="py-3 px-4">Schedule Code</th>
+                          <th className="py-3 px-3">Schedule Name & Framework</th>
+                          <th className="py-3 px-3">Statutory Duration</th>
+                          <th className="py-3 px-3">Disposal Action</th>
+                          <th className="py-3 px-3">Linked Records</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#D8DEEA]/40 text-[#10141A]">
+                        {retentionSchedules
+                          .filter((sch) => {
+                            if (scheduleSearch.trim()) {
+                              const q = scheduleSearch.toLowerCase();
+                              return (
+                                sch.name?.toLowerCase().includes(q) ||
+                                sch.schedule_code?.toLowerCase().includes(q) ||
+                                sch.statutory_framework?.toLowerCase().includes(q) ||
+                                sch.action_on_expiry?.toLowerCase().includes(q)
+                              );
+                            }
+                            return true;
+                          })
+                          .length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-[#6B7280]">
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <span className="material-symbols-outlined text-[28px] text-[#9CA3AF]">hourglass_disabled</span>
+                                <span className="font-medium text-xs text-[#10141A]">No statutory schedules found</span>
+                                <span className="text-[11px] text-[#9CA3AF]">Click &quot;+ New Retention Schedule&quot; to configure a statutory archival policy.</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          retentionSchedules
+                            .filter((sch) => {
+                              if (scheduleSearch.trim()) {
+                                const q = scheduleSearch.toLowerCase();
+                                return (
+                                  sch.name?.toLowerCase().includes(q) ||
+                                  sch.schedule_code?.toLowerCase().includes(q) ||
+                                  sch.statutory_framework?.toLowerCase().includes(q) ||
+                                  sch.action_on_expiry?.toLowerCase().includes(q)
+                                );
+                              }
+                              return true;
+                            })
+                            .map((sch) => (
+                              <tr key={sch.id} className="hover:bg-[#f0f3ff]/40 transition">
+                                <td className="py-3 px-4 font-mono font-bold text-xs text-[#3f5e93]">
+                                  <span className="px-2 py-0.5 rounded-md bg-[#f0f3ff] border border-[#83A2DB]/40">
+                                    {sch.schedule_code}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-[#10141A]">{sch.name}</div>
+                                  <div className="text-[11px] text-[#6B7280]">{sch.statutory_framework}</div>
+                                  {sch.description && (
+                                    <div className="text-[10px] text-[#9CA3AF] line-clamp-1 mt-0.5">{sch.description}</div>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3">
+                                  {sch.permanent ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+                                      <span className="material-symbols-outlined text-[14px]">all_inclusive</span>
+                                      Permanent
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-[#10141A]">
+                                      <span className="material-symbols-outlined text-[14px] text-[#3f5e93]">timelapse</span>
+                                      <span>
+                                        {sch.retention_days ? `${Math.round(sch.retention_days / 365 * 10) / 10} yrs (${sch.retention_days.toLocaleString()} d)` : 'Standard'}
+                                      </span>
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="font-medium text-xs text-[#10141A]">{sch.action_on_expiry || 'Maker-Checker Review'}</div>
+                                  <div className="text-[10px] text-[#6B7280]">
+                                    {sch.deletion_requires_approval !== false ? 'Dual Sign-off Required' : 'Auto Execution'}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded-full bg-[#f0f3ff] text-[#3f5e93] font-mono text-[11px] font-semibold border border-[#83A2DB]/30" title="Documents linked">
+                                      {sch.document_count || 0} Docs
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono text-[11px]" title="Department rules mapped">
+                                      {sch.assigned_policies_count || 0} Rules
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleOpenEditSchedule(sch)}
+                                      className="p-1 rounded-lg text-[#6B7280] hover:text-[#10141A] hover:bg-[#f0f3ff] transition cursor-pointer"
+                                      title="Edit Schedule"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSchedule(sch)}
+                                      className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
+                                      title="Delete Schedule"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1644,6 +2154,504 @@ export default function AdministrationView({
                   className="px-5 py-2 bg-[#000000] hover:bg-[#181c22] text-white rounded-full text-xs font-medium shadow-xs transition"
                 >
                   {editingPolicyId ? 'Update Policy' : 'Save & Enforce Policy'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Statutory Retention Schedule Modal */}
+      {createScheduleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-lg w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">schedule</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">
+                  {editingScheduleId ? 'Edit Statutory Retention Schedule' : 'Create Statutory Retention Schedule'}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setCreateScheduleModalOpen(false);
+                  setEditingScheduleId(null);
+                }}
+                className="text-[#6B7280] hover:text-[#10141A] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveScheduleSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">Schedule Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SCHEDULE_VI"
+                    value={scheduleForm.scheduleCode}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, scheduleCode: e.target.value.toUpperCase() })}
+                    className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#10141A] font-semibold mb-1">Schedule Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Financial & Tax Audits"
+                    value={scheduleForm.name}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, name: e.target.value })}
+                    className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Statutory Framework / Legislation</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Public Records Act 1993 / Income Tax Act"
+                  value={scheduleForm.statutoryFramework}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, statutoryFramework: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div className="bg-[#f0f3ff]/70 p-3.5 rounded-[18px] border border-[#D8DEEA]/60 space-y-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scheduleForm.permanent}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, permanent: e.target.checked })}
+                    className="w-4 h-4 text-[#3f5e93] rounded"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#10141A]">Permanent Archival Retention</span>
+                    <p className="text-[11px] text-[#6B7280]">Records under this schedule will never expire or be purged.</p>
+                  </div>
+                </label>
+
+                {!scheduleForm.permanent && (
+                  <div className="pt-2 border-t border-[#D8DEEA]/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[#10141A] font-semibold">Retention Duration (Days)</label>
+                      <div className="flex gap-1">
+                        {[
+                          { label: '1y', days: 365 },
+                          { label: '3y', days: 1095 },
+                          { label: '5y', days: 1825 },
+                          { label: '10y', days: 3650 },
+                          { label: '25y', days: 9125 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => setScheduleForm({ ...scheduleForm, retentionDays: preset.days })}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono border cursor-pointer transition ${
+                              scheduleForm.retentionDays === preset.days
+                                ? 'bg-[#000000] text-white border-black font-bold'
+                                : 'bg-white text-[#6B7280] border-[#D8DEEA] hover:bg-slate-100'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      required={!scheduleForm.permanent}
+                      min="1"
+                      value={scheduleForm.retentionDays}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, retentionDays: parseInt(e.target.value, 10) || 0 })}
+                      className="w-full h-8 px-3 bg-white border border-[#D8DEEA] rounded-full text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Action on Expiry</label>
+                <select
+                  value={scheduleForm.actionOnExpiry}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, actionOnExpiry: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs cursor-pointer font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                >
+                  <option value="Maker-Checker Review & Cryptographic Zeroization">Maker-Checker Review & Cryptographic Zeroization</option>
+                  <option value="Transfer to National Archives">Transfer to National Archives</option>
+                  <option value="Executive Review for Extension">Executive Review for Extension</option>
+                  <option value="Permanent Cold Storage Lock">Permanent Cold Storage Lock</option>
+                  <option value="Auto-Shred & Ledger Attestation">Auto-Shred & Ledger Attestation</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="delReqApproval"
+                  checked={scheduleForm.deletionRequiresApproval}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, deletionRequiresApproval: e.target.checked })}
+                  className="w-4 h-4 text-[#3f5e93] rounded cursor-pointer"
+                />
+                <label htmlFor="delReqApproval" className="text-xs text-[#10141A] font-medium cursor-pointer">
+                  Require Dual Maker-Checker Sign-off for Disposal
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Description / Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional context or regulatory background..."
+                  value={scheduleForm.description}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, description: e.target.value })}
+                  className="w-full p-2.5 bg-[#f0f3ff] border border-[#D8DEEA] rounded-[14px] text-xs resize-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateScheduleModalOpen(false);
+                    setEditingScheduleId(null);
+                  }}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs hover:bg-[#181c22] cursor-pointer transition"
+                >
+                  {editingScheduleId ? 'Save Changes' : 'Create Schedule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Document Classification Type Modal */}
+      {createDocTypeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">category</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">
+                  {editingDocTypeId ? 'Edit Document Classification Type' : 'Add Document Classification Type'}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setCreateDocTypeModalOpen(false);
+                  setEditingDocTypeId(null);
+                }}
+                className="text-[#6B7280] hover:text-[#10141A] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDocTypeSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Classification Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. AFFIDAVIT, CONTRACT, CIRCULAR, DEED"
+                  value={docTypeForm.code}
+                  onChange={(e) => setDocTypeForm({ ...docTypeForm, code: e.target.value.toUpperCase() })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+                <p className="text-[10px] text-[#6B7280] mt-0.5">Short unique identifier used on case files and docket prefixes.</p>
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Document Classification Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Legal Affidavit & Sworn Statement"
+                  value={docTypeForm.name}
+                  onChange={(e) => setDocTypeForm({ ...docTypeForm, name: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Description / Usage Guidelines</label>
+                <textarea
+                  rows={2}
+                  placeholder="Operational purpose, intended document types, and legal scope..."
+                  value={docTypeForm.description}
+                  onChange={(e) => setDocTypeForm({ ...docTypeForm, description: e.target.value })}
+                  className="w-full p-2.5 bg-[#f0f3ff] border border-[#D8DEEA] rounded-[14px] text-xs resize-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="docTypeActive"
+                  checked={docTypeForm.active}
+                  onChange={(e) => setDocTypeForm({ ...docTypeForm, active: e.target.checked })}
+                  className="w-4 h-4 text-[#3f5e93] rounded cursor-pointer"
+                />
+                <label htmlFor="docTypeActive" className="text-xs text-[#10141A] font-medium cursor-pointer">
+                  Active classification (available in upload &amp; routing matrix)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateDocTypeModalOpen(false);
+                    setEditingDocTypeId(null);
+                  }}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs hover:bg-[#181c22] cursor-pointer transition"
+                >
+                  {editingDocTypeId ? 'Save Changes' : 'Create Document Type'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Department Modal */}
+      {createDeptModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">corporate_fare</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">Add New Department</h3>
+              </div>
+              <button
+                onClick={() => setCreateDeptModalOpen(false)}
+                className="text-[#6B7280] hover:text-[#10141A] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDeptSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Department Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. FIN, LEGAL, HR, VIGILANCE"
+                  value={deptForm.code}
+                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Department Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Directorate of Financial Intelligence"
+                  value={deptForm.name}
+                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Parent Department (Optional)</label>
+                <select
+                  value={deptForm.parentDepartmentId}
+                  onChange={(e) => setDeptForm({ ...deptForm, parentDepartmentId: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs cursor-pointer focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                >
+                  <option value="">None (Top-Level Division)</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => setCreateDeptModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs hover:bg-[#181c22] cursor-pointer transition"
+                >
+                  Create Department
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Team Modal */}
+      {createTeamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">groups</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">Add Operational Team</h3>
+              </div>
+              <button
+                onClick={() => setCreateTeamModalOpen(false)}
+                className="text-[#6B7280] hover:text-[#10141A] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeamSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Parent Department *</label>
+                <select
+                  required
+                  value={teamForm.departmentId}
+                  onChange={(e) => setTeamForm({ ...teamForm, departmentId: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs cursor-pointer focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                >
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Team Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. AUDIT-OPS, CYBER-SEC"
+                  value={teamForm.code}
+                  onChange={(e) => setTeamForm({ ...teamForm, code: e.target.value.toUpperCase() })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Team Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Audit & Statutory Compliance Unit"
+                  value={teamForm.name}
+                  onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => setCreateTeamModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs hover:bg-[#181c22] cursor-pointer transition"
+                >
+                  Create Team
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Role Modal */}
+      {createRoleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] border border-[#D8DEEA]/80 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#3f5e93] text-[20px]">badge</span>
+                <h3 className="text-sm font-semibold text-[#10141A]">Create Custom RBAC Role</h3>
+              </div>
+              <button
+                onClick={() => setCreateRoleModalOpen(false)}
+                className="text-[#6B7280] hover:text-[#10141A] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRoleSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Role Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. COMPLIANCE_OFFICER, SENIOR_REGISTRAR"
+                  value={roleForm.code}
+                  onChange={(e) => setRoleForm({ ...roleForm, code: e.target.value.toUpperCase() })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Role Display Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Statutory Compliance Officer"
+                  value={roleForm.name}
+                  onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10141A] font-semibold mb-1">Description / Responsibility</label>
+                <textarea
+                  rows={2}
+                  placeholder="Scope of duties and authorized access tiers..."
+                  value={roleForm.description}
+                  onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
+                  className="w-full p-2.5 bg-[#f0f3ff] border border-[#D8DEEA] rounded-[14px] text-xs resize-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => setCreateRoleModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-[#D8DEEA] rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#000000] text-white rounded-full text-xs font-medium shadow-xs hover:bg-[#181c22] cursor-pointer transition"
+                >
+                  Create Role
                 </button>
               </div>
             </form>

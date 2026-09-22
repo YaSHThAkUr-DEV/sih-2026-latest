@@ -32,6 +32,16 @@ interface TaxonomySecurityLevel {
   approval_required: boolean;
 }
 
+interface TaxonomyRetentionPolicy {
+  id: string;
+  name: string;
+  scheduleCode: string;
+  retentionDays: number | null;
+  permanent: boolean;
+  actionOnExpiry: string;
+  statutoryFramework: string;
+}
+
 interface IngestionPolicy {
   id: string;
   department_id: string;
@@ -111,6 +121,8 @@ export default function EvidenceIngestionView({
   const [departments, setDepartments] = useState<TaxonomyDepartment[]>([]);
   const [securityLevels, setSecurityLevels] = useState<TaxonomySecurityLevel[]>([]);
   const [governancePolicies, setGovernancePolicies] = useState<IngestionPolicy[]>([]);
+  const [retentionPolicies, setRetentionPolicies] = useState<TaxonomyRetentionPolicy[]>([]);
+  const [selectedRetentionPolicyId, setSelectedRetentionPolicyId] = useState<string>('');
   const [userMaxLevel, setUserMaxLevel] = useState<number>(3);
 
   // Active policy matching current selection
@@ -120,10 +132,13 @@ export default function EvidenceIngestionView({
     );
   }, [governancePolicies, deptCode, docType]);
 
-  // When activeMatchedPolicy changes, auto-set secTier to mandated level
+  // When activeMatchedPolicy changes, auto-set secTier and retention policy
   useEffect(() => {
     if (activeMatchedPolicy) {
       setSecTier(activeMatchedPolicy.security_level_code);
+      if (activeMatchedPolicy.retention_policy_id) {
+        setSelectedRetentionPolicyId(activeMatchedPolicy.retention_policy_id);
+      }
     }
   }, [activeMatchedPolicy]);
 
@@ -158,6 +173,12 @@ export default function EvidenceIngestionView({
             const accessible = data.securityLevels.filter((s: any) => s.isAccessible);
             if (accessible.length > 0) {
               setSecTier(accessible[Math.min(1, accessible.length - 1)].code);
+            }
+          }
+          if (data.retentionPolicies && Array.isArray(data.retentionPolicies)) {
+            setRetentionPolicies(data.retentionPolicies);
+            if (data.retentionPolicies.length > 0 && !selectedRetentionPolicyId) {
+              setSelectedRetentionPolicyId(data.retentionPolicies[0].id);
             }
           }
           if (data.policies && Array.isArray(data.policies)) {
@@ -329,6 +350,9 @@ export default function EvidenceIngestionView({
       formData.append('docTypeCode', docType);
       formData.append('deptCode', deptCode);
       formData.append('secCode', secTier);
+      if (selectedRetentionPolicyId) {
+        formData.append('retentionPolicyId', selectedRetentionPolicyId);
+      }
       formData.append('description', synopsis.trim());
 
       setProgressPercent(60);
@@ -401,6 +425,9 @@ export default function EvidenceIngestionView({
         formData.append('docTypeCode', docType);
         formData.append('deptCode', deptCode);
         formData.append('secCode', secTier);
+        if (selectedRetentionPolicyId) {
+          formData.append('retentionPolicyId', selectedRetentionPolicyId);
+        }
         
         const combinedDesc = [
           bulkBatchNotes.trim(),
@@ -797,8 +824,8 @@ export default function EvidenceIngestionView({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  <div className="md:col-span-4 flex flex-col gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#45474b]">Document Type *</label>
                     <select
                       value={docType}
@@ -822,7 +849,7 @@ export default function EvidenceIngestionView({
                     </select>
                   </div>
 
-                  <div className="md:col-span-4 flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#45474b]">Department / Division *</label>
                     <select
                       value={deptCode}
@@ -841,7 +868,7 @@ export default function EvidenceIngestionView({
                     </select>
                   </div>
 
-                  <div className="md:col-span-4 flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-[#45474b]">Security Clearance Tier *</label>
                     <select
                       value={secTier}
@@ -862,6 +889,25 @@ export default function EvidenceIngestionView({
                           <option value="T4">T4 — Secret (Rank 4)</option>
                           <option value="T5">T5 — Top Secret (Rank 5)</option>
                         </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-[#45474b]">Statutory Retention *</label>
+                    <select
+                      value={selectedRetentionPolicyId}
+                      onChange={(e) => setSelectedRetentionPolicyId(e.target.value)}
+                      className="w-full h-10 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                    >
+                      {retentionPolicies.length > 0 ? (
+                        retentionPolicies.map((rp) => (
+                          <option key={rp.id} value={rp.id}>
+                            {rp.scheduleCode} — {rp.permanent ? 'Permanent' : `${Math.round((rp.retentionDays || 0) / 365 * 10) / 10} yrs`}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">Standard Statutory Schedule</option>
                       )}
                     </select>
                   </div>
@@ -1173,7 +1219,7 @@ export default function EvidenceIngestionView({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-4 flex flex-col gap-1.5">
+              <div className="md:col-span-3 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-[#45474b]">Document Type *</label>
                 <select
                   disabled={isSubmitting}
@@ -1198,7 +1244,7 @@ export default function EvidenceIngestionView({
                 </select>
               </div>
 
-              <div className="md:col-span-4 flex flex-col gap-1.5">
+              <div className="md:col-span-3 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-[#45474b]">Department / Division *</label>
                 <select
                   disabled={isSubmitting}
@@ -1218,7 +1264,7 @@ export default function EvidenceIngestionView({
                 </select>
               </div>
 
-              <div className="md:col-span-4 flex flex-col gap-1.5">
+              <div className="md:col-span-3 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-[#45474b]">Security Clearance Tier *</label>
                 <select
                   disabled={isSubmitting}
@@ -1240,6 +1286,26 @@ export default function EvidenceIngestionView({
                       <option value="T4">T4 — Secret (Rank 4)</option>
                       <option value="T5">T5 — Top Secret (Rank 5)</option>
                     </>
+                  )}
+                </select>
+              </div>
+
+              <div className="md:col-span-3 flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[#45474b]">Statutory Retention *</label>
+                <select
+                  disabled={isSubmitting}
+                  value={selectedRetentionPolicyId}
+                  onChange={(e) => setSelectedRetentionPolicyId(e.target.value)}
+                  className="w-full h-10 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] font-medium cursor-pointer"
+                >
+                  {retentionPolicies.length > 0 ? (
+                    retentionPolicies.map((rp) => (
+                      <option key={rp.id} value={rp.id}>
+                        {rp.scheduleCode} — {rp.permanent ? 'Permanent' : `${Math.round((rp.retentionDays || 0) / 365 * 10) / 10} yrs`}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Default Statutory Schedule</option>
                   )}
                 </select>
               </div>

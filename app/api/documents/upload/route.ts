@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     const docTypeCode = (formData.get('docTypeCode') as string)?.trim() || 'OM';
     const deptCode = (formData.get('deptCode') as string)?.trim() || 'ADMIN';
     const secCode = (formData.get('secCode') as string)?.trim() || 'T2';
+    const customRetentionPolicyId = (formData.get('retentionPolicyId') as string)?.trim() || null;
     let docNumber = (formData.get('documentNumber') as string)?.trim();
 
     if (!file) {
@@ -259,38 +260,57 @@ export async function POST(req: NextRequest) {
 
     // 9b. Initialize Statutory Retention Record for the document
     try {
-      if (activePolicy && activePolicy.retention_policy_id) {
-        if (activePolicy.retention_permanent) {
+      let resolvedPolicyId: string | null = null;
+      let isPermanent = false;
+      let retentionDays: number | null = null;
+
+      if (customRetentionPolicyId) {
+        const customRes = await query<{ id: string; retention_days: number | null; permanent: boolean }>(
+          `SELECT id, retention_days, permanent FROM retention_policies WHERE id = $1 AND organization_id = $2 LIMIT 1`,
+          [customRetentionPolicyId, orgId]
+        );
+        if (customRes.length > 0) {
+          resolvedPolicyId = customRes[0].id;
+          isPermanent = !!customRes[0].permanent;
+          retentionDays = customRes[0].retention_days;
+        }
+      }
+
+      if (!resolvedPolicyId && activePolicy && activePolicy.retention_policy_id) {
+        resolvedPolicyId = activePolicy.retention_policy_id;
+        isPermanent = !!activePolicy.retention_permanent;
+        retentionDays = activePolicy.retention_days;
+      }
+
+      if (!resolvedPolicyId) {
+        const defaultPolicy = await query<{ id: string; retention_days: number | null; permanent: boolean }>(
+          `SELECT id, retention_days, permanent FROM retention_policies WHERE organization_id = $1 ORDER BY permanent DESC, retention_days ASC LIMIT 1`,
+          [orgId]
+        );
+        if (defaultPolicy.length > 0) {
+          resolvedPolicyId = defaultPolicy[0].id;
+          isPermanent = !!defaultPolicy[0].permanent;
+          retentionDays = defaultPolicy[0].retention_days;
+        }
+      }
+
+      if (resolvedPolicyId) {
+        if (isPermanent) {
           await query(
             `INSERT INTO retention_records 
              (document_id, retention_policy_id, retention_start_at, retention_end_at, legal_hold, status, created_at)
              VALUES ($1, $2, NOW(), NULL, false, 'ACTIVE', NOW())
              ON CONFLICT DO NOTHING`,
-            [docId, activePolicy.retention_policy_id]
+            [docId, resolvedPolicyId]
           );
         } else {
-          const days = activePolicy.retention_days || 2555;
+          const days = retentionDays || 2555;
           await query(
             `INSERT INTO retention_records 
              (document_id, retention_policy_id, retention_start_at, retention_end_at, legal_hold, status, created_at)
              VALUES ($1, $2, NOW(), NOW() + ($3 || ' days')::INTERVAL, false, 'ACTIVE', NOW())
              ON CONFLICT DO NOTHING`,
-            [docId, activePolicy.retention_policy_id, days]
-          );
-        }
-      } else {
-        const defaultPolicy = await query<{ id: string; retention_days: number }>(
-          `SELECT id, retention_days FROM retention_policies WHERE organization_id = $1 ORDER BY retention_days ASC LIMIT 1`,
-          [orgId]
-        );
-        if (defaultPolicy.length > 0) {
-          const days = defaultPolicy[0].retention_days || 2555;
-          await query(
-            `INSERT INTO retention_records 
-             (document_id, retention_policy_id, retention_start_at, retention_end_at, legal_hold, status, created_at)
-             VALUES ($1, $2, NOW(), NOW() + ($3 || ' days')::INTERVAL, false, 'ACTIVE', NOW())
-             ON CONFLICT DO NOTHING`,
-            [docId, defaultPolicy[0].id, days]
+            [docId, resolvedPolicyId, days]
           );
         }
       }

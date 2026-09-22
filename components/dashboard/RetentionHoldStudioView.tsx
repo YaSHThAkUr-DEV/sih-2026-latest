@@ -112,6 +112,26 @@ export default function RetentionHoldStudioView({
   const [proposeReason, setProposeReason] = useState('');
   const [submittingProposal, setSubmittingProposal] = useState(false);
 
+  // New Retention Schedule Modal state
+  const [createScheduleModalOpen, setCreateScheduleModalOpen] = useState(false);
+  const [submittingSchedule, setSubmittingSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    name: '',
+    scheduleCode: '',
+    retentionYears: '7',
+    permanent: false,
+    deletionRequiresApproval: true,
+    actionOnExpiry: 'Maker-Checker Review & Cryptographic Zeroization',
+    statutoryFramework: 'BNSS 2023 / Institutional Code',
+    description: '',
+  });
+
+  // Reassign / Attach Statutory Schedule Modal state
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
+  const [targetReassignDoc, setTargetReassignDoc] = useState<RetentionRecordItem | null>(null);
+  const [targetNewPolicyId, setTargetNewPolicyId] = useState<string>('');
+  const [submittingReassign, setSubmittingReassign] = useState(false);
+
   // Key 2 Execution state
   const [executingShred, setExecutingShred] = useState(false);
   const [shredCompleted, setShredCompleted] = useState(false);
@@ -142,6 +162,55 @@ export default function RetentionHoldStudioView({
       }
     } catch (e) {
       console.error('Failed to load policies:', e);
+    }
+  };
+
+  // Create new Retention Schedule
+  const handleCreateSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleForm.name.trim() || !scheduleForm.scheduleCode.trim()) {
+      showToast('Schedule Name and unique Code are required.', 'error');
+      return;
+    }
+    setSubmittingSchedule(true);
+    try {
+      const days = scheduleForm.permanent ? null : (parseInt(scheduleForm.retentionYears, 10) || 7) * 365;
+      const res = await fetch('/api/admin/retention-policies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: scheduleForm.name,
+          scheduleCode: scheduleForm.scheduleCode,
+          retentionDays: days,
+          permanent: scheduleForm.permanent,
+          deletionRequiresApproval: scheduleForm.deletionRequiresApproval,
+          actionOnExpiry: scheduleForm.actionOnExpiry,
+          statutoryFramework: scheduleForm.statutoryFramework,
+          description: scheduleForm.description,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Failed to create retention schedule.', 'error');
+        return;
+      }
+      showToast('Statutory retention schedule created successfully!', 'check_circle');
+      setCreateScheduleModalOpen(false);
+      setScheduleForm({
+        name: '',
+        scheduleCode: '',
+        retentionYears: '7',
+        permanent: false,
+        deletionRequiresApproval: true,
+        actionOnExpiry: 'Maker-Checker Review & Cryptographic Zeroization',
+        statutoryFramework: 'BNSS 2023 / Institutional Code',
+        description: '',
+      });
+      loadPolicies();
+    } catch (err: any) {
+      showToast(err.message || 'Error creating schedule', 'error');
+    } finally {
+      setSubmittingSchedule(false);
     }
   };
 
@@ -188,6 +257,42 @@ export default function RetentionHoldStudioView({
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       loadRecords();
+    }
+  };
+
+  // Open Reassign Statutory Schedule Modal
+  const handleOpenReassignModal = (rec: RetentionRecordItem) => {
+    setTargetReassignDoc(rec);
+    setTargetNewPolicyId(rec.policyId || (policies[0]?.id || ''));
+    setReassignModalOpen(true);
+  };
+
+  const handleReassignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetReassignDoc || !targetNewPolicyId) return;
+
+    setSubmittingReassign(true);
+    try {
+      const res = await fetch('/api/retention/records', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId: targetReassignDoc.documentId,
+          retentionPolicyId: targetNewPolicyId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to rebind retention schedule.');
+      }
+      showToast(data.message || 'Statutory schedule updated for document.', 'verified');
+      setReassignModalOpen(false);
+      await loadRecords();
+      await loadPolicies();
+    } catch (err: any) {
+      showToast(err.message || 'Error updating schedule', 'error');
+    } finally {
+      setSubmittingReassign(false);
     }
   };
 
@@ -522,9 +627,18 @@ export default function RetentionHoldStudioView({
               <span className="material-symbols-outlined text-[#3f5e93] text-[18px]">view_timeline</span>
               <h2 className="text-xs font-semibold text-[#10141A] uppercase tracking-wider">Retention & Archival Schedules</h2>
             </div>
-            <span className="rounded-full text-[10px] font-medium px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/50">
-              All Schedules Active
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full text-[10px] font-medium px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/50">
+                {policies.length} Schedules Active
+              </span>
+              <button
+                onClick={() => setCreateScheduleModalOpen(true)}
+                className="px-3.5 py-1.5 bg-[#000000] hover:bg-[#181c22] text-white text-[11px] font-semibold rounded-full flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                <span>New Schedule</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -696,6 +810,14 @@ export default function RetentionHoldStudioView({
 
                           <td className="py-3 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleOpenReassignModal(rec)}
+                                className="w-7 h-7 rounded-full bg-white hover:bg-[#f0f3ff] text-[#3f5e93] border border-[#D8DEEA] inline-flex items-center justify-center transition"
+                                title="Attach / Change Statutory Retention Schedule"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">edit_calendar</span>
+                              </button>
+
                               {rec.isLegalHold ? (
                                 <button
                                   onClick={() => handleLiftLegalHold(rec)}
@@ -762,6 +884,32 @@ export default function RetentionHoldStudioView({
                     </div>
                     <div className="text-xs font-semibold text-[#10141A]">{selectedRecord.documentTitle}</div>
                     <div className="font-mono text-[10px] text-[#9CA3AF] truncate">SHA-256: {selectedRecord.sha256Hash}</div>
+                  </div>
+
+                  {/* Bound Statutory Retention Schedule */}
+                  <div className="p-3 rounded-[16px] bg-white border border-[#D8DEEA] space-y-1.5 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase">Active Statutory Schedule</span>
+                      <button
+                        onClick={() => handleOpenReassignModal(selectedRecord)}
+                        className="text-[11px] font-semibold text-[#3f5e93] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">sync_alt</span>
+                        <span>Change</span>
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-xs text-[#10141A]">{selectedRecord.policyName || 'Standard Statutory'}</div>
+                      <span className="px-2 py-0.5 rounded-md bg-[#f0f3ff] border border-[#83A2DB]/30 font-mono text-[10px] font-bold text-[#3f5e93]">
+                        {selectedRecord.scheduleCode}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#6B7280] flex items-center justify-between">
+                      <span>{selectedRecord.statutoryFramework || 'Statutory Code'}</span>
+                      <span className="font-semibold text-[#10141A]">
+                        {selectedRecord.retentionYears ? `${selectedRecord.retentionYears} Years (${selectedRecord.retentionDays} d)` : 'Permanent'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Lock Clearance */}
@@ -1028,6 +1176,255 @@ export default function RetentionHoldStudioView({
                 <span>{submittingProposal ? 'Submitting...' : 'Submit Proposal'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create New Statutory Retention Schedule */}
+      {createScheduleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-lg w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] flex flex-col gap-4 border border-[#D8DEEA]/80">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2 text-[#10141A]">
+                <div className="w-8 h-8 rounded-full bg-[#f0f3ff] flex items-center justify-center text-[#3f5e93] border border-[#83A2DB]/30">
+                  <span className="material-symbols-outlined text-[18px]">add_chart</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Create Retention Schedule</h3>
+                  <p className="text-[11px] text-[#6B7280]">Add a new statutory lifecycle policy to the registry.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCreateScheduleModalOpen(false)}
+                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSchedule} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-[#10141A] block mb-1">
+                    Schedule Code <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SCHEDULE_V, AUDIT_10Y"
+                    value={scheduleForm.scheduleCode}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, scheduleCode: e.target.value.toUpperCase() })
+                    }
+                    className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] font-mono text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-[#10141A] block mb-1">
+                    Statutory Framework
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BNSS 2023, IT Act 2000"
+                    value={scheduleForm.statutoryFramework}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, statutoryFramework: e.target.value })
+                    }
+                    className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#10141A] block mb-1">
+                  Schedule Title / Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 15-Year Infrastructure Works & Contracts"
+                  value={scheduleForm.name}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, name: e.target.value })}
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 items-center">
+                <div>
+                  <label className="font-semibold text-[#10141A] block mb-1">
+                    Retention Duration (Years)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    disabled={scheduleForm.permanent}
+                    value={scheduleForm.retentionYears}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, retentionYears: e.target.value })
+                    }
+                    className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] font-mono text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none disabled:opacity-40"
+                  />
+                </div>
+                <div className="pt-4 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="permanentSched"
+                    checked={scheduleForm.permanent}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, permanent: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded text-[#3f5e93] border-slate-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="permanentSched" className="font-semibold text-[#10141A] cursor-pointer">
+                    Permanent Custody (Indefinite)
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#10141A] block mb-1">
+                  Action on Expiry
+                </label>
+                <select
+                  value={scheduleForm.actionOnExpiry}
+                  onChange={(e) =>
+                    setScheduleForm({ ...scheduleForm, actionOnExpiry: e.target.value })
+                  }
+                  className="w-full h-8 px-3 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none"
+                >
+                  <option value="Maker-Checker Review & Cryptographic Zeroization">
+                    Maker-Checker Review &amp; Cryptographic Zeroization
+                  </option>
+                  <option value="Automated Cold Storage Archival">
+                    Automated Cold Storage Archival
+                  </option>
+                  <option value="Permanent National Archives Transfer">
+                    Permanent National Archives Transfer
+                  </option>
+                  <option value="Legal Hold Review Required">
+                    Legal Hold Review Required
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#10141A] block mb-1">
+                  Description / Legal Citation
+                </label>
+                <textarea
+                  value={scheduleForm.description}
+                  onChange={(e) =>
+                    setScheduleForm({ ...scheduleForm, description: e.target.value })
+                  }
+                  placeholder="Official rule citation, reference section, or department mandate..."
+                  rows={2}
+                  className="w-full p-2.5 bg-[#f0f3ff] border border-[#D8DEEA] text-xs text-[#151c27] rounded-[16px] focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => setCreateScheduleModalOpen(false)}
+                  className="px-4 py-2 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] font-medium text-xs rounded-full transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingSchedule}
+                  className="px-4 py-2 bg-[#000000] hover:bg-[#181c22] text-white font-medium text-xs rounded-full flex items-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                >
+                  <span>{submittingSchedule ? 'Creating...' : 'Create Schedule'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Attach / Change Statutory Retention Schedule */}
+      {reassignModalOpen && targetReassignDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[26px] max-w-lg w-full p-6 shadow-[0_24px_60px_rgba(16,20,26,0.18)] flex flex-col gap-4 border border-[#D8DEEA]/80">
+            <div className="flex items-center justify-between border-b border-[#D8DEEA]/60 pb-3">
+              <div className="flex items-center gap-2 text-[#10141A]">
+                <div className="w-8 h-8 rounded-full bg-[rgba(131,162,219,0.14)] flex items-center justify-center text-[#3f5e93] border border-[#83A2DB]/30">
+                  <span className="material-symbols-outlined text-[18px]">edit_calendar</span>
+                </div>
+                <h3 className="text-sm font-semibold">Attach Statutory Retention Schedule</h3>
+              </div>
+              <button
+                onClick={() => setReassignModalOpen(false)}
+                className="w-7 h-7 rounded-full hover:bg-[#f0f3ff] text-[#6B7280] flex items-center justify-center transition cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleReassignSubmit} className="space-y-3.5 text-xs">
+              <div className="p-3 bg-[#f0f3ff]/60 border border-[#D8DEEA]/60 rounded-[16px] space-y-1">
+                <div className="text-[10px] uppercase font-bold text-[#6B7280]">Target Document</div>
+                <div className="font-mono font-bold text-xs text-[#10141A]">{targetReassignDoc.documentNumber}</div>
+                <div className="font-medium text-xs text-[#45474b]">{targetReassignDoc.documentTitle}</div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#10141A] block mb-1">Select Statutory Schedule *</label>
+                <select
+                  value={targetNewPolicyId}
+                  onChange={(e) => setTargetNewPolicyId(e.target.value)}
+                  className="w-full h-9 px-3 bg-[#f0f3ff] border border-[#D8DEEA] font-medium text-xs text-[#151c27] rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3f5e93] cursor-pointer"
+                >
+                  {policies.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.scheduleCode} — {p.name} ({p.permanent ? 'Permanent' : `${p.retentionYears} Years`})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Selected Schedule Details preview */}
+              {(() => {
+                const sel = policies.find((p) => p.id === targetNewPolicyId);
+                if (!sel) return null;
+                return (
+                  <div className="p-3.5 rounded-[16px] bg-white border border-[#D8DEEA] space-y-1.5 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#10141A]">{sel.name}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-[#f0f3ff] text-[#3f5e93] font-mono text-[10px] font-bold border border-[#83A2DB]/30">
+                        {sel.scheduleCode}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#6B7280]">Framework: {sel.statutoryFramework}</div>
+                    <div className="text-[11px] text-[#10141A]">
+                      Statutory Duration: <strong>{sel.permanent ? 'Permanent (Never Purged)' : `${sel.retentionYears} Years (${sel.retentionDays} Days)`}</strong>
+                    </div>
+                    <div className="text-[11px] text-[#6B7280]">
+                      Disposal: {sel.actionOnExpiry}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8DEEA]/60">
+                <button
+                  type="button"
+                  onClick={() => setReassignModalOpen(false)}
+                  className="px-4 py-2 bg-white hover:bg-[#f0f3ff] text-[#151c27] border border-[#D8DEEA] font-medium text-xs rounded-full transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReassign}
+                  className="px-5 py-2 bg-[#000000] hover:bg-[#181c22] text-white font-medium text-xs rounded-full flex items-center gap-1.5 transition shadow-[0_6px_18px_rgba(16,20,26,0.22)] disabled:opacity-50 cursor-pointer"
+                >
+                  <span>{submittingReassign ? 'Attaching...' : 'Attach Schedule'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

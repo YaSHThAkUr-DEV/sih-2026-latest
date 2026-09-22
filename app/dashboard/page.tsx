@@ -18,6 +18,12 @@ import DepartmentsManagementView from '@/components/dashboard/DepartmentsManagem
 import OverviewDashboardView from '@/components/dashboard/OverviewDashboardView';
 import BlockchainLedgerView from '@/components/dashboard/BlockchainLedgerView';
 import { SquareLoader } from '@/components/ui/SquareLoader';
+import dynamic from 'next/dynamic';
+
+const ShaderGradientBackground = dynamic(
+  () => import('@/components/auth/ShaderGradientBackground'),
+  { ssr: false }
+);
 
 interface UserProfile {
   id: string;
@@ -90,6 +96,12 @@ interface CaseDocument {
   sha256_hash: string;
   encryption_algorithm: string;
   checksum_verified: boolean;
+  retention_record_id?: string;
+  retention_policy_id?: string;
+  retention_policy_name?: string;
+  retention_schedule_code?: string;
+  is_legal_hold?: boolean;
+  retention_end_at?: string;
 }
 
 interface AuditEventItem {
@@ -453,19 +465,23 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-5 bg-white/80 backdrop-blur-xl p-10 rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]">
+      <div className="min-h-screen bg-transparent relative overflow-hidden flex items-center justify-center font-sans">
+        <ShaderGradientBackground />
+        <div className="flex flex-col items-center gap-5 bg-white/85 backdrop-blur-2xl p-10 rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-white/70">
           <SquareLoader size="md" color="#3f5e93" />
-          <span className="text-[#151c27] text-xs font-semibold">Verifying Session &amp; Loading Vault Records...</span>
+          <span className="text-[#151c27] text-xs font-semibold">Verifying Session & Loading Vault Records...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E9ECF4] to-[#DCE3F2] font-sans text-[#151c27] antialiased selection:bg-[#83A2DB]/30 selection:text-[#151c27]">
+    <div className="min-h-screen bg-transparent relative overflow-x-hidden font-sans text-[#151c27] antialiased selection:bg-[#83A2DB]/30 selection:text-[#151c27]">
+      {/* 3D WebGL Shader Gradient Global Background */}
+      <ShaderGradientBackground />
+
       {/* 1. Full Expanded Google Stitch Sidebar */}
-      <aside className="fixed left-4 top-4 bottom-4 w-60 bg-white/95 backdrop-blur-xl rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 z-40 hidden md:flex flex-col justify-between p-3.5 overflow-y-auto [&::-webkit-scrollbar]:hidden select-none font-oswald">
+      <aside className="fixed left-4 top-4 bottom-4 w-60 bg-white/85 hover:bg-white/95 backdrop-blur-2xl rounded-[26px] shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-white/70 z-40 hidden md:flex flex-col justify-between p-3.5 overflow-y-auto [&::-webkit-scrollbar]:hidden select-none font-oswald transition-all duration-300">
         <div className="flex flex-col gap-3.5">
           {/* Brand Logo & Name */}
           <div
@@ -796,7 +812,7 @@ export default function DashboardPage() {
 
       {/* 2. Top Floating Navigation Header */}
       <header className="fixed top-4 left-4 md:left-68 right-4 z-30">
-        <div className="h-16 max-w-[1440px] mx-auto bg-white/90 backdrop-blur-xl rounded-full px-5 shadow-[0_8px_32px_rgba(16,20,26,0.08)] border border-[#D8DEEA]/80 flex items-center justify-between gap-4">
+        <div className="h-16 max-w-[1440px] mx-auto bg-white/85 hover:bg-white/95 backdrop-blur-2xl rounded-full px-5 shadow-[0_8px_32px_rgba(16,20,26,0.06)] border border-white/70 flex items-center justify-between gap-4 transition-all duration-300">
           {/* Active View Title & Breadcrumb */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
@@ -1362,6 +1378,32 @@ export default function DashboardPage() {
                 <div>
                   <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Department</span>
                   <span className="font-semibold text-[#151c27]">{selectedDoc.department_name}</span>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-[#D8DEEA]/60 flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <span className="text-[#9CA3AF] text-[10px] uppercase font-bold block">Statutory Retention Schedule</span>
+                    <span className="font-semibold text-[#151c27]">
+                      {selectedDoc.retention_policy_name || 'Standard Statutory Schedule'}
+                      {selectedDoc.retention_schedule_code && ` (${selectedDoc.retention_schedule_code})`}
+                    </span>
+                    {selectedDoc.is_legal_hold && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        🔒 Preservation Lock Active
+                      </span>
+                    )}
+                  </div>
+                  {features.feature_retention_holds && canDo.viewRetention && (
+                    <button
+                      onClick={() => {
+                        setSelectedDoc(null);
+                        setActiveView('retention');
+                      }}
+                      className="px-3 py-1 bg-white hover:bg-[#f0f3ff] text-[#3f5e93] border border-[#83A2DB]/40 text-[11px] font-semibold rounded-full flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">tune</span>
+                      <span>Manage in Retention Studio</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
