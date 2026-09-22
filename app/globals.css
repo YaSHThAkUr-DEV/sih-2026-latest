@@ -486,7 +486,249 @@ mark {
   animation: scan-laser 2.4s ease-in-out infinite;
 }
 
+@keyframes square5 {
+  0% {
+    left: calc(3 * var(--offset));
+    top: calc(1 * var(--offset));
+  }
+  50.00% {
+    left: calc(3 * var(--offset));
+    top: calc(1 * var(--offset));
+  }
+  58.33% {
+    left: calc(3 * var(--offset));
+    top: calc(0 * var(--offset));
+  }
+  66.67% {
+    left: calc(2 * var(--offset));
+    top: calc(0 * var(--offset));
+  }
+  75.00% {
+    left: calc(2 * var(--offset));
+    top: calc(1 * var(--offset));
+  }
+  100% {
+    left: calc(2 * var(--offset));
+    top: calc(1 * var(--offset));
+  }
+}
 
+@keyframes squarefadein {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.0;
+  }
+  100% {
+    transform: scale(1.0);
+    opacity: 1.0;
+  }
+}
 
+/* ==========================================================================
+   Custom Uiverse Animated Notification Bell
+   ========================================================================== */
 
+.bell-btn {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 300ms ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+}
 
+.bell-btn:hover {
+  background: rgba(131, 162, 219, 0.15);
+  color: #10141A;
+}
+
+.bell-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: top center;
+}
+
+.bell-btn:hover > .bell-container {
+  animation: bell-animation 650ms ease-out 0s 1 normal both;
+}
+
+.bell {
+  border: 2px solid currentColor;
+  border-radius: 9px 9px 0 0;
+  width: 14px;
+  height: 15px;
+  background: transparent;
+  display: block;
+  position: relative;
+  top: -2px;
+}
+
+.bell::before,
+.bell::after {
+  content: "";
+  background: currentColor;
+  display: block;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 2px;
+}
+
+.bell::before {
+  top: 100%;
+  width: 18px;
+}
+
+.bell::after {
+  top: calc(100% + 3.5px);
+  width: 6px;
+  border-radius: 0 0 3px 3px;
+}
+
+.bell-badge {
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background-color: #ba1a1a;
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+  border: 1.5px solid white;
+  box-shadow: 0 1px 4px rgba(186, 26, 26, 0.4);
+}
+
+@keyframes bell-animation {
+  20% {
+    transform: rotate(15deg);
+  }
+  40% {
+    transform: rotate(-15deg) scale(1.1);
+  }
+  60% {
+    transform: rotate(10deg) scale(1.1);
+  }
+  80% {
+    transform: rotate(-10deg);
+  }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* ========================================================================== */
+/* PRINT ISOLATION RULES (Section 65B Certificate & Document PDF Export)     */
+/* ========================================================================== */
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print\:hidden,
+  .print-hidden {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
+
+/* ========================================================================== */
+/* MOBILE QR CODE SCANNER ANIMATION                                           */
+/* ========================================================================== */
+@keyframes scan-laser {
+  0% {
+    top: 6%;
+    opacity: 0.7;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 6%;
+    opacity: 0.7;
+  }
+}
+
+.animate-scan-pulse {
+  position: absolute;
+  animation: scan-laser 2.4s ease-in-out infinite;
+}
+
+/* ========================================================================== */
+/* GLASS MORPHISM CARD STYLING                                                */
+/* ========================================================================== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0px 0px rgba(255, 255, 255, 0);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 20;
+}
+
+.glass-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.8),
+    transparent,
+    rgba(255, 255, 255, 0.3)
+  );
+  pointer-events: none;
+  z-index: 20;
+}

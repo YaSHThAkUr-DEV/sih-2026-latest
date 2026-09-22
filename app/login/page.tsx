@@ -2,6 +2,17 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const ShaderGradientBackground = dynamic(
+  () => import('@/components/auth/ShaderGradientBackground'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="absolute inset-0 bg-gradient-to-br from-[#94ffd1]/30 via-[#6bf5ff]/20 to-white -z-10" />
+    ),
+  }
+);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -103,13 +114,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen max-h-screen w-screen bg-[#EBF0F7] text-slate-800 font-sans flex items-center justify-center p-3 sm:p-4 md:p-[1cm] selection:bg-[#F37021] selection:text-white relative overflow-hidden">
+    <div className="h-screen max-h-screen w-screen bg-[#0E1525]/10 text-slate-800 font-sans flex items-center justify-center p-3 sm:p-4 md:p-[1cm] selection:bg-[#F37021] selection:text-white relative overflow-hidden">
       
-      {/* Dynamic Ambient Background Color Orbs for High-Refraction Glassmorphism */}
-      <div className="absolute -top-32 -left-32 w-[540px] h-[540px] bg-gradient-to-br from-[#F37021]/25 via-amber-500/15 to-transparent rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute top-1/3 -left-20 w-[440px] h-[440px] bg-gradient-to-tr from-[#10B981]/20 via-emerald-400/10 to-transparent rounded-full blur-[90px] pointer-events-none"></div>
-      <div className="absolute -bottom-24 left-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-[#3f5e93]/20 via-[#83A2DB]/15 to-transparent rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute top-10 right-10 w-[520px] h-[520px] bg-gradient-to-bl from-indigo-500/15 via-purple-500/10 to-transparent rounded-full blur-[110px] pointer-events-none"></div>
+      {/* 3D WebGL Shader Gradient Animated Background */}
+      <ShaderGradientBackground />
 
       {/* Toast Notification */}
       {toast.show && (
@@ -119,34 +127,86 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Embedded Light Beam Keyframe & Styles */}
+      {/* Embedded Light Beam Keyframe & Glass Card Styles */}
       <style jsx global>{`
-        .hero-light-beam {
-          position: absolute;
-          width: 220%;
-          height: 90px;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
-          transform: rotate(-36deg);
-          top: 15%;
-          left: -50%;
-          pointer-events: none;
-        }
-        
-        .hero-light-beam-thin {
-          position: absolute;
-          width: 200%;
-          height: 2px;
-          background: linear-gradient(90deg, transparent, rgba(243, 112, 33, 0.35) 35%, rgba(16, 185, 129, 0.35) 65%, transparent);
-          transform: rotate(-36deg);
-          top: 24%;
-          left: -40%;
-          pointer-events: none;
+        .glass-card {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 0 0px 0px rgba(255, 255, 255, 0);
+          position: relative;
+          overflow: hidden;
         }
 
-        .shadow-container-card {
-          box-shadow: 0 20px 60px -15px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(255, 255, 255, 0.8);
+        .glass-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.8),
+            transparent
+          );
+          pointer-events: none;
+          z-index: 20;
         }
 
+        .glass-card::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 1px;
+          height: 100%;
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.8),
+            transparent,
+            rgba(255, 255, 255, 0.3)
+          );
+          pointer-events: none;
+          z-index: 20;
+        }
+
+        .glass-input {
+          background: rgba(255, 255, 255, 0.35);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+          transition: all 0.2s ease;
+        }
+        .glass-input:hover {
+          background: rgba(255, 255, 255, 0.55);
+          border-color: rgba(255, 255, 255, 0.8);
+        }
+        .glass-input:focus {
+          background: rgba(255, 255, 255, 0.85);
+          border-color: #F37021;
+          box-shadow: 0 0 0 3px rgba(243, 112, 33, 0.15), inset 0 1px 0 #ffffff;
+        }
+
+        .glass-pill {
+          background: rgba(255, 255, 255, 0.3);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+          transition: all 0.2s ease;
+        }
+        .glass-pill:hover {
+          background: rgba(255, 255, 255, 0.65);
+          border-color: rgba(255, 255, 255, 0.8);
         .shadow-logo-glow {
           box-shadow: 0 25px 50px -10px rgba(243, 112, 33, 0.22), 0 10px 30px -6px rgba(16, 185, 129, 0.18);
         }
@@ -156,9 +216,9 @@ export default function LoginPage() {
         }
       `}</style>
 
-      {/* Main Split Container: 60/40 Split, Tight ~1cm Screen Margins, No Scrollbars, Rounded-2xl */}
+      {/* Main Split Container: Glass Card with 60/40 Split, Tight ~1cm Screen Margins, No Scrollbars, Rounded-20px */}
       <main
-        className="w-full max-w-[calc(100vw-2cm)] h-[calc(100vh-2cm)] max-h-[calc(100vh-2cm)] rounded-2xl shadow-container-card border border-white/60 overflow-hidden grid grid-cols-1 lg:grid-cols-10 relative backdrop-blur-2xl"
+        className="glass-card w-full max-w-[calc(100vw-2cm)] h-[calc(100vh-2cm)] max-h-[calc(100vh-2cm)] grid grid-cols-1 lg:grid-cols-10 relative z-10"
         data-purpose="auth-container"
       >
         {/* ------------------------------------------------------------------ */}
@@ -167,11 +227,11 @@ export default function LoginPage() {
         <section
           className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center p-4 sm:p-5 md:p-6 lg:p-7 xl:p-8 relative z-10 h-full overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.46) 100%)',
-            backdropFilter: 'blur(32px)',
-            WebkitBackdropFilter: 'blur(32px)',
-            boxShadow: 'inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), inset -1px 0 2px 0 rgba(255, 255, 255, 0.6), 0 20px 40px -15px rgba(0, 0, 0, 0.03)',
-            borderRight: '1px solid rgba(255, 255, 255, 0.6)',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.22) 100%)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.1)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.3)',
           }}
         >
           <div className="w-full max-w-[500px] mx-auto flex flex-col justify-center">
@@ -254,7 +314,7 @@ export default function LoginPage() {
                     value={tenantId}
                     onChange={(e) => setTenantId(e.target.value.toUpperCase())}
                     placeholder="DEMO"
-                    className="w-full h-9 pl-8 pr-3 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs font-mono rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
+                    className="glass-input w-full h-9 pl-8 pr-3 text-slate-900 placeholder-slate-400 text-xs font-mono rounded-lg outline-none"
                   />
                 </div>
               </div>
@@ -279,7 +339,7 @@ export default function LoginPage() {
                       if (activeRoleName) setActiveRoleName('');
                     }}
                     placeholder="officer@dms.gov.in"
-                    className="w-full h-9 pl-8 pr-3 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
+                    className="glass-input w-full h-9 pl-8 pr-3 text-slate-900 placeholder-slate-400 text-xs rounded-lg outline-none"
                   />
                 </div>
               </div>
@@ -306,7 +366,7 @@ export default function LoginPage() {
                       if (activeRoleName) setActiveRoleName('');
                     }}
                     placeholder="••••••••••••"
-                    className="w-full h-9 pl-8 pr-9 bg-white/60 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md text-slate-900 placeholder-slate-400 text-xs rounded-lg border border-white/80 focus:border-[#F37021] focus:ring-2 focus:ring-orange-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] outline-none transition duration-200"
+                    className="glass-input w-full h-9 pl-8 pr-9 text-slate-900 placeholder-slate-400 text-xs rounded-lg outline-none"
                   />
                   <button
                     aria-label="Toggle password visibility"
@@ -385,10 +445,10 @@ export default function LoginPage() {
                   onClick={() =>
                     setRoleDemo('DEMO', 'admin@dms.gov.in', 'Admin@DMS2026!', 'Administrator')
                   }
-                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
                     activeRoleName === 'Administrator'
-                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
-                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
+                      : 'glass-pill'
                   }`}
                 >
                   <div className="w-5.5 h-5.5 rounded-md bg-orange-50 text-[#F37021] border border-orange-200/60 flex items-center justify-center shrink-0">
@@ -406,10 +466,10 @@ export default function LoginPage() {
                   onClick={() =>
                     setRoleDemo('DEMO', 'depthead@dms.gov.in', 'Head@DMS2026!', 'Department Head')
                   }
-                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
                     activeRoleName === 'Department Head'
-                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
-                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
+                      : 'glass-pill'
                   }`}
                 >
                   <div className="w-5.5 h-5.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
@@ -427,10 +487,10 @@ export default function LoginPage() {
                   onClick={() =>
                     setRoleDemo('DEMO', 'officer@dms.gov.in', 'Officer@DMS2026!', 'Dealing Officer')
                   }
-                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
                     activeRoleName === 'Dealing Officer'
-                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
-                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
+                      : 'glass-pill'
                   }`}
                 >
                   <div className="w-5.5 h-5.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center shrink-0">
@@ -448,10 +508,10 @@ export default function LoginPage() {
                   onClick={() =>
                     setRoleDemo('DEMO', 'auditor@dms.gov.in', 'Auditor@DMS2026!', 'Auditor')
                   }
-                  className={`p-1.5 rounded-lg border text-left flex items-start gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
+                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
                     activeRoleName === 'Auditor'
-                      ? 'border-[#F37021] bg-orange-50/80 shadow-xs'
-                      : 'border-white/80 bg-white/50 hover:bg-white/80 hover:border-white shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
+                      : 'glass-pill'
                   }`}
                 >
                   <div className="w-5.5 h-5.5 rounded-md bg-purple-50 text-purple-600 border border-purple-200/60 flex items-center justify-center shrink-0">
@@ -468,36 +528,24 @@ export default function LoginPage() {
         </section>
 
         {/* ------------------------------------------------------------------ */}
-        {/* RIGHT PANEL (40%): Visual Showcase & Brand Ambient Spotlight */}
+        {/* RIGHT PANEL (40%): Clean Showcase with Large Floating Logo */}
         {/* ------------------------------------------------------------------ */}
         <section
-          className="lg:col-span-4 xl:col-span-4 bg-[#0B0F19] p-3 sm:p-4 lg:p-6 flex flex-col justify-center relative overflow-hidden h-full"
+          className="lg:col-span-4 xl:col-span-4 p-4 sm:p-6 md:p-8 flex flex-col justify-center items-center relative overflow-hidden h-full"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%)',
+            backdropFilter: 'blur(5px)',
+            WebkitBackdropFilter: 'blur(5px)',
+          }}
           data-purpose="hero-showcase-panel"
         >
-          {/* Inner Dark Card Frame */}
-          <div className="relative w-full h-full rounded-xl bg-gradient-to-b from-[#111827] via-[#0D121F] to-[#080C14] border border-slate-800/80 p-4 sm:p-6 md:p-8 flex flex-col overflow-hidden justify-center items-center">
-            
-            {/* Ambient Geometric Facet Accents & Light Beams */}
-            <div className="hero-light-beam"></div>
-            <div className="hero-light-beam-thin"></div>
-
-            {/* Soft ambient diffuse glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-orange-500/20 via-emerald-500/15 to-transparent blur-3xl pointer-events-none rounded-full"></div>
-
-            {/* Center: Framed White Logo Showcase with Ambient Glow */}
-            <div className="relative z-10 my-auto py-2 flex flex-col items-center justify-center text-center w-full px-2">
-              {/* Purpose-built pristine white display card with warm ambient glow */}
-              <div className="relative group w-full flex justify-center">
-                <div className="absolute -inset-2 bg-gradient-to-r from-orange-500/40 via-emerald-500/30 to-orange-500/40 rounded-2xl blur-xl opacity-85 group-hover:opacity-100 transition duration-700"></div>
-                <div className="relative bg-white rounded-2xl p-6 sm:p-8 md:p-10 shadow-logo-glow border border-white/90 w-full max-w-[320px] sm:max-w-[360px] md:max-w-[400px] lg:max-w-[440px] flex flex-col items-center justify-center transition duration-300 transform group-hover:scale-[1.02]">
-                  <img
-                    alt="NIRMAN DMS - Document Management System"
-                    className="w-full max-w-[260px] sm:max-w-[300px] md:max-w-[340px] lg:max-w-[370px] h-auto object-contain select-none pointer-events-none drop-shadow-sm"
-                    src="/nirman-logo.png"
-                  />
-                </div>
-              </div>
-            </div>
+          {/* Center: Large Floating Brand Logo */}
+          <div className="relative z-10 my-auto py-2 flex flex-col items-center justify-center text-center w-full px-4 sm:px-6">
+            <img
+              alt="NIRMAN DMS - Document Management System"
+              className="w-full max-w-[360px] sm:max-w-[440px] md:max-w-[500px] lg:max-w-[560px] xl:max-w-[620px] max-h-[75vh] object-contain select-none pointer-events-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.06)] transition-all duration-300 transform hover:scale-[1.03]"
+              src="/nirman-logo.png"
+            />
           </div>
         </section>
       </main>
