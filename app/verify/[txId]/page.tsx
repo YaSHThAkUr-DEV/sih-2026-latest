@@ -2,6 +2,17 @@
 
 import React, { use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const ShaderGradientBackground = dynamic(
+  () => import('@/components/auth/ShaderGradientBackground'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 bg-gradient-to-br from-[#94ffd1]/30 via-[#6bf5ff]/20 to-white -z-10" />
+    ),
+  }
+);
 
 export default function DirectVerifyRoute({
   params,
@@ -20,17 +31,23 @@ export default function DirectVerifyRoute({
   }, [resolvedParams, router]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center text-[#0B1C30] font-sans relative">
-      <div className="absolute inset-0 bg-micro-grid pointer-events-none opacity-60"></div>
-      <div className="relative z-10 flex flex-col items-center">
-        <div className="w-12 h-12 rounded-2xl bg-white border border-[#CBD5E1] flex items-center justify-center shadow-md mb-4">
-          <div className="w-6 h-6 border-3 border-[#0B1C30] border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-screen w-full bg-[#0E1525]/10 text-slate-800 font-sans flex flex-col items-center justify-center relative overflow-hidden">
+      <ShaderGradientBackground />
+
+      <div className="relative z-10 flex flex-col items-center p-6 sm:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-2xl shadow-slate-900/10 text-center max-w-sm mx-4">
+        <div className="w-14 h-14 rounded-2xl bg-white/90 border border-white p-2 flex items-center justify-center shadow-sm mb-4">
+          <img
+            src="/nirman-logo.png"
+            alt="NIRMAN DMS"
+            className="w-full h-full object-contain"
+          />
         </div>
-        <h3 className="text-sm font-bold text-[#0B1C30]">
-          Resolving Sovereign Blockchain Ledger Proof...
+        <div className="w-6 h-6 border-3 border-slate-900 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <h3 className="text-sm font-bold text-slate-900">
+          Resolving Sovereign Blockchain Proof...
         </h3>
-        <p className="text-xs text-[#64748B] mt-1 font-mono">
-          {resolvedParams?.txId ? `Query: ${resolvedParams.txId.substring(0, 24)}...` : 'Connecting...'}
+        <p className="text-xs text-slate-600 mt-1 font-mono">
+          {resolvedParams?.txId ? `Query: ${resolvedParams.txId.substring(0, 20)}...` : 'Connecting...'}
         </p>
       </div>
     </div>

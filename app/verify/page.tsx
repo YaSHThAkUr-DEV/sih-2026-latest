@@ -3,9 +3,20 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import jsQR from 'jsqr';
 import { Section65BCertificateModal } from '@/components/dashboard/Section65BCertificateModal';
 import { MobileQrScanner } from '@/components/verify/MobileQrScanner';
+
+const ShaderGradientBackground = dynamic(
+  () => import('@/components/auth/ShaderGradientBackground'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 bg-gradient-to-br from-[#94ffd1]/30 via-[#6bf5ff]/20 to-white -z-10" />
+    ),
+  }
+);
 
 interface ProofData {
   transactionId: string;
@@ -184,10 +195,10 @@ function PublicVerifierTerminal() {
       0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
       0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
       0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
     ];
     let [h0, h1, h2, h3, h4, h5, h6, h7] = [
-      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
     ];
     const l = bytes.length;
     const bitLen = l * 8;
@@ -386,42 +397,42 @@ function PublicVerifierTerminal() {
     switch (tier) {
       case 'T1':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/70 backdrop-blur-md text-slate-700 border border-slate-300 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
             T1 — Public
           </span>
         );
       case 'T2':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50/80 backdrop-blur-md text-blue-800 border border-blue-200 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
             T2 — Internal
           </span>
         );
       case 'T3':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50/80 backdrop-blur-md text-amber-900 border border-amber-300 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             T3 — Confidential
           </span>
         );
       case 'T4':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-50 text-orange-800 border border-orange-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-50/80 backdrop-blur-md text-orange-900 border border-orange-300 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
             T4 — Sensitive
           </span>
         );
       case 'T5':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50/80 backdrop-blur-md text-rose-900 border border-rose-300 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
             T5 — Highly Sensitive
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/70 backdrop-blur-md text-slate-700 border border-slate-300 shadow-xs">
             {name || 'Standard'}
           </span>
         );
@@ -429,18 +440,96 @@ function PublicVerifierTerminal() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-[#0B1C30] selection:text-white relative">
-      {/* Background Subtle Sovereign Pattern */}
-      <div className="absolute inset-0 bg-micro-grid pointer-events-none opacity-60 z-0"></div>
+    <div className="min-h-screen w-full bg-[#0E1525]/10 text-slate-800 font-sans flex flex-col selection:bg-[#F37021] selection:text-white relative overflow-x-hidden">
+      {/* 3D WebGL Shader Gradient Animated Background */}
+      <ShaderGradientBackground />
+
+      {/* Embedded Light Beam & Glass Card Styles */}
+      <style jsx global>{`
+        .glass-card {
+          background: rgba(255, 255, 255, 0.58);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.7);
+          box-shadow: 
+            0 12px 36px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .glass-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.9),
+            transparent
+          );
+          pointer-events: none;
+          z-index: 20;
+        }
+
+        .glass-input {
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.85);
+          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          transition: all 0.2s ease;
+        }
+        .glass-input:hover {
+          background: rgba(255, 255, 255, 0.88);
+          border-color: rgba(255, 255, 255, 1);
+        }
+        .glass-input:focus {
+          background: rgba(255, 255, 255, 0.96);
+          border-color: #F37021;
+          box-shadow: 0 0 0 3px rgba(243, 112, 33, 0.18), inset 0 1px 0 #ffffff;
+        }
+
+        .glass-pill {
+          background: rgba(255, 255, 255, 0.55);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          transition: all 0.2s ease;
+        }
+        .glass-pill:hover {
+          background: rgba(255, 255, 255, 0.8);
+          border-color: rgba(255, 255, 255, 0.95);
+        }
+
+        .shadow-btn-shadow {
+          box-shadow: 0 10px 24px -4px rgba(12, 17, 29, 0.3), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        @media print {
+          .glass-card {
+            background: #ffffff !important;
+            backdrop-filter: none !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
 
       {/* ------------------------------------------------------------------ */}
-      {/* TOP SOVEREIGN HEADER BAR */}
+      {/* TOP SOVEREIGN HEADER BAR (Frosted Glassmorphic) */}
       {/* ------------------------------------------------------------------ */}
-      <header className="border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md sticky top-0 z-40 shadow-xs">
+      <header className="border-b border-white/40 bg-white/40 backdrop-blur-md sticky top-0 z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-18 flex items-center justify-between gap-2">
           {/* Logo & Sovereign Crest */}
           <Link href="/" className="flex items-center gap-2 sm:gap-3 group min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-[#CBD5E1] p-1 flex items-center justify-center shadow-xs group-hover:border-[#1E3A8A] transition-colors shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/80 backdrop-blur-md border border-white/90 p-1 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
               <img
                 src="/nirman-logo.png"
                 alt="NIRMAN DMS National Sovereign Repository"
@@ -449,13 +538,13 @@ function PublicVerifierTerminal() {
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1 sm:gap-1.5 leading-tight">
-                <span className="text-base sm:text-lg font-extrabold text-[#0B1C30] tracking-tight">NIRMAN</span>
+                <span className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight font-sans">NIRMAN</span>
                 <span className="text-base sm:text-lg font-black text-[#F37021]">DMS</span>
-                <span className="ml-1 px-1.5 py-0.5 text-[8.5px] sm:text-[9px] uppercase tracking-wider font-black rounded bg-[#0B1C30] text-white shrink-0">
+                <span className="ml-1 px-1.5 py-0.5 text-[8.5px] sm:text-[9px] uppercase tracking-wider font-black rounded bg-slate-900 text-white shrink-0 shadow-xs">
                   VERIFIER
                 </span>
               </div>
-              <span className="text-[8.5px] sm:text-[9.5px] font-extrabold text-[#10B981] tracking-wider uppercase hidden sm:block truncate">
+              <span className="text-[8.5px] sm:text-[9.5px] font-extrabold text-emerald-700 tracking-wider uppercase hidden sm:block truncate">
                 Organise • Secure • Progress
               </span>
             </div>
@@ -463,17 +552,17 @@ function PublicVerifierTerminal() {
 
           {/* Network Telemetry Badge & Quick Nav */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#EFF4FF] border border-[#BFDBFE] text-[#1E3A8A] text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/60 backdrop-blur-md border border-white/80 text-blue-900 text-xs font-semibold shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Hyperledger Fabric 2.5 Active</span>
-              <span className="text-[#64748B] font-mono text-[11px]">
+              <span className="text-slate-600 font-mono text-[11px]">
                 (Block #{telemetry?.lastBlockNumber || '409,124'})
               </span>
             </div>
 
             <Link
               href="/login"
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#0B1C30] hover:text-white bg-white hover:bg-[#0B1C30] border border-[#CBD5E1] hover:border-[#0B1C30] rounded-xl transition-all shadow-xs whitespace-nowrap"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-white bg-slate-900 hover:bg-black rounded-xl transition-all shadow-btn-shadow whitespace-nowrap cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
               <span className="hidden xs:inline">Officer Login</span>
@@ -489,14 +578,14 @@ function PublicVerifierTerminal() {
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
         {/* Terminal Title & Legal Badge */}
         <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1E3A8A] text-xs font-bold tracking-wide mb-3 shadow-xs">
-            <span className="material-symbols-outlined text-[16px] text-[#2563EB]">gavel</span>
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/70 backdrop-blur-md border border-white/80 text-blue-900 text-xs font-bold tracking-wide mb-3 shadow-xs">
+            <span className="material-symbols-outlined text-[16px] text-blue-600">gavel</span>
             <span>Section 65B Indian Evidence Act & Bharatiya Sakshya Adhiniyam 2023</span>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-[#0B1C30] tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
             Sovereign Blockchain Evidence Verifier
           </h1>
-          <p className="mt-2.5 text-xs sm:text-sm text-[#475569] max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-2.5 text-xs sm:text-sm text-slate-700 max-w-2xl mx-auto leading-relaxed font-medium">
             Verify official government dockets, forensic evidence certificates, and cryptographic hashes
             directly against the decentralized, immutable Hyperledger Fabric ledger.
           </p>
@@ -505,16 +594,16 @@ function PublicVerifierTerminal() {
         {/* ------------------------------------------------------------------ */}
         {/* INTERACTIVE VERIFICATION CARD WITH DUAL TABS */}
         {/* ------------------------------------------------------------------ */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#CBD5E1] shadow-xl shadow-slate-200/50 overflow-hidden mb-8">
+        <div className="glass-card mb-8">
           {/* Tab Selection Bar (Touch-Optimized for Phones) */}
-          <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] p-1.5 sm:p-2 grid grid-cols-2 gap-1.5 sm:gap-2 select-none relative z-20">
+          <div className="border-b border-white/50 bg-white/40 backdrop-blur-md p-1.5 sm:p-2 grid grid-cols-2 gap-1.5 sm:gap-2 select-none relative z-20">
             <button
               type="button"
               onClick={() => setActiveTab('DIRECT')}
               className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center touch-manipulation active:scale-95 ${
                 activeTab === 'DIRECT'
-                  ? 'bg-[#0B1C30] text-white shadow-md'
-                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
+                  ? 'bg-slate-900 text-white shadow-btn-shadow'
+                  : 'text-slate-700 glass-pill hover:bg-white/70'
               }`}
             >
               <span className="material-symbols-outlined text-[20px] pointer-events-none">key</span>
@@ -526,11 +615,11 @@ function PublicVerifierTerminal() {
               onClick={() => setActiveTab('QR')}
               className={`py-3 px-2 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer text-center relative touch-manipulation active:scale-95 ${
                 activeTab === 'QR'
-                  ? 'bg-[#0B1C30] text-white shadow-md'
-                  : 'text-[#475569] bg-white sm:bg-transparent border border-[#CBD5E1] sm:border-transparent hover:text-[#0B1C30] hover:bg-slate-200/60'
+                  ? 'bg-slate-900 text-white shadow-btn-shadow'
+                  : 'text-slate-700 glass-pill hover:bg-white/70'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px] text-emerald-400 pointer-events-none">qr_code_scanner</span>
+              <span className="material-symbols-outlined text-[20px] text-emerald-500 pointer-events-none">qr_code_scanner</span>
               <span className="leading-tight pointer-events-none">Scan QR</span>
               <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-none"></span>
             </button>
@@ -542,579 +631,579 @@ function PublicVerifierTerminal() {
               <div>
                 <form
                   onSubmit={(e) => {
-                    e.preventDefault();
-                    executeVerification(inputKey);
-                  }}
-                  className="space-y-4"
-                >
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#475569]">
-                    Enter Transaction ID, Document Reference No., or SHA-256 Hash:
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#94A3B8]">
-                        <span className="material-symbols-outlined text-[20px]">fingerprint</span>
-                      </div>
-                      <input
-                        type="text"
-                        value={inputKey}
-                        onChange={(e) => setInputKey(e.target.value)}
-                        placeholder="Paste TX ID, Document / File No., or Hash..."
-                        className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-base sm:text-sm text-[#0F172A] placeholder-[#94A3B8] font-mono focus:outline-none focus:ring-2 focus:ring-[#0B1C30] focus:border-[#0B1C30] transition-all"
-                      />
+                  e.preventDefault();
+                  executeVerification(inputKey);
+                }}
+                className="space-y-4"
+              >
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Enter Transaction ID, Document Reference No., or SHA-256 Hash:
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <span className="material-symbols-outlined text-[20px]">fingerprint</span>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={loading || !inputKey.trim()}
-                      className="w-full sm:w-auto px-6 py-3.5 sm:py-3 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          <span>Querying Ledger...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-[18px]">verified</span>
-                          <span>Verify On-Chain</span>
-                        </>
-                      )}
-                    </button>
+                    <input
+                      type="text"
+                      value={inputKey}
+                      onChange={(e) => setInputKey(e.target.value)}
+                      placeholder="Paste TX ID, Document / File No., or Hash..."
+                      className="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-base sm:text-sm text-slate-900 placeholder-slate-400 font-mono outline-none"
+                    />
                   </div>
-                </form>
-              </div>
-            )}
-
-            {/* TAB 2: LIVE DRAG & DROP FILE ATTESTATION */}
-            {activeTab === 'FILE' && (
-              <div className="space-y-4">
-                <div
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`p-6 sm:p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    dragActive
-                      ? 'border-[#2563EB] bg-[#EFF6FF]'
-                      : 'border-[#CBD5E1] hover:border-[#1E3A8A] bg-[#F8FAFC]'
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="w-12 h-12 rounded-2xl bg-white border border-[#CBD5E1] flex items-center justify-center mb-3 shadow-xs text-[#1E3A8A]">
-                    <span className="material-symbols-outlined text-[28px]">description</span>
-                  </div>
-                  <p className="text-sm font-bold text-[#0B1C30]">
-                    Drop file here or <span className="text-[#2563EB] underline">tap to browse phone files</span>
-                  </p>
-                  <p className="text-xs text-[#64748B] mt-1 max-w-md">
-                    PDFs, scanned images, court memos, or case dockets. SHA-256 is computed 100% locally on your device.
-                  </p>
-
-                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] text-[10px] sm:text-[11px] font-bold">
-                    <span className="material-symbols-outlined text-[14px]">shield</span>
-                    <span>Zero Upload Privacy: File never leaves your phone</span>
-                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !inputKey.trim()}
+                    className="w-full sm:w-auto px-6 py-3.5 sm:py-3 bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold rounded-xl shadow-btn-shadow flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Querying Ledger...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[18px]">verified</span>
+                        <span>Verify On-Chain</span>
+                      </>
+                    )}
+                  </button>
                 </div>
+              </form>
+            </div>
+          )}
 
-                {isHashing && (
-                  <div className="p-4 rounded-xl bg-[#EFF4FF] border border-[#BFDBFE] flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-[#1E3A8A] border-t-transparent rounded-full animate-spin shrink-0"></div>
-                    <span className="text-xs font-bold text-[#1E3A8A]">
-                      Computing SHA-256 cryptographic digest via WebCrypto API...
-                    </span>
-                  </div>
-                )}
-
-                {hashedFile && !isHashing && (
-                  <div className="p-4 rounded-xl bg-white border border-[#CBD5E1] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-                    <div className="min-w-0">
-                      <span className="font-bold text-[#0B1C30] block truncate">{hashedFile.name}</span>
-                      <span className="text-[#64748B] text-[11px] font-mono">
-                        {formatBytes(hashedFile.size)} • SHA-256:
-                      </span>
-                      <p className="font-mono text-[#0B1C30] font-semibold break-all text-[11px] mt-0.5">
-                        {hashedFile.hash}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => executeVerification(hashedFile.hash)}
-                      className="w-full sm:w-auto px-4 py-2 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white font-bold rounded-lg text-xs transition-colors shrink-0 cursor-pointer text-center"
-                    >
-                      Re-verify Hash
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 3: LIVE MOBILE QR CODE CAMERA SCANNER */}
-            {activeTab === 'QR' && (
-              <div className="py-2">
-                <MobileQrScanner
-                  onScanSuccess={(extractedKey) => {
-                    setInputKey(extractedKey);
-                    executeVerification(extractedKey);
-                  }}
-                  onError={(err) => {
-                    setError(err);
-                  }}
+          {/* TAB 2: LIVE DRAG & DROP FILE ATTESTATION */}
+          {activeTab === 'FILE' && (
+            <div className="space-y-4">
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-6 sm:p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  dragActive
+                    ? 'border-blue-500 bg-blue-50/60 backdrop-blur-md'
+                    : 'border-white/70 hover:border-blue-400 bg-white/40 backdrop-blur-md'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <div className="w-12 h-12 rounded-2xl bg-white/90 border border-white/90 flex items-center justify-center mb-3 shadow-xs text-blue-700">
+                  <span className="material-symbols-outlined text-[28px]">description</span>
+                </div>
+                <p className="text-sm font-bold text-slate-900">
+                  Drop file here or <span className="text-blue-600 underline">tap to browse phone files</span>
+                </p>
+                <p className="text-xs text-slate-600 mt-1 max-w-md">
+                  PDFs, scanned images, court memos, or case dockets. SHA-256 is computed 100% locally on your device.
+                </p>
+
+                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 text-[10px] sm:text-[11px] font-bold backdrop-blur-md">
+                  <span className="material-symbols-outlined text-[14px]">shield</span>
+                  <span>Zero Upload Privacy: File never leaves your phone</span>
+                </div>
               </div>
-            )}
+
+              {isHashing && (
+                <div className="p-4 rounded-xl bg-blue-50/80 backdrop-blur-md border border-blue-200 flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-blue-700 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  <span className="text-xs font-bold text-blue-900">
+                    Computing SHA-256 cryptographic digest via WebCrypto API...
+                  </span>
+                </div>
+              )}
+
+              {hashedFile && !isHashing && (
+                <div className="p-4 rounded-xl bg-white/80 backdrop-blur-md border border-white/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block truncate">{hashedFile.name}</span>
+                    <span className="text-slate-600 text-[11px] font-mono">
+                      {formatBytes(hashedFile.size)} • SHA-256:
+                    </span>
+                    <p className="font-mono text-slate-900 font-semibold break-all text-[11px] mt-0.5">
+                      {hashedFile.hash}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => executeVerification(hashedFile.hash)}
+                    className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-xs transition-colors shrink-0 cursor-pointer text-center shadow-btn-shadow"
+                  >
+                    Re-verify Hash
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: LIVE MOBILE QR CODE CAMERA SCANNER */}
+          {activeTab === 'QR' && (
+            <div className="py-2">
+              <MobileQrScanner
+                onScanSuccess={(extractedKey) => {
+                  setInputKey(extractedKey);
+                  executeVerification(extractedKey);
+                }}
+                onError={(err) => {
+                  setError(err);
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* ERROR STATE */}
+      {/* ------------------------------------------------------------------ */}
+      {error && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/90 backdrop-blur-md border border-rose-200/90 text-rose-900 mb-8 flex items-start gap-3 shadow-xs animate-fadeIn">
+          <span className="material-symbols-outlined text-[24px] text-rose-600 shrink-0 mt-0.5">
+            error
+          </span>
+          <div className="flex-1">
+            <h4 className="font-bold text-sm text-rose-950">Cryptographic Verification Alert</h4>
+            <p className="text-xs text-rose-800 mt-0.5 leading-relaxed">{error}</p>
           </div>
         </div>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* ERROR STATE */}
-        {/* ------------------------------------------------------------------ */}
-        {error && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#FFF1F2] border border-[#FECDD3] text-[#9F1239] mb-8 flex items-start gap-3 shadow-xs animate-fadeIn">
-            <span className="material-symbols-outlined text-[24px] text-[#E11D48] shrink-0 mt-0.5">
-              error
-            </span>
-            <div className="flex-1">
-              <h4 className="font-bold text-sm text-[#9F1239]">Cryptographic Verification Alert</h4>
-              <p className="text-xs text-[#BE123C] mt-0.5 leading-relaxed">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------------ */}
-        {/* VERIFICATION RESULTS PANEL */}
-        {/* ------------------------------------------------------------------ */}
-        {result && (
-          <div className="space-y-6 animate-fadeIn">
-            {/* 1. Main Verdict Banner */}
-            <div
-              className={`p-6 sm:p-8 rounded-2xl border transition-all ${
-                result.verified
-                  ? 'bg-gradient-to-br from-[#ECFDF5] to-[#F0FDF4] border-[#86EFAC] shadow-lg shadow-emerald-900/5'
-                  : 'bg-gradient-to-br from-[#FFF1F2] to-[#FFF5F5] border-[#FECDD3] shadow-lg shadow-rose-900/5'
-              }`}
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-start sm:items-center gap-4">
-                  <div
-                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 border ${
-                      result.verified
-                        ? 'bg-[#10B981] text-white border-[#059669] shadow-md shadow-emerald-500/20'
-                        : 'bg-[#E11D48] text-white border-[#BE123C] shadow-md shadow-rose-500/20'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[32px] sm:text-[36px]">
-                      {result.verified ? 'verified' : 'gpp_bad'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-lg sm:text-2xl font-black text-[#0B1C30] tracking-tight">
-                        {result.verified
-                          ? 'CRYPTOGRAPHICALLY AUTHENTIC & UNTAMPERED'
-                          : 'CRYPTOGRAPHIC DISCREPANCY DETECTED'}
-                      </span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#334155] mt-1 max-w-2xl leading-relaxed">
-                      {result.verified
-                        ? 'This document payload hash is mathematically anchored and verified on the Hyperledger Fabric sovereign ledger. Section 65B statutory authenticity is confirmed.'
-                        : 'The provided hash or key does not match on-chain ledger records. This document may have been altered, forged, or unconfirmed.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Status Pills */}
-                <div className="flex flex-row md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-slate-200/80 shrink-0 gap-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                      result.verified
-                        ? 'bg-[#065F46] text-white'
-                        : 'bg-[#9F1239] text-white'
-                    }`}
-                  >
-                    {result.proof?.ledgerStatus || (result.verified ? 'COMMITTED' : 'FAILED')}
-                  </span>
-                  <span className="text-xs font-bold text-[#475569] font-mono">
-                    Block #{result.proof?.blockNumber || '409,124'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Official Document Information (If Document is Bound) */}
-            {result.document && (
-              <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 sm:p-7 shadow-xs">
-                <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3.5 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[20px] text-[#1E3A8A]">
-                      account_balance
-                    </span>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1C30]">
-                      Associated Government Document & Record Details
-                    </h3>
-                  </div>
-
-                  {result.document.securityTier && (
-                    <div>
-                      {getTierBadge(
-                        result.document.securityTier.code,
-                        result.document.securityTier.name
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Document / File Reference No:
-                    </span>
-                    <span className="font-mono font-bold text-[#0B1C30] text-sm mt-0.5 block">
-                      {result.document.documentNumber}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Subject / Title:
-                    </span>
-                    <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block truncate">
-                      {result.document.title}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Issuing Authority & Ministry:
-                    </span>
-                    <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block">
-                      {result.document.organization}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Department / Section:
-                    </span>
-                    <span className="font-semibold text-[#334155] text-xs mt-0.5 block">
-                      {result.document.department || 'Central Registry'}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Dealing Officer / Author:
-                    </span>
-                    <span className="font-semibold text-[#334155] text-xs mt-0.5 block">
-                      {result.document.authorName || 'Designated Custody Officer'} (
-                      {result.document.authorDesignation || 'Section Head'})
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Initial Ingestion Date:
-                    </span>
-                    <span className="font-mono text-[#334155] text-xs mt-0.5 block">
-                      {result.document.createdAt
-                        ? new Date(result.document.createdAt).toLocaleString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            dateStyle: 'medium',
-                            timeStyle: 'medium',
-                          })
-                        : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-
-                {result.document.description && (
-                  <div className="mt-3 p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs">
-                    <span className="text-[#64748B] block font-semibold text-[11px]">
-                      Document Description & Case Summary:
-                    </span>
-                    <p className="text-[#334155] mt-0.5 leading-relaxed">
-                      {result.document.description}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 3. Cryptographic Ledger Proof Breakdown */}
-            <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 sm:p-7 shadow-xs space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E2E8F0] pb-3.5 gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-[#2563EB]">
-                    deployed_code
-                  </span>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B1C30]">
-                    Hyperledger Fabric Cryptographic Proof
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        JSON.stringify(
-                          {
-                            proof: result.proof,
-                            statutoryCompliance: result.statutoryCompliance,
-                            verifiedAt: result.verifiedAt,
-                          },
-                          null,
-                          2
-                        ),
-                        'JSON'
-                      )
-                    }
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0B1C30] text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      {copiedField === 'JSON' ? 'check' : 'content_copy'}
-                    </span>
-                    <span>{copiedField === 'JSON' ? 'Copied Proof JSON' : 'Copy Proof JSON'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const shareUrl = `${window.location.origin}/verify?key=${encodeURIComponent(
-                        result.proof?.transactionId || inputKey
-                      )}`;
-                      copyToClipboard(shareUrl, 'LINK');
-                    }}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#EFF4FF] hover:bg-[#DBEAFE] text-[#1E3A8A] text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      {copiedField === 'LINK' ? 'check' : 'share'}
-                    </span>
-                    <span>{copiedField === 'LINK' ? 'Link Copied!' : 'Share Proof Link'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Hashes & Merkle Path Grid */}
-              <div className="space-y-3 font-mono text-xs">
-                <div>
-                  <div className="flex items-center justify-between text-[#64748B] text-[11px] mb-1 font-sans">
-                    <span className="font-semibold">Blockchain Transaction ID:</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyToClipboard(result.proof?.transactionId || inputKey, 'TXID')
-                      }
-                      className="text-[#2563EB] hover:underline"
-                    >
-                      {copiedField === 'TXID' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#0B1C30] font-bold break-all select-all">
-                    {result.proof?.transactionId || inputKey}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-[#64748B] text-[11px] mb-1 font-sans">
-                    <span className="font-semibold">Anchored SHA-256 Payload Hash:</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyToClipboard(result.proof?.payloadHash || 'N/A', 'PAYLOAD')
-                      }
-                      className="text-[#2563EB] hover:underline"
-                    >
-                      {copiedField === 'PAYLOAD' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#047857] font-bold break-all select-all">
-                    {result.proof?.payloadHash || 'N/A'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-[#64748B] text-[11px] mb-1 font-sans">
-                    <span className="font-semibold">Block Merkle Root:</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyToClipboard(result.proof?.merkleRoot || 'N/A', 'MERKLE')
-                      }
-                      className="text-[#2563EB] hover:underline"
-                    >
-                      {copiedField === 'MERKLE' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#1E3A8A] font-bold break-all select-all">
-                    {result.proof?.merkleRoot || 'N/A'}
-                  </div>
-                </div>
-
-                {/* Consensus & Peers Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 font-sans">
-                  <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] font-semibold text-[11px] block">
-                      Endorsing Peer Nodes (Multi-Org Consensus):
-                    </span>
-                    <ul className="text-[#334155] text-xs mt-2 space-y-1.5 font-mono">
-                      {(
-                        result.proof?.endorsingPeers || [
-                          'peer0.nic.gov.in',
-                          'peer1.secretariat.gov.in',
-                        ]
-                      ).map((peer: string, idx: number) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                          <span>{peer}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] font-semibold text-[11px] block">
-                      Attestation Authority & Time:
-                    </span>
-                    <p className="text-[#0B1C30] font-bold text-xs mt-1">
-                      {result.verificationAuthority}
-                    </p>
-                    <span className="text-[11px] text-[#64748B] block mt-1.5 font-mono">
-                      Timestamp: {new Date(result.verifiedAt).toISOString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 4. Statutory Legal Actions & Certificate Button */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#EFF4FF] border border-[#BFDBFE] flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#1E3A8A] text-white flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[22px]">verified_user</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#0B1C30]">
-                    Official Section 65B Statutory Certificate
-                  </h4>
-                  <p className="text-xs text-[#475569] mt-0.5">
-                    Generate or print the court-admissible electronic evidence certificate.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                {result.document?.id && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveCertificateDocId(result.document!.id!);
-                      setShowCertificateModal(true);
-                    }}
-                    className="flex-1 sm:flex-initial px-5 py-2.5 bg-[#0B1C30] hover:bg-[#1E3A8A] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">history_edu</span>
-                    <span>View Section 65B Certificate</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-4 py-2.5 bg-white hover:bg-[#F1F5F9] text-[#0B1C30] border border-[#CBD5E1] text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">print</span>
-                  <span>Print Dossier</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------------ */}
-        {/* NETWORK TELEMETRY FOOTER CARDS */}
-        {/* ------------------------------------------------------------------ */}
-        {telemetry && (
-          <div className="mt-12 pt-8 border-t border-[#E2E8F0]">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B] mb-4 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-[#1E3A8A]">lan</span>
-              <span>Hyperledger Fabric Cluster Telemetry</span>
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-white border border-[#CBD5E1] shadow-xs">
-                <span className="text-[#64748B] text-[11px] block">Channel Name:</span>
-                <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block font-mono">
-                  {telemetry.channelName}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-white border border-[#CBD5E1] shadow-xs">
-                <span className="text-[#64748B] text-[11px] block">Consensus Algorithm:</span>
-                <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block font-sans">
-                  {telemetry.consensusType}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-white border border-[#CBD5E1] shadow-xs">
-                <span className="text-[#64748B] text-[11px] block">Chaincode Contract:</span>
-                <span className="font-bold text-[#0B1C30] text-sm mt-0.5 block font-mono">
-                  {telemetry.chaincodeName}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-white border border-[#CBD5E1] shadow-xs">
-                <span className="text-[#64748B] text-[11px] block">Total Anchored Proofs:</span>
-                <span className="font-bold text-[#10B981] text-sm mt-0.5 block font-mono">
-                  {telemetry.totalAnchored.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* SECTION 65B CERTIFICATE MODAL */}
-      {/* ------------------------------------------------------------------ */}
-      {activeCertificateDocId && (
-        <Section65BCertificateModal
-          documentId={activeCertificateDocId}
-          isOpen={showCertificateModal}
-          onClose={() => setShowCertificateModal(false)}
-        />
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* FOOTER */}
+      {/* VERIFICATION RESULTS PANEL */}
       {/* ------------------------------------------------------------------ */}
-      <footer className="border-t border-[#E2E8F0] bg-white py-6 mt-12 text-center text-xs text-[#64748B]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="font-medium">
-            © 2026 NIRMAN DMS — National Sovereign Document Repository (SIH-26190).
-            Cryptographically Anchored by Hyperledger Fabric.
-          </p>
-          <p className="text-[11px] text-[#94A3B8] mt-1">
-            Compliant with Section 65B Indian Evidence Act 1872 & Bharatiya Sakshya Adhiniyam 2023.
-          </p>
+      {result && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* 1. Main Verdict Banner */}
+          <div
+            className={`p-6 sm:p-8 rounded-2xl border backdrop-blur-xl transition-all ${
+              result.verified
+                ? 'bg-emerald-50/85 border-emerald-300 shadow-xl shadow-emerald-950/5'
+                : 'bg-rose-50/85 border-rose-300 shadow-xl shadow-rose-950/5'
+            }`}
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-start sm:items-center gap-4">
+                <div
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 border ${
+                    result.verified
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/30'
+                      : 'bg-rose-600 text-white border-rose-700 shadow-md shadow-rose-600/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[32px] sm:text-[36px]">
+                    {result.verified ? 'verified' : 'gpp_bad'}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
+                      {result.verified
+                        ? 'CRYPTOGRAPHICALLY AUTHENTIC & UNTAMPERED'
+                        : 'CRYPTOGRAPHIC DISCREPANCY DETECTED'}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-700 mt-1 max-w-2xl leading-relaxed font-medium">
+                    {result.verified
+                      ? 'This document payload hash is mathematically anchored and verified on the Hyperledger Fabric sovereign ledger. Section 65B statutory authenticity is confirmed.'
+                      : 'The provided hash or key does not match on-chain ledger records. This document may have been altered, forged, or unconfirmed.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Pills */}
+              <div className="flex flex-row md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-slate-300/60 shrink-0 gap-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                    result.verified
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-rose-800 text-white shadow-xs'
+                  }`}
+                >
+                  {result.proof?.ledgerStatus || (result.verified ? 'COMMITTED' : 'FAILED')}
+                </span>
+                <span className="text-xs font-bold text-slate-700 font-mono">
+                  Block #{result.proof?.blockNumber || '409,124'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Official Document Information (If Document is Bound) */}
+          {result.document && (
+            <div className="glass-card p-5 sm:p-7 shadow-lg">
+              <div className="flex items-center justify-between border-b border-white/60 pb-3.5 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-blue-700">
+                    account_balance
+                  </span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Associated Government Document & Record Details
+                  </h3>
+                </div>
+
+                {result.document.securityTier && (
+                  <div>
+                    {getTierBadge(
+                      result.document.securityTier.code,
+                      result.document.securityTier.name
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Document / File Reference No:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 text-sm mt-0.5 block">
+                    {result.document.documentNumber}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Subject / Title:
+                  </span>
+                  <span className="font-bold text-slate-900 text-sm mt-0.5 block truncate">
+                    {result.document.title}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Issuing Authority & Ministry:
+                  </span>
+                  <span className="font-bold text-slate-900 text-sm mt-0.5 block">
+                    {result.document.organization}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Department / Section:
+                  </span>
+                  <span className="font-semibold text-slate-800 text-xs mt-0.5 block">
+                    {result.document.department || 'Central Registry'}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Dealing Officer / Author:
+                  </span>
+                  <span className="font-semibold text-slate-800 text-xs mt-0.5 block">
+                    {result.document.authorName || 'Designated Custody Officer'} (
+                    {result.document.authorDesignation || 'Section Head'})
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Initial Ingestion Date:
+                  </span>
+                  <span className="font-mono text-slate-800 text-xs mt-0.5 block">
+                    {result.document.createdAt
+                      ? new Date(result.document.createdAt).toLocaleString('en-IN', {
+                          timeZone: 'Asia/Kolkata',
+                          dateStyle: 'medium',
+                          timeStyle: 'medium',
+                        })
+                      : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              {result.document.description && (
+                <div className="mt-3 p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 text-xs shadow-2xs">
+                  <span className="text-slate-600 block font-semibold text-[11px]">
+                    Document Description & Case Summary:
+                  </span>
+                  <p className="text-slate-800 mt-0.5 leading-relaxed">
+                    {result.document.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Cryptographic Ledger Proof Breakdown */}
+          <div className="glass-card p-5 sm:p-7 shadow-lg space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/60 pb-3.5 gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-blue-700">
+                  deployed_code
+                </span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Hyperledger Fabric Cryptographic Proof
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(
+                      JSON.stringify(
+                        {
+                          proof: result.proof,
+                          statutoryCompliance: result.statutoryCompliance,
+                          verifiedAt: result.verifiedAt,
+                        },
+                        null,
+                        2
+                      ),
+                      'JSON'
+                    )
+                  }
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl glass-pill text-slate-800 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {copiedField === 'JSON' ? 'check' : 'content_copy'}
+                  </span>
+                  <span>{copiedField === 'JSON' ? 'Copied Proof JSON' : 'Copy Proof JSON'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/verify?key=${encodeURIComponent(
+                      result.proof?.transactionId || inputKey
+                    )}`;
+                    copyToClipboard(shareUrl, 'LINK');
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-btn-shadow"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {copiedField === 'LINK' ? 'check' : 'share'}
+                  </span>
+                  <span>{copiedField === 'LINK' ? 'Link Copied!' : 'Share Proof Link'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Hashes & Merkle Path Grid */}
+            <div className="space-y-3 font-mono text-xs">
+              <div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px] mb-1 font-sans">
+                  <span className="font-semibold">Blockchain Transaction ID:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      copyToClipboard(result.proof?.transactionId || inputKey, 'TXID')
+                    }
+                    className="text-blue-700 hover:underline font-bold"
+                  >
+                    {copiedField === 'TXID' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 backdrop-blur-md border border-white/90 text-slate-900 font-bold break-all select-all shadow-2xs">
+                  {result.proof?.transactionId || inputKey}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px] mb-1 font-sans">
+                  <span className="font-semibold">Anchored SHA-256 Payload Hash:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      copyToClipboard(result.proof?.payloadHash || 'N/A', 'PAYLOAD')
+                    }
+                    className="text-blue-700 hover:underline font-bold"
+                  >
+                    {copiedField === 'PAYLOAD' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 backdrop-blur-md border border-white/90 text-emerald-800 font-bold break-all select-all shadow-2xs">
+                  {result.proof?.payloadHash || 'N/A'}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-slate-600 text-[11px] mb-1 font-sans">
+                  <span className="font-semibold">Block Merkle Root:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      copyToClipboard(result.proof?.merkleRoot || 'N/A', 'MERKLE')
+                    }
+                    className="text-blue-700 hover:underline font-bold"
+                  >
+                    {copiedField === 'MERKLE' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 backdrop-blur-md border border-white/90 text-blue-900 font-bold break-all select-all shadow-2xs">
+                  {result.proof?.merkleRoot || 'N/A'}
+                </div>
+              </div>
+
+              {/* Consensus & Peers Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 font-sans">
+                <div className="p-4 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 font-semibold text-[11px] block">
+                    Endorsing Peer Nodes (Multi-Org Consensus):
+                  </span>
+                  <ul className="text-slate-800 text-xs mt-2 space-y-1.5 font-mono">
+                    {(
+                      result.proof?.endorsingPeers || [
+                        'peer0.nic.gov.in',
+                        'peer1.secretariat.gov.in',
+                      ]
+                    ).map((peer: string, idx: number) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>{peer}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-2xs">
+                  <span className="text-slate-600 font-semibold text-[11px] block">
+                    Attestation Authority & Time:
+                  </span>
+                  <p className="text-slate-900 font-bold text-xs mt-1">
+                    {result.verificationAuthority}
+                  </p>
+                  <span className="text-[11px] text-slate-600 block mt-1.5 font-mono">
+                    Timestamp: {new Date(result.verifiedAt).toISOString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Statutory Legal Actions & Certificate Button */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-blue-50/80 backdrop-blur-xl border border-blue-200/90 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <span className="material-symbols-outlined text-[22px]">verified_user</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">
+                  Official Section 65B Statutory Certificate
+                </h4>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Generate or print the court-admissible electronic evidence certificate.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {result.document?.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCertificateDocId(result.document!.id!);
+                    setShowCertificateModal(true);
+                  }}
+                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-btn-shadow flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">history_edu</span>
+                  <span>View Section 65B Certificate</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 bg-white/80 hover:bg-white text-slate-900 border border-white/90 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">print</span>
+                <span>Print Dossier</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </footer>
-    </div>
-  );
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* NETWORK TELEMETRY FOOTER CARDS */}
+      {/* ------------------------------------------------------------------ */}
+      {telemetry && (
+        <div className="mt-12 pt-8 border-t border-white/40">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-4 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px] text-blue-700">lan</span>
+            <span>Hyperledger Fabric Cluster Telemetry</span>
+          </h3>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-xs">
+              <span className="text-slate-600 text-[11px] block font-semibold">Channel Name:</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block font-mono">
+                {telemetry.channelName}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-xs">
+              <span className="text-slate-600 text-[11px] block font-semibold">Consensus Algorithm:</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block font-sans">
+                {telemetry.consensusType}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-xs">
+              <span className="text-slate-600 text-[11px] block font-semibold">Chaincode Contract:</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block font-mono">
+                {telemetry.chaincodeName}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-xs">
+              <span className="text-slate-600 text-[11px] block font-semibold">Total Anchored Proofs:</span>
+              <span className="font-bold text-emerald-700 text-sm mt-0.5 block font-mono">
+                {telemetry.totalAnchored.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+
+    {/* ------------------------------------------------------------------ */}
+    {/* SECTION 65B CERTIFICATE MODAL */}
+    {/* ------------------------------------------------------------------ */}
+    {activeCertificateDocId && (
+      <Section65BCertificateModal
+        documentId={activeCertificateDocId}
+        isOpen={showCertificateModal}
+        onClose={() => setShowCertificateModal(false)}
+      />
+    )}
+
+    {/* ------------------------------------------------------------------ */}
+    {/* FOOTER */}
+    {/* ------------------------------------------------------------------ */}
+    <footer className="border-t border-white/40 bg-white/30 backdrop-blur-md py-6 mt-12 text-center text-xs text-slate-600">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <p className="font-medium text-slate-700">
+          © 2026 NIRMAN DMS — National Sovereign Document Repository (SIH-26190).
+          Cryptographically Anchored by Hyperledger Fabric.
+        </p>
+        <p className="text-[11px] text-slate-500 mt-1 font-medium">
+          Compliant with Section 65B Indian Evidence Act 1872 & Bharatiya Sakshya Adhiniyam 2023.
+        </p>
+      </div>
+    </footer>
+  </div>
+);
 }
 
 export default function PublicVerifyPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center text-[#0B1C30]">
-          <div className="w-10 h-10 border-4 border-[#0B1C30] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div className="min-h-screen bg-gradient-to-br from-[#94ffd1]/30 via-[#6bf5ff]/20 to-white flex flex-col items-center justify-center text-slate-900">
+          <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-sm font-bold">Connecting to Sovereign Blockchain Node...</p>
         </div>
       }
