@@ -17,6 +17,10 @@ import UsersManagementView from '@/components/dashboard/UsersManagementView';
 import DepartmentsManagementView from '@/components/dashboard/DepartmentsManagementView';
 import OverviewDashboardView from '@/components/dashboard/OverviewDashboardView';
 import BlockchainLedgerView from '@/components/dashboard/BlockchainLedgerView';
+import InterOrgExchangeView from '@/components/dashboard/InterOrgExchangeView';
+import FederationAuditView from '@/components/dashboard/FederationAuditView';
+import FederationAdminView from '@/components/dashboard/FederationAdminView';
+import OrganizationsManagementView from '@/components/dashboard/OrganizationsManagementView';
 import { SquareLoader } from '@/components/ui/SquareLoader';
 import dynamic from 'next/dynamic';
 
@@ -185,6 +189,10 @@ export default function DashboardPage() {
     | 'admin'
     | 'users'
     | 'departments'
+    | 'collaboration'
+    | 'fed-audit'
+    | 'fed-admin'
+    | 'organizations'
   >('overview');
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [ocrInitialQuery, setOcrInitialQuery] = useState('');
@@ -217,6 +225,7 @@ export default function DashboardPage() {
       feature_retention_holds: raw?.feature_retention_holds !== false,
       feature_blockchain: raw?.feature_blockchain !== false,
       feature_deep_ocr: raw?.feature_deep_ocr !== false,
+      feature_inter_org_collaboration: (raw as any)?.feature_inter_org_collaboration !== false,
     };
   }, [user]);
 
@@ -245,6 +254,11 @@ export default function DashboardPage() {
       viewAudit:      has('AUDIT_VIEW'),
       viewBlockchain: has('BLOCKCHAIN_VIEW', 'AUDIT_VIEW', 'PERMISSION_MANAGE', 'DOCUMENT_VIEW'),
       viewJobs:       has('DOCUMENT_CREATE', 'PERMISSION_MANAGE'),   // officers + admins
+      // Sovereign Federation
+      viewCollaboration: has('DOCUMENT_VIEW', 'PERMISSION_MANAGE'),
+      viewFedAudit:      has('AUDIT_VIEW', 'PERMISSION_MANAGE'),
+      viewFedAdmin:      isSuperAdmin,
+      viewOrganizations: has('PERMISSION_MANAGE', 'USER_MANAGE', 'DEPARTMENT_MANAGE') || isSuperAdmin,
       // Administration
       viewSystemSettings: has('PERMISSION_MANAGE'),
     };
@@ -759,7 +773,76 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* SECTION 4: ADMINISTRATION — requires PERMISSION_MANAGE */}
+            {/* SECTION 4: SOVEREIGN INTER-AGENCY FEDERATION */}
+            {features.feature_inter_org_collaboration && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
+                  Inter-Agency Federation
+                </span>
+
+                {/* Inter-Agency Hub */}
+                {canDo.viewCollaboration && (
+                  <button
+                    onClick={() => setActiveView('collaboration')}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                      activeView === 'collaboration'
+                        ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                        : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[17px]">hub</span>
+                      <span>Inter-Agency Hub</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Cross-Org Audit 360 */}
+                {canDo.viewFedAudit && (
+                  <button
+                    onClick={() => setActiveView('fed-audit')}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                      activeView === 'fed-audit'
+                        ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                        : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[17px]">shield</span>
+                      <span>Cross-Org Audit 360</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Organization Management & Fleet Governance */}
+                {canDo.viewOrganizations && (
+                  <button
+                    onClick={() => setActiveView('organizations')}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                      activeView === 'organizations' || activeView === 'fed-admin'
+                        ? 'bg-[#000000] text-white font-semibold shadow-[0_4px_12px_rgba(16,20,26,0.20)]'
+                        : 'text-[#45474b] hover:bg-[#f0f3ff] hover:text-[#151c27] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
+                      <span>Organizations</span>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                        activeView === 'organizations' || activeView === 'fed-admin'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-purple-100 text-purple-900 border border-purple-200'
+                      }`}
+                    >
+                      Fleet
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* SECTION 5: ADMINISTRATION — requires PERMISSION_MANAGE */}
             {canDo.viewSystemSettings && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-0.5">
@@ -827,6 +910,9 @@ export default function DashboardPage() {
               {activeView === 'audit' && 'Governance / Audit Trail'}
               {activeView === 'jobs' && 'Operations / Job Queues'}
               {activeView === 'notifications' && 'Operations / Alerts'}
+              {activeView === 'collaboration' && 'Federation / Inter-Agency Highway'}
+              {activeView === 'fed-audit' && 'Federation / Cross-Org Audit 360'}
+              {activeView === 'fed-admin' && 'Federation / Super Admin Governance'}
               {activeView === 'admin' && 'Administration / Governance'}
             </span>
           </div>
@@ -1254,10 +1340,40 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* 11. USERS & ACCESS */}
+          {/* 11. INTER-AGENCY COLLABORATION HIGHWAY */}
+          {activeView === 'collaboration' && (
+            <InterOrgExchangeView
+              currentUserId={user?.id}
+              currentUserRoles={user?.roles}
+              currentUserClearance={user?.maxSecurityLevel || 3}
+              currentOrg={user?.organization}
+            />
+          )}
+
+          {/* 12. CROSS-ORGANIZATION FEDERATION AUDIT 360 */}
+          {activeView === 'fed-audit' && (
+            <FederationAuditView
+              currentUserId={user?.id}
+              currentUserRoles={user?.roles}
+              currentUserClearance={user?.maxSecurityLevel || 5}
+              currentOrg={user?.organization}
+            />
+          )}
+
+          {/* 13. SOVEREIGN FEDERATION ORGANIZATION MANAGEMENT & SUPER ADMIN */}
+          {(activeView === 'organizations' || activeView === 'fed-admin') && (
+            <OrganizationsManagementView
+              currentUserId={user?.id}
+              currentUserRoles={user?.roles}
+              currentOrg={user?.organization}
+              onNavigateTab={(tab) => setActiveView(tab as any)}
+            />
+          )}
+
+          {/* 14. USERS & ACCESS */}
           {activeView === 'users' && <UsersManagementView currentUserId={user?.id} onNotify={showToast} />}
 
-          {/* 12. DEPARTMENTS */}
+          {/* 15. DEPARTMENTS */}
           {activeView === 'departments' && (
             <DepartmentsManagementView
               onNotify={showToast}

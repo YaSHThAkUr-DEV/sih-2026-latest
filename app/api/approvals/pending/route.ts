@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
-import { verifySessionToken } from '@/lib/auth/jwt';
+import { getCurrentSession } from '@/lib/auth/jwt';
+import { canApproveDocuments } from '@/lib/auth/rbac';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     // 1. Verify Authentication
-    const cookieStore = await cookies();
-    const token = cookieStore.get('dms_session')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized: Session missing' }, { status: 401 });
-    }
-
-    const session = await verifySessionToken(token);
+    const session = await getCurrentSession(req);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid session' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Valid session required' }, { status: 401 });
     }
 
     const statusParam = req.nextUrl.searchParams.get('status') || 'PENDING';
@@ -85,12 +79,9 @@ export async function GET(req: NextRequest) {
     // Format output with canApprove flag for the logged-in officer
     const requests = rows.map((r) => {
       const isRequester = r.requester_id === session.userId;
-      // An officer can approve if they are NOT the requester, AND they are either the assigned approver, or a DEPT_HEAD / SUPER_ADMIN
+      // An officer can approve if they are NOT the requester, AND they are either the assigned approver, or have document approval permissions
       const isAssigned = r.assigned_approver_id === session.userId;
-      const hasPrivilege =
-        session.roles.includes('SUPER_ADMIN') ||
-        session.roles.includes('DEPT_HEAD') ||
-        session.roles.includes('ORG_ADMIN');
+      const hasPrivilege = canApproveDocuments(session);
       const canApprove = !isRequester && (isAssigned || hasPrivilege) && r.request_status === 'PENDING';
 
       return {

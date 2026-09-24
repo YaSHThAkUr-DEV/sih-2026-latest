@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { pool, query } from '@/lib/db';
-import { verifySessionToken } from '@/lib/auth/jwt';
+import { getCurrentSession } from '@/lib/auth/jwt';
+import { canApproveDocuments } from '@/lib/auth/rbac';
 import { logAuditEvent } from '@/lib/auth/audit';
 import { invalidateCache } from '@/lib/cache/redis';
 import { JobQueueManager } from '@/lib/jobs/queue';
@@ -18,15 +18,9 @@ export async function POST(
     const { id: requestId } = await params;
 
     // 1. Check Session
-    const cookieStore = await cookies();
-    const token = cookieStore.get('dms_session')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized: Session missing' }, { status: 401 });
-    }
-
-    const session = await verifySessionToken(token);
+    const session = await getCurrentSession(req);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid or expired session' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Valid session required' }, { status: 401 });
     }
 
     // 2. Parse Body
@@ -89,10 +83,9 @@ export async function POST(
       );
     }
 
-    // 6. Check Approver Privilege
+    // 6. Check Approver Privilege (Assigned approver OR permission-based role)
     const isAssigned = cr.assigned_approver_id === session.userId;
-    const hasPrivilege =
-      session.roles.includes('SUPER_ADMIN') || session.roles.includes('DEPT_HEAD') || session.roles.includes('ORG_ADMIN');
+    const hasPrivilege = canApproveDocuments(session);
 
     if (!isAssigned && !hasPrivilege) {
       return NextResponse.json(

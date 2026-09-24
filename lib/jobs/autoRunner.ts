@@ -62,7 +62,7 @@ export class AutoJobRunner {
   }
 }
 
-// Auto-initialize background runner timer upon module import
-if (typeof process !== 'undefined') {
+// Auto-initialize background runner timer upon module import (server-side only)
+if (typeof window === 'undefined') {
   AutoJobRunner.init();
 }

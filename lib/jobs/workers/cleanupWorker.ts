@@ -48,7 +48,7 @@ export class CleanupWorker {
         // Cryptographic zeroization: Wipes Vault key references & marks DELETED
         await query(
           `UPDATE document_versions 
-           SET vault_key_reference = '{"shredded": true, "zeroized_at": "' || now() || '"}'
+           SET vault_key_reference = jsonb_build_object('shredded', true, 'zeroized_at', now()::text)::text
            WHERE document_id = $1;`,
           [req.document_id]
         );

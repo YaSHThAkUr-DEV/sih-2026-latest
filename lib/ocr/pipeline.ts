@@ -68,34 +68,23 @@ export class OcrPipelineService {
       // 3. Decrypt document buffer
       let plaintextBuffer: Buffer;
 
-      if (doc.minio_object_key && doc.vault_key_reference) {
-        try {
-          const encryptedPayload = await getEncryptedObject(doc.minio_object_key);
-          let vaultMeta = doc.vault_key_reference;
-          if (typeof vaultMeta === 'string') {
-            vaultMeta = JSON.parse(vaultMeta);
-          }
-
-          plaintextBuffer = await EnvelopeEncryptionService.decryptDocument(
-            encryptedPayload,
-            vaultMeta.iv,
-            vaultMeta.authTag,
-            vaultMeta.wrappedDek,
-            doc.document_number
-          );
-        } catch (s3Err) {
-          plaintextBuffer = Buffer.from(
-            `Document ${doc.document_number}: Confidential Case Record. Title: ${doc.file_name}. Statutory Section 65B Indian Evidence Act attestation. Forensic evidence and investigation timeline.`,
-            'utf-8'
-          );
-        }
-      } else {
-        // Fallback for mock/test data without MinIO object
-        plaintextBuffer = Buffer.from(
-          `Document ${doc.document_number}: Confidential Case Record. Title: ${doc.file_name}. Statutory Section 65B Indian Evidence Act attestation.`,
-          'utf-8'
-        );
+      if (!doc.minio_object_key || !doc.vault_key_reference) {
+        throw new Error(`Document version ${documentVersionId} lacks MinIO object key or vault key reference`);
       }
+
+      const encryptedPayload = await getEncryptedObject(doc.minio_object_key);
+      let vaultMeta = doc.vault_key_reference;
+      if (typeof vaultMeta === 'string') {
+        vaultMeta = JSON.parse(vaultMeta);
+      }
+
+      plaintextBuffer = await EnvelopeEncryptionService.decryptDocument(
+        encryptedPayload,
+        vaultMeta.iv,
+        vaultMeta.authTag,
+        vaultMeta.wrappedDek,
+        doc.document_number
+      );
 
       // 4. Run extraction engine
       const ocrResult = await OcrExtractorService.extractText(

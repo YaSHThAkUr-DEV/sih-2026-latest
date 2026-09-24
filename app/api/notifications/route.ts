@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/jwt';
+import { isAdmin, isSuperAdmin } from '@/lib/auth/rbac';
 import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getCurrentSession();
+    const session = await getCurrentSession(request);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -16,9 +17,14 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim().toLowerCase() || '';
     const sort = searchParams.get('sort') || 'newest';
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const scope = searchParams.get('scope') || 'user';
 
-    const userScopeClause = '(user_id = $1 OR user_id IS NULL OR user_id IN (SELECT id FROM users WHERE organization_id = $2))';
-    const scopeParams = [session.userId, session.organizationId];
+    // Scoping: default to user's notifications + system broadcasts. Admins can view org-wide with scope=org.
+    const isOrgScope = scope === 'org' && (isAdmin(session) || isSuperAdmin(session));
+    const userScopeClause = isOrgScope
+      ? '(user_id IS NULL OR user_id IN (SELECT id FROM users WHERE organization_id = $1))'
+      : '(user_id = $1 OR user_id IS NULL)';
+    const scopeParams = isOrgScope ? [session.organizationId] : [session.userId];
 
     // 1. Fetch KPI metrics for ribbon & category counts
     const [allCount, unreadCount, approvalCount, holdCount, ocrCount, securityCount, retentionCount] = await Promise.all([
@@ -79,7 +85,7 @@ export async function GET(request: NextRequest) {
       FROM notifications
       WHERE ${userScopeClause}
     `;
-    const params: any[] = [session.userId, session.organizationId];
+    const params: any[] = [...scopeParams];
 
     if (unreadOnly) {
       sql += ' AND read_at IS NULL';

@@ -1,9 +1,10 @@
 export interface OrganizationFeatureConfig {
-  feature_approvals: boolean;       // Maker-Checker dual custody approvals
-  feature_section_65b: boolean;     // Section 65B statutory judicial certificates
-  feature_retention_holds: boolean; // Retention schedules & legal holds
-  feature_blockchain: boolean;      // Blockchain ledger anchoring & attestation
-  feature_deep_ocr: boolean;        // Advanced OCR extraction & search studio
+  feature_approvals: boolean;              // Maker-Checker dual custody approvals
+  feature_section_65b: boolean;            // Section 65B statutory judicial certificates
+  feature_retention_holds: boolean;        // Retention schedules & legal holds
+  feature_blockchain: boolean;             // Blockchain ledger anchoring & attestation
+  feature_deep_ocr: boolean;               // Advanced OCR extraction & search studio
+  feature_inter_org_collaboration?: boolean; // Cross-organization document collaboration & federation highway
 }
 
 export const DEFAULT_FULL_FEATURES: OrganizationFeatureConfig = {
@@ -12,6 +13,7 @@ export const DEFAULT_FULL_FEATURES: OrganizationFeatureConfig = {
   feature_retention_holds: true,
   feature_blockchain: true,
   feature_deep_ocr: true,
+  feature_inter_org_collaboration: true,
 };
 
 export const MINIMAL_RECEIPTS_FEATURES: OrganizationFeatureConfig = {
@@ -20,6 +22,7 @@ export const MINIMAL_RECEIPTS_FEATURES: OrganizationFeatureConfig = {
   feature_retention_holds: false,
   feature_blockchain: false,
   feature_deep_ocr: true,
+  feature_inter_org_collaboration: false,
 };
 
 export const MODULE_DESCRIPTIONS: Record<
@@ -56,6 +59,12 @@ export const MODULE_DESCRIPTIONS: Record<
     icon: 'document_scanner',
     recommendedFor: 'All Offices handling scanned physical paperwork',
   },
+  feature_inter_org_collaboration: {
+    label: 'Sovereign Inter-Agency Collaboration',
+    description: 'Secure cross-organization document requisition highway, dynamic forensic watermarking, Section 65B transfer certificates, and joint workspaces.',
+    icon: 'share',
+    recommendedFor: 'Courts, Police, Investigation Agencies, Secretariats, All Federal Nodes',
+  },
 };
 
 /**
@@ -72,5 +81,6 @@ export function normalizeFeatures(raw: unknown): OrganizationFeatureConfig {
     feature_retention_holds: obj.feature_retention_holds !== false,
     feature_blockchain: obj.feature_blockchain !== false,
     feature_deep_ocr: obj.feature_deep_ocr !== false,
+    feature_inter_org_collaboration: obj.feature_inter_org_collaboration !== false,
   };
 }

@@ -2,7 +2,7 @@ import { query } from '@/lib/db';
 
 export interface CreateNotificationParams {
   userId: string;
-  type: 'APPROVAL_REQUEST' | 'APPROVAL_DECISION' | 'OCR_COMPLETE' | 'LEGAL_HOLD' | 'RETENTION_EXPIRY' | 'SECURITY_ALERT' | 'AUDIT_ATTESTATION';
+  type: 'APPROVAL_REQUEST' | 'APPROVAL_DECISION' | 'OCR_COMPLETE' | 'LEGAL_HOLD' | 'RETENTION_EXPIRY' | 'SECURITY_ALERT' | 'AUDIT_ATTESTATION' | 'BLOCKCHAIN_ANCHOR';
   title: string;
   message: string;
   resourceType?: string;

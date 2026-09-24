@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
-import { verifySessionToken } from '@/lib/auth/jwt';
+import { getCurrentSession } from '@/lib/auth/jwt';
 import { EnvelopeEncryptionService } from '@/lib/crypto/envelope';
 import { getEncryptedObject } from '@/lib/storage/minio';
 import { logAuditEvent } from '@/lib/auth/audit';
@@ -16,15 +15,9 @@ export async function GET(
     const { id: docId } = await params;
 
     // 1. Check Session
-    const cookieStore = await cookies();
-    const token = cookieStore.get('dms_session')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
-    }
-
-    const session = await verifySessionToken(token);
+    const session = await getCurrentSession(req);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid or expired session' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
     }
 
     // 2. Fetch Document & Version with Security Clearance check

@@ -34,7 +34,19 @@ async function initDatabase() {
 
   await dmsClient.connect();
 
-  const schemaPath = path.resolve(__dirname, '../../proejct doucmentation/DMS_PostgreSQL_Final_Logical_Schema.sql');
+  const candidatePaths = [
+    path.resolve(__dirname, '../schema.sql'),
+    path.resolve(__dirname, '../DMS_PostgreSQL_Final_Logical_Schema.sql'),
+    path.resolve(__dirname, '../../project documentation/DMS_PostgreSQL_Final_Logical_Schema.sql'),
+    path.resolve(__dirname, '../../proejct doucmentation/DMS_PostgreSQL_Final_Logical_Schema.sql'),
+  ];
+
+  const schemaPath = candidatePaths.find((p) => fs.existsSync(p));
+  if (!schemaPath) {
+    console.log('ℹ️ No external .sql schema file found. You can initialize tables using "npm run seed" or "npx tsx scripts/seed.ts".');
+    return;
+  }
+
   console.log(`Reading SQL schema from: ${schemaPath}`);
   const sqlContent = fs.readFileSync(schemaPath, 'utf-8');
 

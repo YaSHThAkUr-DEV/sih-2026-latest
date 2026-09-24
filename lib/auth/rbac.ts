@@ -59,6 +59,18 @@ export function canVerifyBlockchain(session: UserSessionPayload): boolean {
   return hasAnyPermission(session, ['BLOCKCHAIN_VERIFY', 'BLOCKCHAIN_VIEW', 'AUDIT_VIEW', 'DOCUMENT_VIEW']);
 }
 
+export function canApproveDocuments(session: UserSessionPayload): boolean {
+  return isSuperAdmin(session) || hasAnyPermission(session, ['DOCUMENT_APPROVE', 'DOCUMENT_MANAGE', 'PERMISSION_MANAGE']);
+}
+
+export function canManageRetention(session: UserSessionPayload): boolean {
+  return isSuperAdmin(session) || hasAnyPermission(session, ['RETENTION_MANAGE', 'PERMISSION_MANAGE']);
+}
+
+export function canManageLegalHolds(session: UserSessionPayload): boolean {
+  return isSuperAdmin(session) || hasAnyPermission(session, ['LEGAL_HOLD_MANAGE', 'RETENTION_MANAGE', 'PERMISSION_MANAGE']);
+}
+
 // ---------------------------------------------------------------------------
 // Role Checks (only used for SUPER_ADMIN bypass — everything else is permissions)
 // ---------------------------------------------------------------------------

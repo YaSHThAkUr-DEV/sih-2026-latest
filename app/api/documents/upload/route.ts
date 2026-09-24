@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
     // 10. Invalidate Redis Caches
     await invalidateCache('dms:dashboard:*');
 
-    // 11. Enqueue & Execute OCR Processing in Background (if OCR enabled by policy)
+    // 11. Enqueue OCR Processing in Background (if OCR enabled by policy)
     if (isOcrRequired) {
       await JobQueueManager.enqueue(
         'ocr-queue',
@@ -356,11 +356,6 @@ export async function POST(req: NextRequest) {
         },
         { documentVersionId: verId }
       );
-
-      // Run direct background OCR extraction to immediately index text & GIN vector
-      OcrPipelineService.processVersion(verId, session.userId).catch((err) => {
-        console.warn(`[OCR] Direct background processing for version ${verId}:`, err.message);
-      });
     }
 
     // 12. Enqueue Blockchain Hash Anchoring (Module 21 — Hyperledger Fabric Integrity)

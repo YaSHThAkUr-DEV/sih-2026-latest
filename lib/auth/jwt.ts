@@ -1,8 +1,18 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dms_super_secure_jwt_secret_key_2026_institutional_gov_32chars!';
-const secretKey = new TextEncoder().encode(JWT_SECRET);
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL SECURITY CONFIGURATION: JWT_SECRET environment variable must be set in production!');
+    }
+    return new TextEncoder().encode('dms_super_secure_jwt_secret_key_2026_institutional_gov_32chars!');
+  }
+  return new TextEncoder().encode(secret);
+}
+
+const secretKey = getJwtSecret();
 
 export const COOKIE_NAME = 'dms_session';
 

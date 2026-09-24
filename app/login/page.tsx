@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
@@ -41,6 +42,21 @@ export default function LoginPage() {
       setToast({ show: false, message: '' });
     }, 3200);
   };
+
+  // Dynamic Fleet Organizations
+  const [fleetOrgs, setFleetOrgs] = useState<any[]>([]);
+
+  // Load test fleet dynamically from database
+  React.useEffect(() => {
+    fetch('/api/collaboration/admin/test-fleet')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.organizations) {
+          setFleetOrgs(data.organizations);
+        }
+      })
+      .catch((err) => console.error('Failed to load dynamic test fleet', err));
+  }, []);
 
   // Quick Demo Profiles selector
   const setRoleDemo = (
@@ -427,101 +443,69 @@ export default function LoginPage() {
             </form>
 
             {/* Quick Demo Profiles Section */}
-            <div className="mt-2.5 pt-2 border-t border-white/70">
-              <div className="flex items-center justify-between mb-1.5">
+            <div className="mt-2.5 pt-2 border-t border-white/70 space-y-2">
+              <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px] text-[#F37021]">bolt</span>
-                  <span>Quick 1-Click Demo Profiles</span>
+                  <span>1-Click Test Organizations</span>
                 </span>
-                <span className="text-[9.5px] text-emerald-800 font-semibold bg-emerald-500/10 backdrop-blur-md px-1.5 py-0.2 rounded border border-emerald-500/20">
-                  Auto-Fill
-                </span>
+                <Link
+                  href="/federation-admin"
+                  className="text-[9.5px] text-[#3f5e93] hover:underline font-bold flex items-center gap-0.5"
+                >
+                  <span>Open Test Suite</span>
+                  <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                </Link>
               </div>
 
+              {/* Dynamic Sovereign Inter-Org Fleet Grid */}
               <div className="grid grid-cols-2 gap-1.5">
-                {/* 1. Administrator */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRoleDemo('DEMO', 'admin@dms.gov.in', 'Admin@DMS2026!', 'Administrator')
-                  }
-                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
-                    activeRoleName === 'Administrator'
-                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
-                      : 'glass-pill'
-                  }`}
-                >
-                  <div className="w-5.5 h-5.5 rounded-md bg-orange-50 text-[#F37021] border border-orange-200/60 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[13px]">admin_panel_settings</span>
+                {fleetOrgs.length > 0 ? (
+                  fleetOrgs.slice(0, 4).map((org) => {
+                    const primaryUser = org.users?.[0] || {
+                      email: `admin@${org.code.toLowerCase()}.gov.in`,
+                      name: org.name,
+                    };
+                    const isSelected = tenantId === org.code;
+                    return (
+                      <button
+                        key={org.id}
+                        type="button"
+                        onClick={() =>
+                          setRoleDemo(org.code, primaryUser.email, 'Password@DMS2026!', org.name)
+                        }
+                        className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
+                            : 'glass-pill hover:bg-white/80'
+                        }`}
+                      >
+                        <div
+                          className="w-5.5 h-5.5 rounded-md flex items-center justify-center shrink-0 border"
+                          style={{
+                            backgroundColor: org.tierBadgeColor ? `${org.tierBadgeColor}15` : '#6366f115',
+                            borderColor: org.tierBadgeColor ? `${org.tierBadgeColor}40` : '#6366f140',
+                            color: org.tierBadgeColor || '#6366f1',
+                          }}
+                        >
+                          <span className="material-symbols-outlined text-[13px]">
+                            {org.categoryIcon || 'corporate_fare'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[11px] font-bold text-slate-900 truncate">{org.name}</span>
+                          <span className="text-[9px] text-slate-600 truncate font-mono">
+                            {org.code} • {org.tierName || 'Tier Sovereign'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-2 text-center py-2 text-[10px] text-slate-500 font-mono">
+                    Loading sovereign federation fleet...
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-bold text-slate-900 truncate">Administrator</span>
-                    <span className="text-[9px] text-slate-600 truncate">SuperAdmin • Tier 5</span>
-                  </div>
-                </button>
-
-                {/* 2. Department Head */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRoleDemo('DEMO', 'depthead@dms.gov.in', 'Head@DMS2026!', 'Department Head')
-                  }
-                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
-                    activeRoleName === 'Department Head'
-                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
-                      : 'glass-pill'
-                  }`}
-                >
-                  <div className="w-5.5 h-5.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[13px]">corporate_fare</span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-bold text-slate-900 truncate">Dept Head</span>
-                    <span className="text-[9px] text-slate-600 truncate">Approvals • Tier 4</span>
-                  </div>
-                </button>
-
-                {/* 3. Dealing Officer */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRoleDemo('DEMO', 'officer@dms.gov.in', 'Officer@DMS2026!', 'Dealing Officer')
-                  }
-                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
-                    activeRoleName === 'Dealing Officer'
-                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
-                      : 'glass-pill'
-                  }`}
-                >
-                  <div className="w-5.5 h-5.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[13px]">badge</span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-bold text-slate-900 truncate">Dealing Officer</span>
-                    <span className="text-[9px] text-slate-600 truncate">Upload • Read/Write</span>
-                  </div>
-                </button>
-
-                {/* 4. Auditor */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRoleDemo('DEMO', 'auditor@dms.gov.in', 'Auditor@DMS2026!', 'Auditor')
-                  }
-                  className={`p-1.5 rounded-lg text-left flex items-start gap-1.5 transition-all cursor-pointer ${
-                    activeRoleName === 'Auditor'
-                      ? 'border border-[#F37021] bg-orange-50/90 shadow-xs'
-                      : 'glass-pill'
-                  }`}
-                >
-                  <div className="w-5.5 h-5.5 rounded-md bg-purple-50 text-purple-600 border border-purple-200/60 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[13px]">policy</span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-bold text-slate-900 truncate">Auditor</span>
-                    <span className="text-[9px] text-slate-600 truncate">Audit 360 • Sec 65B</span>
-                  </div>
-                </button>
+                )}
               </div>
             </div>
           </div>

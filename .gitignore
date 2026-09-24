@@ -200,3 +200,8 @@ wheels/
 .agents/scratch/
 .gemini/
 docker-compose.override.yml
+*.exe
+*.traineddata
+*.doc
+*.docx
+scripts copy/
